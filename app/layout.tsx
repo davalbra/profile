@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
-import "./globals.css";
+import "@/app/globals.css";
 
 const uiSans = Inter({
   variable: "--font-geist-sans",
@@ -17,9 +17,9 @@ const mono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "davalbra | Full-Stack Developer · AI Integrations · Data & RAG",
+  title: "davalbra | Desarrollador de Software · Integraciones de IA · Datos y RAG",
   description:
-    "Portfolio de davalbra: desarrollo full-stack, integraciones IA, automatizaciones con n8n y soluciones Data/RAG.",
+    "Portafolio de davalbra: desarrollo full stack, integraciones de IA, automatizaciones con n8n y soluciones de datos y RAG.",
 };
 
 const firebaseConfig = {

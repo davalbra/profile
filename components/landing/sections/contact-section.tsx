@@ -23,7 +23,7 @@ export function ContactSection() {
             rel="noreferrer"
             className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-slate-500 px-4 py-2 text-sm font-semibold text-slate-200 transition-colors hover:border-[#137fec]/55 hover:bg-[#137fec]/10"
           >
-            Website
+            Sitio web
             <ArrowUpRight className="h-4 w-4" />
           </a>
         </div>

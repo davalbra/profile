@@ -7,12 +7,12 @@ export const pinnedRepos = ["davalbra", "profile", "lynxInit", "rsbuild-plugin-t
 
 export const services: Service[] = [
   {
-    title: "AI Integrations",
-    description: "OpenAI, Claude y Gemini con tools, function calling y assistants.",
+    title: "Integraciones de IA",
+    description: "OpenAI, Claude y Gemini con herramientas, llamada de funciones y asistentes.",
     icon: BrainCircuit,
   },
   {
-    title: "Data & RAG",
+    title: "Datos y RAG",
     description: "Vectorización, búsqueda semántica y pgvector sobre Postgres/Neon.",
     icon: Database,
   },
@@ -22,12 +22,12 @@ export const services: Service[] = [
     icon: Workflow,
   },
   {
-    title: "Full-Stack Apps",
+    title: "Aplicaciones Integrales",
     description: "Next.js / React / Vue con APIs robustas en Node.",
     icon: Code,
   },
   {
-    title: "Mobile",
+    title: "Móvil",
     description: "Kotlin + Jetpack Compose con Retrofit y Room.",
     icon: Smartphone,
   },
@@ -35,7 +35,7 @@ export const services: Service[] = [
 
 export const stackGroups: StackGroup[] = [
   {
-    name: "Frontend",
+    name: "Interfaz",
     items: [
       { label: "Vue", color: "111&logo=vuedotjs&logoColor=white" },
       { label: "React", color: "111&logo=react&logoColor=white" },
@@ -44,7 +44,7 @@ export const stackGroups: StackGroup[] = [
     ],
   },
   {
-    name: "Backend & Data",
+    name: "Backend y Datos",
     items: [
       { label: "Node.js", color: "111&logo=nodedotjs&logoColor=white" },
       { label: "PostgreSQL", color: "111&logo=postgresql&logoColor=white" },
@@ -53,7 +53,7 @@ export const stackGroups: StackGroup[] = [
     ],
   },
   {
-    name: "AI & Automation",
+    name: "IA y Automatización",
     items: [
       { label: "OpenAI", color: "111&logo=openai&logoColor=white" },
       { label: "Claude", color: "111&logo=anthropic&logoColor=white" },

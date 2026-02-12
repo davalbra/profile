@@ -12,7 +12,7 @@ export function PinnedProjectsSection({
     <section className="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
       <div className="rounded-2xl border border-slate-700/70 bg-[#16222e]/65 p-6 backdrop-blur-sm">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <h2 className="text-2xl font-bold text-white">Pinned Projects</h2>
+          <h2 className="text-2xl font-bold text-white">Proyectos Destacados</h2>
           <a
             href="https://github.com/davalbra"
             target="_blank"
@@ -60,7 +60,7 @@ export function PinnedProjectsSection({
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock3 className="h-3.5 w-3.5" />
-                  Updated {repo.updatedText}
+                  Actualizado {repo.updatedText}
                 </span>
               </div>
 
@@ -71,7 +71,7 @@ export function PinnedProjectsSection({
                   rel="noreferrer"
                   className="mt-4 inline-flex min-h-11 items-center gap-2 text-sm font-medium text-[#5faaf3] transition-colors hover:text-white"
                 >
-                  Live project
+                  Proyecto en línea
                   <ArrowUpRight className="h-4 w-4" />
                 </a>
               ) : null}

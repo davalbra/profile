@@ -24,7 +24,7 @@ const githubHeaders: HeadersInit = {
 const languageColors = ["bg-[#137fec]", "bg-sky-400", "bg-cyan-400", "bg-indigo-400"];
 
 export function formatCompact(value: number): string {
-  return new Intl.NumberFormat("en", { notation: "compact", maximumFractionDigits: 1 }).format(
+  return new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 }).format(
     value,
   );
 }
@@ -37,16 +37,16 @@ export function formatRelativeDate(isoDate: string): string {
 
   if (diffMs < hour) {
     const minutes = Math.max(1, Math.floor(diffMs / minute));
-    return `${minutes}m ago`;
+    return `hace ${minutes} min`;
   }
 
   if (diffMs < day) {
     const hours = Math.max(1, Math.floor(diffMs / hour));
-    return `${hours}h ago`;
+    return `hace ${hours} h`;
   }
 
   const days = Math.max(1, Math.floor(diffMs / day));
-  return `${days}d ago`;
+  return `hace ${days} d`;
 }
 
 function toPinnedRepositoryCard(
@@ -61,20 +61,19 @@ function toPinnedRepositoryCard(
       homepage: null,
       stars: 0,
       forks: 0,
-      language: "N/A",
+      language: "Sin dato",
       updatedAt: new Date().toISOString(),
     };
   }
 
   return {
     name: payload.name,
-    description:
-      payload.description?.trim() || "Repositorio disponible en GitHub con implementación activa.",
+    description: "Repositorio disponible en GitHub con implementación activa.",
     htmlUrl: payload.html_url,
     homepage: payload.homepage || null,
     stars: payload.stargazers_count,
     forks: payload.forks_count,
-    language: payload.language || "N/A",
+    language: payload.language || "Sin dato",
     updatedAt: payload.updated_at,
   };
 }

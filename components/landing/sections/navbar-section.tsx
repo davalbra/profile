@@ -11,16 +11,16 @@ export function NavbarSection() {
 
         <div className="hidden items-center gap-7 md:flex">
           <a href="#home" className="text-sm font-medium text-white transition-colors hover:text-[#5faaf3]">
-            Home
+            Inicio
           </a>
           <a href="#projects" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-            Projects
+            Proyectos
           </a>
           <a href="#stack" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-            Stack
+            Tecnologías
           </a>
           <a href="#contact" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-            Contact
+            Contacto
           </a>
         </div>
 

@@ -7,7 +7,7 @@ export function HeroSection() {
         <div className="space-y-4">
           <div className="inline-flex items-center rounded-full border border-[#137fec]/25 bg-[#137fec]/10 px-3 py-1 font-mono text-xs font-medium tracking-wide text-[#5faaf3]">
             <span className="mr-2 h-2 w-2 animate-pulse rounded-full bg-[#137fec]" />
-            AVAILABLE FOR NEW PROJECTS
+            DISPONIBLE PARA NUEVOS PROYECTOS
           </div>
 
           <h1 className="text-balance text-5xl font-extrabold leading-[1.07] tracking-tight text-white sm:text-6xl lg:text-7xl">
@@ -19,8 +19,8 @@ export function HeroSection() {
 
           <div className="space-y-3">
             <h2 className="font-mono text-lg text-slate-300 sm:text-xl">
-              Full-Stack Developer <span className="mx-2 text-[#137fec]">|</span>
-              <span className="text-slate-400"> AI Integrations & RAG</span>
+              Desarrollador de Software <span className="mx-2 text-[#137fec]">|</span>
+              <span className="text-slate-400"> Integraciones de IA y RAG</span>
             </h2>
             <p className="max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
               Arquitecto soluciones web y móviles con IA aplicada, automatización de procesos y
@@ -34,14 +34,14 @@ export function HeroSection() {
             href="mailto:alvrobravo@gmail.com"
             className="group relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-lg bg-[#137fec] px-8 py-3.5 text-sm font-semibold text-white shadow-[0_0_24px_rgba(19,127,236,0.3)] transition-colors hover:bg-[#0e64bd]"
           >
-            Hire me
+            Contrátame
             <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
             <span className="shimmer absolute inset-0 h-full w-full" />
           </a>
 
           <div className="flex items-center gap-3">
             <a
-              aria-label="GitHub"
+              aria-label="Perfil de GitHub"
               href="https://github.com/davalbra"
               target="_blank"
               rel="noreferrer"
@@ -50,7 +50,7 @@ export function HeroSection() {
               <Github className="h-5 w-5" />
             </a>
             <a
-              aria-label="LinkedIn"
+              aria-label="Perfil de LinkedIn"
               href="https://www.linkedin.com/in/alvarobravo/"
               target="_blank"
               rel="noreferrer"
@@ -59,7 +59,7 @@ export function HeroSection() {
               <Linkedin className="h-5 w-5" />
             </a>
             <a
-              aria-label="Website"
+              aria-label="Sitio web"
               href="https://www.davalbra.cloud/"
               target="_blank"
               rel="noreferrer"
@@ -110,7 +110,7 @@ export function HeroSection() {
               <span className="text-violet-400">  def</span> <span className="text-blue-400">query</span>(
               <span className="text-red-300">prompt</span>):
               <br />
-              <span className="text-slate-500">    # retrieve context + generate</span>
+              <span className="text-slate-500">    # recuperar contexto y generar</span>
               <br />
               <span className="text-violet-400">    return await</span>{" "}
               <span className="text-cyan-300">llm.predict</span>(<span className="text-orange-300">prompt</span>)
@@ -127,14 +127,14 @@ export function HeroSection() {
 
           <div className="absolute -bottom-8 -right-12 z-10 w-32 rounded-lg border border-slate-700/50 bg-[#16222e] p-3 shadow-xl">
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Accuracy</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Precisión</span>
               <span className="font-mono text-[10px] text-green-400">98.4%</span>
             </div>
             <div className="mb-3 h-1.5 w-full rounded-full bg-slate-800">
               <div className="h-1.5 w-[98%] rounded-full bg-green-500" />
             </div>
             <div className="mb-1 flex items-center justify-between">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Latency</span>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Latencia</span>
               <span className="font-mono text-[10px] text-[#5faaf3]">24ms</span>
             </div>
             <div className="mt-2 flex h-8 items-end justify-between gap-1">
@@ -149,7 +149,7 @@ export function HeroSection() {
 
           <div className="absolute -left-6 top-20 flex items-center gap-2 rounded-md border border-[#137fec]/20 bg-[#137fec]/10 px-3 py-1.5 text-xs text-white shadow-lg">
             <Database className="h-4 w-4 text-[#5faaf3]" />
-            <span>Vector Database</span>
+            <span>Base de Datos Vectorial</span>
           </div>
         </div>
       </div>
