@@ -19,9 +19,6 @@ export function NavbarSection() {
           <a href="#stack" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
             Stack
           </a>
-          <a href="#activity" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-            Activity
-          </a>
           <a href="#contact" className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
             Contact
           </a>

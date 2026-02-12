@@ -1,4 +1,3 @@
-export { ActivitySection } from "./activity-section";
 export { ContactSection } from "./contact-section";
 export { HeroSection } from "./hero-section";
 export { NavbarSection } from "./navbar-section";

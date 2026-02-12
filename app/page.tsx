@@ -1,12 +1,6 @@
-import { featuredDeployments, heatmapLevels, pinnedRepos, services, stackGroups } from "@/components/landing/data";
+import { pinnedRepos, services, stackGroups } from "@/components/landing/data";
+import { formatCompact, formatRelativeDate, getPinnedRepositories } from "@/components/landing/github";
 import {
-  formatCompact,
-  formatRelativeDate,
-  getEngineeringActivity,
-  getPinnedRepositories,
-} from "@/components/landing/github";
-import {
-  ActivitySection,
   ContactSection,
   HeroSection,
   NavbarSection,
@@ -17,10 +11,7 @@ import {
 import type { PinnedRepositoryView } from "@/components/landing/types";
 
 export default async function Home() {
-  const [pinnedRepositoryCards, engineeringActivity] = await Promise.all([
-    getPinnedRepositories(pinnedRepos),
-    getEngineeringActivity(),
-  ]);
+  const pinnedRepositoryCards = await getPinnedRepositories(pinnedRepos);
 
   const pinnedRepositoryViews: PinnedRepositoryView[] = pinnedRepositoryCards.map((repo) => ({
     ...repo,
@@ -54,16 +45,6 @@ export default async function Home() {
         <HeroSection />
         <ServicesSection services={services} />
         <StackSection stackGroups={stackGroups} />
-
-        <ActivitySection
-          keyStats={engineeringActivity.keyStats}
-          languageBreakdown={engineeringActivity.languageBreakdown}
-          recentPushes={engineeringActivity.recentPushes}
-          contributionHeatmap={engineeringActivity.contributionHeatmap}
-          heatmapLevels={heatmapLevels}
-          featuredDeployments={featuredDeployments}
-          lastUpdatedText={formatRelativeDate(engineeringActivity.lastUpdatedAt)}
-        />
 
         <PinnedProjectsSection pinnedRepositoryCards={pinnedRepositoryViews} />
         <ContactSection />
