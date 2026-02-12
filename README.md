@@ -12,6 +12,18 @@ Copia `.env.example` a `.env.local` y completa los valores de tu proyecto Fireba
 cp .env.example .env.local
 ```
 
+Variables usadas:
+
+```dotenv
+NEXT_FIREBASE_API_KEY=
+NEXT_FIREBASE_AUTH_DOMAIN=
+NEXT_FIREBASE_PROJECT_ID=
+NEXT_FIREBASE_STORAGE_BUCKET=
+NEXT_FIREBASE_MESSAGING_SENDER_ID=
+NEXT_FIREBASE_APP_ID=
+NEXT_FIREBASE_MEASUREMENT_ID=
+```
+
 ## 2. Configuración en Firebase Console
 
 1. Crea un proyecto en Firebase.
@@ -40,4 +52,6 @@ service firebase.storage {
 pnpm dev
 ```
 
-Abre `http://localhost:3000` para probar registro/login y subida de archivos.
+Abre:
+- `http://localhost:3000` para registro/login.
+- `http://localhost:3000/storage-test` para testear Storage con progreso de subida.

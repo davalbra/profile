@@ -4,26 +4,57 @@ import { getApp, getApps, initializeApp, type FirebaseApp, type FirebaseOptions 
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
-function readEnv(key: string): string {
-  const value = process.env[key];
-
-  if (!value) {
-    throw new Error(`Falta la variable de entorno ${key}`);
-  }
-
-  return value;
-}
+export type FirebaseRuntimeConfig = {
+  apiKey?: string;
+  authDomain?: string;
+  projectId?: string;
+  storageBucket?: string;
+  messagingSenderId?: string;
+  appId?: string;
+  measurementId?: string;
+};
 
 let firebaseApp: FirebaseApp | null = null;
+let firebaseConfig: FirebaseOptions | null = null;
 
-function getFirebaseConfig(): FirebaseOptions {
-  return {
-    apiKey: readEnv("NEXT_PUBLIC_FIREBASE_API_KEY"),
-    authDomain: readEnv("NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN"),
-    projectId: readEnv("NEXT_PUBLIC_FIREBASE_PROJECT_ID"),
-    storageBucket: readEnv("NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET"),
-    messagingSenderId: readEnv("NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID"),
-    appId: readEnv("NEXT_PUBLIC_FIREBASE_APP_ID"),
+function ensureConfig(): FirebaseOptions {
+  if (!firebaseConfig) {
+    throw new Error(
+      "Firebase no está configurado. Define NEXT_FIREBASE_* en .env.local y reinicia el servidor.",
+    );
+  }
+
+  const required: Array<keyof FirebaseOptions> = [
+    "apiKey",
+    "authDomain",
+    "projectId",
+    "storageBucket",
+    "messagingSenderId",
+    "appId",
+  ];
+
+  for (const key of required) {
+    if (!firebaseConfig[key]) {
+      throw new Error(`Falta el valor de Firebase para ${key}. Revisa tus variables NEXT_FIREBASE_*.`);
+    }
+  }
+
+  return firebaseConfig;
+}
+
+export function setFirebaseRuntimeConfig(config: FirebaseRuntimeConfig): void {
+  if (firebaseConfig) {
+    return;
+  }
+
+  firebaseConfig = {
+    apiKey: config.apiKey,
+    authDomain: config.authDomain,
+    projectId: config.projectId,
+    storageBucket: config.storageBucket,
+    messagingSenderId: config.messagingSenderId,
+    appId: config.appId,
+    measurementId: config.measurementId,
   };
 }
 
@@ -32,8 +63,8 @@ export function getFirebaseApp(): FirebaseApp {
     return firebaseApp;
   }
 
-  const firebaseConfig = getFirebaseConfig();
-  firebaseApp = getApps().length ? getApp() : initializeApp(firebaseConfig);
+  const config = ensureConfig();
+  firebaseApp = getApps().length ? getApp() : initializeApp(config);
 
   return firebaseApp;
 }

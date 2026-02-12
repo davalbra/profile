@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import type { FirebaseError } from "firebase/app";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -26,7 +27,7 @@ function getFirebaseError(error: unknown): string {
 }
 
 export default function Home() {
-  const { user, loading } = useAuth();
+  const { user, loading, error } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -109,7 +110,12 @@ export default function Home() {
         <p className="text-muted-foreground">
           Integración base lista para registrar/login y subir archivos.
         </p>
+        <Link href="/storage-test" className="text-sm underline">
+          Ir al test de Storage con progreso
+        </Link>
       </header>
+
+      {error ? <p className="text-sm text-destructive">{error}</p> : null}
 
       <section className="rounded-xl border p-6 space-y-4">
         {loading ? (
