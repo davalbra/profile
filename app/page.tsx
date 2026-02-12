@@ -1,65 +1,194 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import type { FirebaseError } from "firebase/app";
+import { useAuth } from "@/components/providers/auth-provider";
+import { signInWithEmail, signOutUser, signUpWithEmail } from "@/lib/firebase/auth";
+import { uploadFileForCurrentUser } from "@/lib/firebase/storage";
+
+function getFirebaseError(error: unknown): string {
+  const code = (error as FirebaseError | undefined)?.code;
+
+  switch (code) {
+    case "auth/email-already-in-use":
+      return "Ese correo ya está registrado.";
+    case "auth/invalid-email":
+      return "El correo no es válido.";
+    case "auth/invalid-credential":
+      return "Credenciales inválidas.";
+    case "auth/weak-password":
+      return "La contraseña debe tener al menos 6 caracteres.";
+    default:
+      return error instanceof Error
+        ? error.message
+        : "Ocurrió un error. Revisa tu configuración de Firebase.";
+  }
+}
 
 export default function Home() {
+  const { user, loading } = useAuth();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [authMessage, setAuthMessage] = useState("");
+  const [uploadMessage, setUploadMessage] = useState("");
+  const [uploadUrl, setUploadUrl] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  async function handleRegister() {
+    setBusy(true);
+    setAuthMessage("");
+
+    try {
+      await signUpWithEmail(email, password);
+      setAuthMessage("Usuario creado correctamente.");
+    } catch (error) {
+      setAuthMessage(getFirebaseError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogin() {
+    setBusy(true);
+    setAuthMessage("");
+
+    try {
+      await signInWithEmail(email, password);
+      setAuthMessage("Sesión iniciada.");
+    } catch (error) {
+      setAuthMessage(getFirebaseError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleLogout() {
+    setBusy(true);
+    setAuthMessage("");
+    setUploadMessage("");
+    setUploadUrl("");
+    setFile(null);
+
+    try {
+      await signOutUser();
+      setAuthMessage("Sesión cerrada.");
+    } catch (error) {
+      setAuthMessage(getFirebaseError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleUpload() {
+    if (!file) {
+      setUploadMessage("Selecciona un archivo primero.");
+      return;
+    }
+
+    setBusy(true);
+    setUploadMessage("");
+    setUploadUrl("");
+
+    try {
+      const result = await uploadFileForCurrentUser(file);
+      setUploadMessage(`Archivo subido en: ${result.path}`);
+      setUploadUrl(result.downloadURL);
+    } catch (error) {
+      setUploadMessage(getFirebaseError(error));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+    <main className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-8 px-6 py-12">
+      <header className="space-y-2">
+        <h1 className="text-3xl font-bold">Firebase Auth + Storage</h1>
+        <p className="text-muted-foreground">
+          Integración base lista para registrar/login y subir archivos.
+        </p>
+      </header>
+
+      <section className="rounded-xl border p-6 space-y-4">
+        {loading ? (
+          <p>Cargando sesión...</p>
+        ) : user ? (
+          <>
+            <p>
+              Usuario autenticado: <strong>{user.email}</strong>
+            </p>
+            <button
+              onClick={handleLogout}
+              disabled={busy}
+              className="rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+            >
+              Cerrar sesión
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="grid gap-3">
+              <input
+                type="email"
+                placeholder="Correo"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                className="h-10 rounded-md border bg-background px-3"
+              />
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="h-10 rounded-md border bg-background px-3"
+              />
+            </div>
+            <div className="flex flex-wrap gap-3">
+              <button
+                onClick={handleRegister}
+                disabled={busy}
+                className="rounded-md border px-4 py-2 disabled:opacity-50"
+              >
+                Crear cuenta
+              </button>
+              <button
+                onClick={handleLogin}
+                disabled={busy}
+                className="rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+              >
+                Iniciar sesión
+              </button>
+            </div>
+          </>
+        )}
+
+        {authMessage ? <p className="text-sm text-muted-foreground">{authMessage}</p> : null}
+      </section>
+
+      <section className="rounded-xl border p-6 space-y-4">
+        <h2 className="text-xl font-semibold">Subir archivo a Firebase Storage</h2>
+        <input
+          type="file"
+          onChange={(event) => setFile(event.target.files?.[0] ?? null)}
+          disabled={!user || busy}
+          className="block w-full text-sm"
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
+        <button
+          onClick={handleUpload}
+          disabled={!user || busy}
+          className="rounded-md bg-primary px-4 py-2 text-primary-foreground disabled:opacity-50"
+        >
+          Subir archivo
+        </button>
+        {uploadMessage ? <p className="text-sm text-muted-foreground">{uploadMessage}</p> : null}
+        {uploadUrl ? (
+          <a className="text-sm underline" href={uploadUrl} target="_blank" rel="noreferrer">
+            Abrir archivo subido
           </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+        ) : null}
+      </section>
+    </main>
   );
 }

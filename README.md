@@ -1,36 +1,43 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Firebase Auth + Storage en Next.js
 
-## Getting Started
+Este proyecto ya incluye integración base de Firebase para:
+- Auth con email/password
+- Storage para subida de archivos
 
-First, run the development server:
+## 1. Variables de entorno
+
+Copia `.env.example` a `.env.local` y completa los valores de tu proyecto Firebase.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+cp .env.example .env.local
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 2. Configuración en Firebase Console
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+1. Crea un proyecto en Firebase.
+2. En `Authentication > Sign-in method`, habilita `Email/Password`.
+3. En `Storage`, crea el bucket.
+4. En `Project settings > Your apps > Web app`, copia las credenciales públicas.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 3. Reglas mínimas recomendadas
 
-## Learn More
+Usa reglas de Storage que limiten acceso por usuario autenticado:
 
-To learn more about Next.js, take a look at the following resources:
+```txt
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /users/{userId}/{allPaths=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 4. Ejecutar el proyecto
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+pnpm dev
+```
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Abre `http://localhost:3000` para probar registro/login y subida de archivos.
