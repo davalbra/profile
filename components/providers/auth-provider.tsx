@@ -3,7 +3,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { User } from "firebase/auth";
 import { setFirebaseRuntimeConfig, type FirebaseRuntimeConfig } from "@/lib/firebase/client";
-import { observeAuthState } from "@/lib/firebase/auth";
+import { observeIdTokenState } from "@/lib/firebase/auth";
 
 type AuthContextValue = {
   user: User | null;
@@ -28,11 +28,49 @@ export function AuthProvider({
 
   useEffect(() => {
     let unsubscribe: (() => void) | null = null;
+    let cancelled = false;
 
     try {
-      unsubscribe = observeAuthState((nextUser) => {
-        setUser(nextUser);
-        setLoading(false);
+      unsubscribe = observeIdTokenState((nextUser) => {
+        void (async () => {
+          if (cancelled) {
+            return;
+          }
+
+          setUser(nextUser);
+          setLoading(false);
+
+          if (!nextUser) {
+            setError(null);
+            return;
+          }
+
+          try {
+            const idToken = await nextUser.getIdToken();
+            const response = await fetch("/api/auth/firebase-session", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({ idToken }),
+            });
+
+            if (!response.ok) {
+              const payload = (await response.json().catch(() => ({}))) as { error?: string };
+              throw new Error(payload.error || "No se pudo registrar la sesión en el servidor.");
+            }
+
+            if (!cancelled) {
+              setError(null);
+            }
+          } catch (reason) {
+            const message =
+              reason instanceof Error ? reason.message : "No se pudo sincronizar la sesión.";
+            if (!cancelled) {
+              setError(message);
+            }
+          }
+        })();
       });
     } catch (reason) {
       const message =
@@ -44,6 +82,7 @@ export function AuthProvider({
     }
 
     return () => {
+      cancelled = true;
       unsubscribe?.();
     };
   }, []);

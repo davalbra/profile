@@ -109,7 +109,7 @@ export async function getPinnedRepositories(repoNames: string[]): Promise<Pinned
 function normalizePushType(message: string): string {
   const prefix = message.split(":")[0]?.trim().toLowerCase();
   if (!prefix) {
-    return "update";
+    return "actualización";
   }
   return prefix.slice(0, 12);
 }
@@ -375,7 +375,7 @@ function buildRecentPushes(events: GitHubUserEventResponse[]): RecentPushItem[] 
   const commits = pushEvents.flatMap((event) =>
     (event.payload?.commits || []).map((commit) => ({
       sha: commit.sha,
-      message: commit.message.split("\n")[0] || "update repository",
+      message: commit.message.split("\n")[0] || "actualizar repositorio",
       repo: event.repo.name,
       createdAt: event.created_at,
     })),
@@ -384,10 +384,10 @@ function buildRecentPushes(events: GitHubUserEventResponse[]): RecentPushItem[] 
   if (!commits.length) {
     return [
       {
-        type: "update",
-        message: "No recent pushes available right now.",
+        type: "actualización",
+        message: "No hay pushes recientes disponibles.",
         repo: `${githubUsername}/portfolio`,
-        time: "n/a",
+        time: "sin dato",
         active: true,
       },
     ];
@@ -423,19 +423,19 @@ export async function getEngineeringActivity(): Promise<EngineeringActivityData>
 
   const keyStats: ActivityStat[] = [
     {
-      label: githubToken ? "Commits (12m)" : "Recent Commits",
+      label: githubToken ? "Commits (12 meses)" : "Commits recientes",
       value: formatCompact(contribution.totalCommits),
-      detail: `${formatCompact(commitsLast7d)} in last 7d`,
+      detail: `${formatCompact(commitsLast7d)} en 7 días`,
       icon: GitCommitHorizontal,
       iconClassName: "text-[#5faaf3]",
       detailClassName: "text-emerald-400",
       trending: true,
     },
     {
-      label: "Current Streak",
+      label: "Racha actual",
       value: String(streaks.current),
-      suffix: "days",
-      detail: `Personal best: ${streaks.best} days`,
+      suffix: "días",
+      detail: `Mejor marca: ${streaks.best} días`,
       icon: Flame,
       iconClassName: "text-orange-400",
       detailClassName: "text-slate-400",

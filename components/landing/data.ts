@@ -73,9 +73,9 @@ export const heatmapLevels = [
 
 export const featuredDeployments: FeaturedDeployment[] = [
   {
-    title: "AI WhatsApp Assistant",
+    title: "Asistente de WhatsApp con IA",
     description:
-      "An intelligent conversational agent for WhatsApp with context retention, image analysis and automated scheduling.",
+      "Agente conversacional para WhatsApp con retención de contexto, análisis de imágenes y agenda automatizada.",
     icon: Bot,
     repoUrl: "https://github.com/davalbra",
     demoUrl: "https://www.davalbra.cloud/",
@@ -91,9 +91,9 @@ export const featuredDeployments: FeaturedDeployment[] = [
       "bg-gradient-to-br from-slate-800 to-[#101922] [background-image:radial-gradient(rgba(148,163,184,0.22)_1px,transparent_1px)] [background-size:20px_20px]",
   },
   {
-    title: "Data Pipeline Orchestrator",
+    title: "Orquestador de Pipeline de Datos",
     description:
-      "A scalable ETL framework for TB-scale datasets with automated extraction, transformation and loading workflows.",
+      "Framework ETL escalable para datos a gran escala con flujos automáticos de extracción, transformación y carga.",
     icon: Network,
     repoUrl: "https://github.com/davalbra",
     demoUrl: "https://www.davalbra.cloud/",

@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  engineType = "library"
 }
 
 datasource db {
@@ -33,7 +34,8 @@ model Usuario {
   creadoEn      DateTime   @default(now())
   actualizadoEn DateTime   @updatedAt
 
-  leadsAsignados ContactoLead[]
+  leadsAsignados   ContactoLead[]
+  sesionesFirebase SesionFirebase[]
 
   @@index([rol, creadoEn(sort: Desc)])
   @@map("usuarios")
@@ -74,4 +76,23 @@ model ContactoLead {
   @@index([email])
   @@index([asignadoAId])
   @@map("contacto_leads")
+}
+
+model SesionFirebase {
+  id            String    @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token         String    @unique @db.Text
+  proveedor     String    @default("google.com")
+  ip            String?
+  userAgent     String?
+  expiraEn      DateTime
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+  revocadoEn    DateTime?
+
+  @@index([usuarioId, creadoEn(sort: Desc)])
+  @@index([expiraEn])
+  @@index([revocadoEn])
+  @@map("sesiones_firebase")
 }

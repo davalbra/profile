@@ -1,8 +1,9 @@
-# Firebase Auth + Storage en Next.js
+# Firebase Auth (Google) + Prisma en Next.js
 
 Este proyecto ya incluye integración base de Firebase para:
-- Auth con email/password
+- Auth con Google
 - Storage para subida de archivos
+- Sesión de Firebase registrada y validada en Prisma
 
 ## 1. Variables de entorno
 
@@ -22,15 +23,19 @@ NEXT_FIREBASE_STORAGE_BUCKET=
 NEXT_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_FIREBASE_APP_ID=
 NEXT_FIREBASE_MEASUREMENT_ID=
+FIREBASE_PROJECT_ID=
+FIREBASE_CLIENT_EMAIL=
+FIREBASE_PRIVATE_KEY=
 DATABASE_URL=
 ```
 
 ## 2. Configuración en Firebase Console
 
 1. Crea un proyecto en Firebase.
-2. En `Authentication > Sign-in method`, habilita `Email/Password`.
+2. En `Authentication > Sign-in method`, habilita `Google`.
 3. En `Storage`, crea el bucket.
 4. En `Project settings > Your apps > Web app`, copia las credenciales públicas.
+5. En `Project settings > Service accounts`, genera una clave privada para `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`.
 
 ## 3. Reglas mínimas recomendadas
 
@@ -53,9 +58,7 @@ service firebase.storage {
 pnpm dev
 ```
 
-Abre:
-- `http://localhost:3000` para registro/login.
-- `http://localhost:3000/storage-test` para testear Storage con progreso de subida.
+Abre `http://localhost:3000` y haz click en `davalbra` en el navbar para abrir el modal de acceso con Google.
 
 ## 5. Prisma ORM integrado
 
