@@ -1,51 +1,28 @@
 import { PrismaClient } from "@prisma/client";
+import pg from "pg";
 import { PrismaPg } from "@prisma/adapter-pg";
-import { Pool } from "pg";
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-  prismaPool: Pool | undefined;
+console.log("--- Prisma Driver Adapter Initialization ---");
+const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
+console.log("Pool created");
+const adapter = new PrismaPg(pool);
+console.log("Adapter created");
+
+const prismaClientSingleton = () => {
+  console.log("Initializing PrismaClient...");
+  const client = new PrismaClient({ adapter });
+  return client;
 };
 
-const databaseUrl = process.env.DATABASE_URL;
+declare const globalThis: {
+  prismaGlobal: ReturnType<typeof prismaClientSingleton> | undefined;
+} & typeof global;
 
-if (!databaseUrl) {
-  throw new Error("Falta DATABASE_URL para inicializar Prisma.");
-}
+const prisma = globalThis.prismaGlobal ?? prismaClientSingleton();
 
-const pool =
-  globalForPrisma.prismaPool ??
-  new Pool({
-    connectionString: databaseUrl,
-    max: process.env.NODE_ENV === "production" ? 10 : 4,
-  });
-
-const adapter = new PrismaPg(pool);
-
-function hasExpectedDelegates(client: PrismaClient | undefined): client is PrismaClient {
-  if (!client) {
-    return false;
-  }
-
-  const dynamicClient = client as unknown as Record<string, unknown>;
-  return (
-    typeof dynamicClient.usuario === "object" &&
-    typeof dynamicClient.sesionFirebase === "object" &&
-    typeof dynamicClient.configuracionAcceso === "object" &&
-    typeof dynamicClient.correoAutorizado === "object"
-  );
-}
-
-const cachedPrisma = hasExpectedDelegates(globalForPrisma.prisma) ? globalForPrisma.prisma : undefined;
-
-export const prisma =
-  cachedPrisma ??
-  new PrismaClient({
-    adapter,
-    log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["error"],
-  });
+export { prisma };
+export default prisma as ReturnType<typeof prismaClientSingleton>;
 
 if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
-  globalForPrisma.prismaPool = pool;
+  globalThis.prismaGlobal = prisma;
 }
