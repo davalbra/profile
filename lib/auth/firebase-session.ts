@@ -59,12 +59,12 @@ async function validarCorreoAutorizado(email: string, emailVerificado: boolean):
     },
   });
 
-  if (!config.requerirListaCorreos) {
-    return;
-  }
-
   if (!emailVerificado && !config.permitirCorreosNoVerificados) {
     throw new AccesoDenegadoError("Tu correo de Firebase no está verificado.");
+  }
+
+  if (!config.requerirListaCorreos) {
+    return;
   }
 
   const emailNormalizado = normalizarEmail(email);
@@ -158,6 +158,15 @@ export async function revocarSesionFirebase(idToken: string): Promise<void> {
 export async function validarSesionFirebase(idToken: string): Promise<SesionFirebaseValidada> {
   const auth = getFirebaseAdminAuth();
   const decoded = await auth.verifyIdToken(idToken);
+  const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
+  const emailVerificado = decoded.email_verified ?? false;
+
+  try {
+    await validarCorreoAutorizado(email, emailVerificado);
+  } catch (error) {
+    await revocarSesionFirebase(idToken);
+    throw error;
+  }
 
   const sesion = await prisma.sesionFirebase.findFirst({
     where: {
@@ -177,7 +186,7 @@ export async function validarSesionFirebase(idToken: string): Promise<SesionFire
 
   return {
     uid: decoded.uid,
-    email: sesion.usuario.email,
+    email,
     nombre: sesion.usuario.nombre || "Usuario",
     avatarUrl: sesion.usuario.avatarUrl || "",
   };
