@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
-import { registrarSesionFirebase, revocarSesionFirebase } from "@/lib/auth/firebase-session";
+import {
+  AccesoDenegadoError,
+  registrarSesionFirebase,
+  revocarSesionFirebase,
+} from "@/lib/auth/firebase-session";
 
 function extraerBearerToken(authorizationHeader: string | null): string | null {
   if (!authorizationHeader) {
@@ -46,7 +50,8 @@ export async function POST(request: Request) {
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudo registrar la sesión.";
-    return NextResponse.json({ error: message }, { status: 401 });
+    const status = error instanceof AccesoDenegadoError ? 403 : 401;
+    return NextResponse.json({ error: message }, { status });
   }
 }
 

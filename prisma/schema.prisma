@@ -96,3 +96,25 @@ model SesionFirebase {
   @@index([revocadoEn])
   @@map("sesiones_firebase")
 }
+
+model ConfiguracionAcceso {
+  id                           String   @id @default("default")
+  requerirListaCorreos         Boolean  @default(false)
+  permitirCorreosNoVerificados Boolean  @default(false)
+  creadoEn                     DateTime @default(now())
+  actualizadoEn                DateTime @updatedAt
+
+  @@map("configuracion_acceso")
+}
+
+model CorreoAutorizado {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  activo        Boolean  @default(true)
+  observaciones String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([activo, email])
+  @@map("correos_autorizados")
+}

@@ -80,3 +80,27 @@ pnpm prisma:studio
 ```
 
 Nota: antes de usar migraciones o `db push`, revisa que `DATABASE_URL` apunte a la base correcta.
+
+## 6. Flag de acceso por correo (Neon)
+
+El login con Firebase puede restringirse por una whitelist en base de datos.
+
+Tablas nuevas:
+- `configuracion_acceso`: flag global.
+- `correos_autorizados`: correos permitidos.
+
+Flujo:
+- Si `requerirListaCorreos = false`, entra cualquier usuario autenticado.
+- Si `requerirListaCorreos = true`, solo entran correos activos en `correos_autorizados`.
+- Si el correo no está permitido, la API responde `403`.
+
+### Activar la restricción
+
+Desde Prisma Studio (`pnpm prisma:studio`) edita `configuracion_acceso` (id `default`) y activa:
+- `requerirListaCorreos = true`
+
+### Autorizar correos
+
+Inserta filas en `correos_autorizados` con:
+- `email` en minúsculas
+- `activo = true`

@@ -22,8 +22,24 @@ const pool =
 
 const adapter = new PrismaPg(pool);
 
+function hasExpectedDelegates(client: PrismaClient | undefined): client is PrismaClient {
+  if (!client) {
+    return false;
+  }
+
+  const dynamicClient = client as unknown as Record<string, unknown>;
+  return (
+    typeof dynamicClient.usuario === "object" &&
+    typeof dynamicClient.sesionFirebase === "object" &&
+    typeof dynamicClient.configuracionAcceso === "object" &&
+    typeof dynamicClient.correoAutorizado === "object"
+  );
+}
+
+const cachedPrisma = hasExpectedDelegates(globalForPrisma.prisma) ? globalForPrisma.prisma : undefined;
+
 export const prisma =
-  globalForPrisma.prisma ??
+  cachedPrisma ??
   new PrismaClient({
     adapter,
     log: process.env.NODE_ENV === "development" ? ["query", "warn", "error"] : ["error"],

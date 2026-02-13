@@ -5,6 +5,7 @@
   "scripts": {
     "postinstall": "prisma generate",
     "prebuild": "prisma generate",
+    "predev": "prisma generate",
     "dev": "next dev",
     "build": "next build",
     "start": "next start",

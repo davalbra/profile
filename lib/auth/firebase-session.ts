@@ -8,6 +8,13 @@ type SesionFirebaseValidada = {
   avatarUrl: string;
 };
 
+export class AccesoDenegadoError extends Error {
+  constructor(message = "Tu correo no está autorizado para usar esta aplicación.") {
+    super(message);
+    this.name = "AccesoDenegadoError";
+  }
+}
+
 function getBearerToken(authorizationHeader: string | null): string | null {
   if (!authorizationHeader) {
     return null;
@@ -37,11 +44,51 @@ function getCookieToken(cookieHeader: string | null, cookieName: string): string
   return null;
 }
 
+function normalizarEmail(email: string): string {
+  return email.trim().toLowerCase();
+}
+
+async function validarCorreoAutorizado(email: string, emailVerificado: boolean): Promise<void> {
+  const config = await prisma.configuracionAcceso.upsert({
+    where: { id: "default" },
+    update: {},
+    create: { id: "default" },
+    select: {
+      requerirListaCorreos: true,
+      permitirCorreosNoVerificados: true,
+    },
+  });
+
+  if (!config.requerirListaCorreos) {
+    return;
+  }
+
+  if (!emailVerificado && !config.permitirCorreosNoVerificados) {
+    throw new AccesoDenegadoError("Tu correo de Firebase no está verificado.");
+  }
+
+  const emailNormalizado = normalizarEmail(email);
+  const autorizado = await prisma.correoAutorizado.findFirst({
+    where: {
+      email: emailNormalizado,
+      activo: true,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!autorizado) {
+    throw new AccesoDenegadoError();
+  }
+}
+
 export async function registrarSesionFirebase(idToken: string, request: Request) {
   const auth = getFirebaseAdminAuth();
   const decoded = await auth.verifyIdToken(idToken);
 
-  const email = decoded.email || `${decoded.uid}@firebase.local`;
+  const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
+  const emailVerificado = decoded.email_verified ?? false;
   const nombre = decoded.name || "Usuario";
   const avatarUrl = decoded.picture || null;
   const expiraEn = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 3600_000);
@@ -49,6 +96,8 @@ export async function registrarSesionFirebase(idToken: string, request: Request)
   const forwardedFor = request.headers.get("x-forwarded-for") || "";
   const ip = forwardedFor.split(",")[0]?.trim() || null;
   const userAgent = request.headers.get("user-agent");
+
+  await validarCorreoAutorizado(email, emailVerificado);
 
   await prisma.usuario.upsert({
     where: { id: decoded.uid },
