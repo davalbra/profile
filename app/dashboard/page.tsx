@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import { ArrowUpRight, Bell, CheckCircle2, Clock3, FolderKanban, Search, Sparkles, Users } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -55,7 +58,7 @@ const recentLeads = [
 ] as const;
 
 const teamProgress = [
-  { initials: "DV", name: "David Br." , role: "Arquitectura", load: 82 },
+  { initials: "DV", name: "David Br.", role: "Arquitectura", load: 82 },
   { initials: "AL", name: "Andrea L.", role: "Frontend", load: 67 },
   { initials: "MC", name: "Mario C.", role: "Data / ETL", load: 54 },
   { initials: "JR", name: "Julia R.", role: "QA", load: 41 },
@@ -68,6 +71,14 @@ const timeline = [
   { title: "Nueva tarea: Integración API", time: "Hace 2 h", tag: "Backoffice" },
 ] as const;
 
+const dashboardTabs = [
+  { value: "overview", label: "Resumen", icon: Sparkles },
+  { value: "team", label: "Equipo", icon: Users },
+  { value: "activity", label: "Actividad", icon: Clock3 },
+] as const;
+
+type DashboardTab = (typeof dashboardTabs)[number]["value"];
+
 function statusVariant(status: string) {
   if (status === "Aprobado") {
     return "default";
@@ -79,13 +90,33 @@ function statusVariant(status: string) {
 }
 
 export default function DashboardPage() {
+  const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+
   return (
     <div className="min-h-screen bg-background">
-      <div className="border-b border-border bg-card/70 backdrop-blur">
-        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-4 md:px-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Panel operativo</p>
-            <h1 className="text-xl font-semibold md:text-2xl">Dashboard de Gestión</h1>
+      <nav className="sticky top-0 z-40 border-b border-border/80 bg-background/90 backdrop-blur">
+        <div className="mx-auto flex w-full max-w-7xl items-center justify-between gap-3 px-4 py-3 md:px-6">
+          <div className="flex items-center gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.22em] text-muted-foreground">Panel operativo</p>
+              <h1 className="text-xl font-semibold md:text-2xl">Dashboard de Gestión</h1>
+            </div>
+
+            <div className="hidden items-center gap-1 rounded-lg border border-border/70 bg-card/70 p-1 md:flex">
+              {dashboardTabs.map((tab) => (
+                <Button
+                  key={tab.value}
+                  variant={activeTab === tab.value ? "secondary" : "ghost"}
+                  size="sm"
+                  className="gap-2"
+                  onClick={() => setActiveTab(tab.value)}
+                  aria-current={activeTab === tab.value ? "page" : undefined}
+                >
+                  <tab.icon className="h-4 w-4" />
+                  {tab.label}
+                </Button>
+              ))}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button size="icon" variant="ghost" aria-label="Notificaciones">
@@ -97,7 +128,7 @@ export default function DashboardPage() {
             </Button>
           </div>
         </div>
-      </div>
+      </nav>
 
       <main className="mx-auto w-full max-w-7xl space-y-6 px-4 py-6 md:px-6 md:py-8">
         <div className="grid gap-3 md:grid-cols-[1fr_auto]">
@@ -131,11 +162,13 @@ export default function DashboardPage() {
           ))}
         </section>
 
-        <Tabs defaultValue="overview" className="space-y-4">
-          <TabsList>
-            <TabsTrigger value="overview">Resumen</TabsTrigger>
-            <TabsTrigger value="team">Equipo</TabsTrigger>
-            <TabsTrigger value="activity">Actividad</TabsTrigger>
+        <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as DashboardTab)} className="space-y-4">
+          <TabsList className="md:hidden">
+            {dashboardTabs.map((tab) => (
+              <TabsTrigger key={tab.value} value={tab.value}>
+                {tab.label}
+              </TabsTrigger>
+            ))}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
