@@ -5,8 +5,6 @@ type StackSectionProps = {
   stackGroups: StackGroup[];
 };
 
-const niveles = ["Alto", "Sólido", "Activo"];
-
 export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
   const estilosPorGrupo = [
     {
@@ -14,7 +12,6 @@ export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
       borde: "hover:border-cyan-400/45",
       brillo: "from-cyan-400/20",
       punto: "bg-cyan-300",
-      barra: "from-cyan-400 to-sky-500",
       fondo: "from-cyan-500/10",
     },
     {
@@ -22,7 +19,6 @@ export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
       borde: "hover:border-emerald-400/45",
       brillo: "from-emerald-400/20",
       punto: "bg-emerald-300",
-      barra: "from-emerald-400 to-teal-500",
       fondo: "from-emerald-500/10",
     },
     {
@@ -30,7 +26,6 @@ export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
       borde: "hover:border-violet-400/45",
       brillo: "from-violet-400/20",
       punto: "bg-violet-300",
-      barra: "from-violet-400 to-indigo-500",
       fondo: "from-violet-500/10",
     },
   ] as const;
@@ -75,7 +70,6 @@ export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
             {stackGroups.map((group, groupIndex) => {
               const estilo = estilosPorGrupo[groupIndex % estilosPorGrupo.length];
               const Icono = estilo.icono;
-              const promedioDominio = Math.min(96, 72 + group.items.length * 5);
 
               return (
                 <article
@@ -103,33 +97,17 @@ export function StackSection({ stackGroups }: Readonly<StackSectionProps>) {
                     </div>
 
                     <div className="grid gap-2.5">
-                      {group.items.map((item, itemIndex) => (
+                      {group.items.map((item) => (
                         <div
                           key={item.label}
-                          className="flex min-h-11 items-center justify-between rounded-lg border border-slate-700/70 bg-[#0f1a26]/80 px-3 py-2 text-sm transition-colors hover:border-slate-500/70"
+                          className="flex min-h-11 items-center rounded-lg border border-slate-700/70 bg-[#0f1a26]/80 px-3 py-2 text-sm transition-colors hover:border-slate-500/70"
                         >
                           <span className="inline-flex items-center gap-2 text-slate-200">
                             <span className={`h-2 w-2 rounded-full ${estilo.punto}`} />
                             {item.label}
                           </span>
-                          <span className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-                            {niveles[(itemIndex + groupIndex) % niveles.length]}
-                          </span>
                         </div>
                       ))}
-                    </div>
-
-                    <div className="mt-4">
-                      <div className="mb-1.5 flex items-center justify-between text-[11px] uppercase tracking-wide text-slate-500">
-                        <span>Dominio</span>
-                        <span>{promedioDominio}%</span>
-                      </div>
-                      <div className="h-1.5 overflow-hidden rounded-full bg-slate-800">
-                        <div
-                          className={`h-1.5 rounded-full bg-gradient-to-r ${estilo.barra}`}
-                          style={{ width: `${promedioDominio}%` }}
-                        />
-                      </div>
                     </div>
                   </div>
                 </article>
