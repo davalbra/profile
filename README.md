@@ -22,6 +22,7 @@ NEXT_FIREBASE_STORAGE_BUCKET=
 NEXT_FIREBASE_MESSAGING_SENDER_ID=
 NEXT_FIREBASE_APP_ID=
 NEXT_FIREBASE_MEASUREMENT_ID=
+DATABASE_URL=
 ```
 
 ## 2. Configuración en Firebase Console
@@ -55,3 +56,24 @@ pnpm dev
 Abre:
 - `http://localhost:3000` para registro/login.
 - `http://localhost:3000/storage-test` para testear Storage con progreso de subida.
+
+## 5. Prisma ORM integrado
+
+El proyecto ya incluye Prisma con PostgreSQL:
+
+- Config principal: `prisma.config.ts`
+- Esquema: `prisma/schema.prisma`
+- Cliente compartido: `lib/prisma.ts`
+
+Comandos disponibles:
+
+```bash
+pnpm prisma:validate
+pnpm prisma:format
+pnpm prisma:generate
+pnpm prisma:migrate
+pnpm prisma:push
+pnpm prisma:studio
+```
+
+Nota: antes de usar migraciones o `db push`, revisa que `DATABASE_URL` apunte a la base correcta.

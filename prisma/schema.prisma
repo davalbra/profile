@@ -1,0 +1,77 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RolUsuario {
+  ADMIN
+  COLABORADOR
+  LECTOR
+}
+
+enum EstadoProyecto {
+  BORRADOR
+  PUBLICADO
+  ARCHIVADO
+}
+
+enum EstadoLead {
+  NUEVO
+  EN_PROCESO
+  CERRADO
+}
+
+model Usuario {
+  id            String     @id // UID de Firebase/Auth provider
+  email         String     @unique
+  nombre        String?
+  avatarUrl     String?
+  rol           RolUsuario @default(LECTOR)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+
+  leadsAsignados ContactoLead[]
+
+  @@index([rol, creadoEn(sort: Desc)])
+  @@map("usuarios")
+}
+
+model Proyecto {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  titulo         String
+  descripcion    String?
+  repositorioUrl String?
+  demoUrl        String?
+  stack          String[]
+  destacado      Boolean        @default(false)
+  estado         EstadoProyecto @default(BORRADOR)
+  creadoEn       DateTime       @default(now())
+  actualizadoEn  DateTime       @updatedAt
+
+  @@index([destacado, actualizadoEn(sort: Desc)])
+  @@index([estado, creadoEn(sort: Desc)])
+  @@map("proyectos")
+}
+
+model ContactoLead {
+  id            String     @id @default(cuid())
+  nombre        String
+  email         String
+  empresa       String?
+  mensaje       String     @db.Text
+  origen        String?    @default("landing")
+  estado        EstadoLead @default(NUEVO)
+  asignadoAId   String?
+  asignadoA     Usuario?   @relation(fields: [asignadoAId], references: [id], onDelete: SetNull)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+
+  @@index([estado, creadoEn(sort: Desc)])
+  @@index([email])
+  @@index([asignadoAId])
+  @@map("contacto_leads")
+}
