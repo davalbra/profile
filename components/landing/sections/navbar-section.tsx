@@ -6,7 +6,7 @@ export function NavbarSection() {
           href="#home"
           className="cursor-pointer text-2xl font-bold tracking-tight text-white transition-colors hover:text-[#5faaf3]"
         >
-          DB<span className="text-[#137fec]">.</span>
+          <small>davalbra</small><span className="text-[#137fec]">.</span>
         </a>
 
         <div className="hidden items-center gap-7 md:flex">
