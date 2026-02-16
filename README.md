@@ -1,6 +1,7 @@
 # Firebase Auth (Google) + Prisma en Next.js
 
 Este proyecto ya incluye integración base de Firebase para:
+
 - Auth con Google
 - Storage para subida de archivos
 - Sesión de Firebase registrada y validada en Prisma
@@ -35,7 +36,8 @@ DATABASE_URL=
 2. En `Authentication > Sign-in method`, habilita `Google`.
 3. En `Storage`, crea el bucket.
 4. En `Project settings > Your apps > Web app`, copia las credenciales públicas.
-5. En `Project settings > Service accounts`, genera una clave privada para `FIREBASE_CLIENT_EMAIL` y `FIREBASE_PRIVATE_KEY`.
+5. En `Project settings > Service accounts`, genera una clave privada para `FIREBASE_CLIENT_EMAIL` y
+   `FIREBASE_PRIVATE_KEY`.
 
 ## 3. Reglas mínimas recomendadas
 
@@ -86,10 +88,12 @@ Nota: antes de usar migraciones o `db push`, revisa que `DATABASE_URL` apunte a 
 El login con Firebase puede restringirse por una whitelist en base de datos.
 
 Tablas nuevas:
+
 - `configuracion_acceso`: flag global.
 - `correos_autorizados`: correos permitidos.
 
 Flujo:
+
 - Si `requerirListaCorreos = false`, entra cualquier usuario autenticado.
 - Si `requerirListaCorreos = true`, solo entran correos activos en `correos_autorizados`.
 - Si el correo no está permitido, la API responde `403`.
@@ -97,10 +101,33 @@ Flujo:
 ### Activar la restricción
 
 Desde Prisma Studio (`pnpm prisma:studio`) edita `configuracion_acceso` (id `default`) y activa:
+
 - `requerirListaCorreos = true`
 
 ### Autorizar correos
 
 Inserta filas en `correos_autorizados` con:
+
 - `email` en minúsculas
 - `activo = true`
+
+## 7. RBAC por rol (Prisma)
+
+Además de la sesión Firebase y la whitelist por correo, el proyecto ahora valida rol mínimo por ruta.
+
+Roles disponibles en `Usuario.rol`:
+
+- `LECTOR` (default)
+- `COLABORADOR`
+- `ADMIN`
+
+Rutas protegidas por rol desde `proxy.ts`:
+
+- `/dashboard` requiere `COLABORADOR` o `ADMIN`
+- `/storage-test` requiere `COLABORADOR` o `ADMIN`
+
+Si un usuario autenticado no tiene rol suficiente, redirige a `/` con `?auth=forbidden`.
+
+### Cambiar rol de un usuario
+
+Desde Prisma Studio (`pnpm prisma:studio`) en la tabla `usuarios`, edita el campo `rol` del usuario.
