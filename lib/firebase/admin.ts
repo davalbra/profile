@@ -1,5 +1,6 @@
 import { cert, getApps, initializeApp, type App } from "firebase-admin/app";
 import { getAuth } from "firebase-admin/auth";
+import { getStorage } from "firebase-admin/storage";
 
 let adminApp: App | null = null;
 
@@ -75,6 +76,10 @@ function getFirebaseAdminConfig() {
   const privateKey = normalizePrivateKey(
     pickEnv("FIREBASE_PRIVATE_KEY", "NEXT_FIREBASE_PRIVATE_KEY"),
   );
+  const storageBucket = normalizeScalarEnv(
+    pickEnv("FIREBASE_STORAGE_BUCKET", "NEXT_FIREBASE_STORAGE_BUCKET", "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
+      "",
+  );
 
   const missing: string[] = [];
   if (!projectId) {
@@ -91,7 +96,7 @@ function getFirebaseAdminConfig() {
     throw new Error(`Faltan variables para Firebase Admin: ${missing.join(", ")}.`);
   }
 
-  return { projectId, clientEmail, privateKey };
+  return { projectId, clientEmail, privateKey, storageBucket };
 }
 
 export function getFirebaseAdminApp(): App {
@@ -108,6 +113,7 @@ export function getFirebaseAdminApp(): App {
   adminApp = initializeApp({
     credential: cert(config),
     projectId: config.projectId,
+    storageBucket: config.storageBucket || undefined,
   });
 
   return adminApp;
@@ -115,4 +121,8 @@ export function getFirebaseAdminApp(): App {
 
 export function getFirebaseAdminAuth() {
   return getAuth(getFirebaseAdminApp());
+}
+
+export function getFirebaseAdminStorage() {
+  return getStorage(getFirebaseAdminApp());
 }

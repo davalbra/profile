@@ -8,14 +8,15 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
-import {
-  deleteFileForCurrentUser,
-  listFilesForCurrentUser,
-  uploadBlobForCurrentUserWithProgress,
-  type StoredFile,
-} from "@/lib/firebase/storage";
-
-const IMAGE_FOLDER = "images/optimized";
+type StoredFile = {
+  path: string;
+  name: string;
+  downloadURL: string;
+  contentType: string | null;
+  sizeBytes: number | null;
+  createdAt: string | null;
+  updatedAt: string | null;
+};
 
 function formatBytes(bytes: number | null): string {
   if (!bytes || Number.isNaN(bytes)) {
@@ -48,39 +49,35 @@ function formatDate(isoDate: string | null): string {
   }).format(date);
 }
 
-function fileNameToWebp(fileName: string): string {
-  const base = fileName.replace(/\.[^.]+$/, "").trim();
-  const safeBase = base.replace(/[^a-zA-Z0-9\-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "imagen";
-  return `${safeBase}.webp`;
-}
-
-async function optimizeImageOnServer(file: File): Promise<{
-  blob: Blob;
+async function uploadOptimizedImage(file: File): Promise<{
   optimizedBytes: number;
   originalBytes: number;
 }> {
   const formData = new FormData();
   formData.append("image", file);
 
-  const response = await fetch("/api/images/optimize", {
+  const response = await fetch("/api/images", {
     method: "POST",
     body: formData,
   });
 
   if (!response.ok) {
     const payload = (await response.json().catch(() => ({}))) as { error?: string };
-    throw new Error(payload.error || "No se pudo optimizar la imagen.");
+    throw new Error(payload.error || "No se pudo optimizar y subir la imagen.");
   }
 
-  const blob = await response.blob();
-  const optimizedBytes = Number(response.headers.get("X-Optimized-Size") || blob.size);
-  const originalBytes = Number(response.headers.get("X-Original-Size") || file.size);
+  const payload = (await response.json().catch(() => null)) as {
+    image?: { sizeBytes?: number | null };
+  } | null;
+  const optimizedBytes = Number(payload?.image?.sizeBytes || 0);
+  const originalBytes = file.size;
 
-  return { blob, optimizedBytes, originalBytes };
+  return { optimizedBytes, originalBytes };
 }
 
 export function ImagesManager() {
   const { user, loading, error } = useAuth();
+  const userId = user?.uid || null;
   const [files, setFiles] = useState<File[]>([]);
   const [images, setImages] = useState<StoredFile[]>([]);
   const [busy, setBusy] = useState(false);
@@ -91,7 +88,7 @@ export function ImagesManager() {
   const [failure, setFailure] = useState<string | null>(null);
 
   const loadImages = useCallback(async () => {
-    if (!user) {
+    if (!userId) {
       setImages([]);
       return;
     }
@@ -99,15 +96,25 @@ export function ImagesManager() {
     setLoadingImages(true);
     setFailure(null);
     try {
-      const storedFiles = await listFilesForCurrentUser(IMAGE_FOLDER);
-      setImages(storedFiles);
+      const response = await fetch("/api/images", {
+        method: "GET",
+        cache: "no-store",
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error || "No se pudieron cargar las imágenes.");
+      }
+
+      const payload = (await response.json()) as { images?: StoredFile[] };
+      setImages(payload.images || []);
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "No se pudieron cargar las imágenes.";
       setFailure(message);
     } finally {
       setLoadingImages(false);
     }
-  }, [user]);
+  }, [userId]);
 
   useEffect(() => {
     void loadImages();
@@ -131,31 +138,16 @@ export function ImagesManager() {
     try {
       for (const file of files) {
         setCurrentFileName(file.name);
-        setProgress(5);
+        setProgress(10);
         setStatus(`Optimizando ${file.name}...`);
 
-        const optimized = await optimizeImageOnServer(file);
+        const optimized = await uploadOptimizedImage(file);
         const ratio = optimized.originalBytes
           ? Math.max(0, 100 - Math.round((optimized.optimizedBytes / optimized.originalBytes) * 100))
           : 0;
 
-        setStatus(`Subiendo ${file.name} (ahorro aproximado ${ratio}%)...`);
-
-        await uploadBlobForCurrentUserWithProgress(
-          optimized.blob,
-          {
-            folder: IMAGE_FOLDER,
-            fileName: fileNameToWebp(file.name),
-            contentType: "image/webp",
-            customMetadata: {
-              originalName: file.name,
-              originalBytes: String(optimized.originalBytes),
-              optimizedBytes: String(optimized.optimizedBytes),
-              optimizedAt: new Date().toISOString(),
-            },
-          },
-          setProgress,
-        );
+        setStatus(`Procesando ${file.name} (ahorro aproximado ${ratio}%)...`);
+        setProgress(100);
       }
 
       setFiles([]);
@@ -184,7 +176,19 @@ export function ImagesManager() {
     setBusy(true);
     setFailure(null);
     try {
-      await deleteFileForCurrentUser(path);
+      const response = await fetch("/api/images", {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ path }),
+      });
+
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => ({}))) as { error?: string };
+        throw new Error(payload.error || "No se pudo eliminar la imagen.");
+      }
+
       await loadImages();
     } catch (reason) {
       const message = reason instanceof Error ? reason.message : "No se pudo eliminar la imagen.";
@@ -218,7 +222,7 @@ export function ImagesManager() {
               Gestión de Imágenes Web
             </CardTitle>
             <CardDescription>
-              Acepta formatos de imagen y los convierte automáticamente a WebP optimizado.
+              Guarda originales y versiones WebP optimizadas en `davalbra-imagenes-fix`.
             </CardDescription>
           </div>
           <div className="flex gap-2">
@@ -307,7 +311,7 @@ export function ImagesManager() {
         </div>
 
         {!loadingImages && user && images.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No hay imágenes todavía en `users/&lt;uid&gt;/images/optimized`.</p>
+          <p className="text-sm text-muted-foreground">No hay imágenes todavía en tu carpeta optimizada.</p>
         ) : null}
       </CardContent>
     </Card>
