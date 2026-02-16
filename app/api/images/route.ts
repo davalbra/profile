@@ -59,6 +59,24 @@ function getBaseName(fileName: string): string {
     return noExt.replace(/[^a-zA-Z0-9\-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "imagen";
 }
 
+function normalizeStoredImageName(rawName: string): string {
+  const trimmed = rawName.trim();
+  if (!trimmed) {
+    throw new Error("El nombre no puede estar vacío.");
+  }
+
+  const sanitized = trimmed
+    .replace(/[\\/\0]/g, "-")
+    .replace(/\s+/g, " ")
+    .slice(0, 120);
+
+  if (!sanitized) {
+    throw new Error("El nombre no es válido.");
+  }
+
+  return sanitized.toLowerCase().endsWith(".avif") ? sanitized : `${sanitized}.avif`;
+}
+
 function buildFolderPrefix(uid: string, folder: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${folder}/`;
 }
@@ -404,4 +422,77 @@ export async function DELETE(request: Request) {
         const message = error instanceof Error ? error.message : "No se pudo eliminar la imagen.";
         return NextResponse.json({error: message}, {status: 500});
     }
+}
+
+export async function PATCH(request: Request) {
+  try {
+    const sesion = await requerirSesionFirebase(request, { rolMinimo: "COLABORADOR" });
+    const payload = (await request.json().catch(() => null)) as { path?: string; name?: string } | null;
+    const path = payload?.path?.trim();
+    const rawName = payload?.name ?? "";
+
+    if (!path) {
+      return NextResponse.json({ error: "Falta path de la imagen." }, { status: 400 });
+    }
+
+    let normalizedName: string;
+    try {
+      normalizedName = normalizeStoredImageName(rawName);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "Nombre inválido.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+
+    const image = await prisma.imagen.findFirst({
+      where: {
+        usuarioId: sesion.uid,
+        pathOptimizada: path,
+        eliminadoEn: null,
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (!image) {
+      return NextResponse.json({ error: "Imagen no encontrada." }, { status: 404 });
+    }
+
+    const updated = await prisma.imagen.update({
+      where: { id: image.id },
+      data: {
+        nombreOptimizado: normalizedName,
+      },
+      select: {
+        id: true,
+        pathOptimizada: true,
+        nombreOptimizado: true,
+        mimeOptimizado: true,
+        bytesOptimizado: true,
+        bytesOriginal: true,
+        creadoEn: true,
+        actualizadoEn: true,
+        tokenOptimizado: true,
+      },
+    });
+
+    const statsByImageId = await getLatestOptimizationStats([updated.id]);
+    const bucketName = getFirebaseAdminStorage().bucket().name;
+
+    return NextResponse.json(
+      {
+        ok: true,
+        image: toImageResponse(updated, statsByImageId, bucketName),
+      },
+      { headers: { "Cache-Control": "no-store" } },
+    );
+  } catch (error) {
+    const authError = parseAuthError(error);
+    if (authError) {
+      return authError;
+    }
+
+    const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen.";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
 }
