@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowUpRight, Bell, CheckCircle2, Clock3, FolderKanban, Search, Sparkles, Users } from "lucide-react";
+import { ArrowUpRight, Bell, CheckCircle2, Clock3, FolderKanban, ImagePlus, Search, Sparkles, Users } from "lucide-react";
+import { ImagesManager } from "@/components/dashboard/images-manager";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -75,6 +76,7 @@ const dashboardTabs = [
   { value: "overview", label: "Resumen", icon: Sparkles },
   { value: "team", label: "Equipo", icon: Users },
   { value: "activity", label: "Actividad", icon: Clock3 },
+  { value: "images", label: "Imágenes", icon: ImagePlus },
 ] as const;
 
 type DashboardTab = (typeof dashboardTabs)[number]["value"];
@@ -278,6 +280,10 @@ export default function DashboardPage() {
                 ))}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="images" className="space-y-4">
+            <ImagesManager />
           </TabsContent>
         </Tabs>
       </main>
