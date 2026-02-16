@@ -1,5 +1,5 @@
 generator client {
-  provider = "prisma-client-js"
+  provider   = "prisma-client-js"
   engineType = "library"
 }
 
@@ -43,27 +43,47 @@ model Usuario {
 }
 
 model Imagen {
-  id              String   @id @default(cuid())
-  usuarioId       String
-  usuario         Usuario  @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
-  nombreOriginal  String
-  nombreOptimizado String
-  pathOriginal    String   @unique @db.Text
-  pathOptimizada  String   @unique @db.Text
-  tokenOriginal   String   @db.Text
-  tokenOptimizado String   @db.Text
-  mimeOriginal    String
-  mimeOptimizado  String   @default("image/avif")
-  bytesOriginal   Int
-  bytesOptimizado Int
-  creadoEn        DateTime @default(now())
-  actualizadoEn   DateTime @updatedAt
-  eliminadoEn     DateTime?
+  id                       String                          @id @default(cuid())
+  usuarioId                String
+  usuario                  Usuario                         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nombreOriginal           String
+  nombreOptimizado         String
+  pathOriginal             String                          @unique @db.Text
+  pathOptimizada           String                          @unique @db.Text
+  tokenOriginal            String                          @db.Text
+  tokenOptimizado          String                          @db.Text
+  mimeOriginal             String
+  mimeOptimizado           String                          @default("image/avif")
+  bytesOriginal            Int
+  bytesOptimizado          Int
+  creadoEn                 DateTime                        @default(now())
+  actualizadoEn            DateTime                        @updatedAt
+  eliminadoEn              DateTime?
+  estadisticasOptimizacion ImagenOptimizacionEstadistica[]
 
   @@index([usuarioId, creadoEn(sort: Desc)])
   @@index([usuarioId, eliminadoEn])
   @@index([eliminadoEn])
   @@map("imagenes")
+}
+
+model ImagenOptimizacionEstadistica {
+  id                String   @id @default(cuid())
+  imagenId          String
+  imagen            Imagen   @relation(fields: [imagenId], references: [id], onDelete: Cascade)
+  bytesOriginal     Int
+  bytesOptimizado   Int
+  bytesAhorrados    Int
+  porcentajeAhorro  Float
+  formatoOriginal   String?
+  formatoOptimizado String?
+  motor             String   @default("sharp-avif")
+  calidad           Int?
+  esfuerzo          Int?
+  creadoEn          DateTime @default(now())
+
+  @@index([imagenId, creadoEn(sort: Desc)])
+  @@map("imagenes_optimizacion_estadisticas")
 }
 
 model Proyecto {
