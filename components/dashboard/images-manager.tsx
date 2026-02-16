@@ -222,7 +222,7 @@ export function ImagesManager() {
               Gestión de Imágenes Web
             </CardTitle>
             <CardDescription>
-              Guarda originales y versiones WebP optimizadas en `davalbra-imagenes-fix`.
+              Guarda originales en su formato y versiones optimizadas en AVIF dentro de `davalbra-imagenes-fix`.
             </CardDescription>
           </div>
           <div className="flex gap-2">

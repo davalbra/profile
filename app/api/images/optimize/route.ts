@@ -8,7 +8,7 @@ import {
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const MAX_DIMENSION = 2400;
-const WEBP_QUALITY = 82;
+const AVIF_QUALITY = 52;
 
 function getBaseName(fileName: string): string {
   const trimmed = fileName.trim();
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Debes enviar un archivo en el campo image o file." }, { status: 400 });
     }
 
-    if (!fileValue.type.startsWith("image/")) {
+    if (fileValue.type && !fileValue.type.startsWith("image/")) {
       return NextResponse.json({ error: "El archivo debe ser una imagen." }, { status: 415 });
     }
 
@@ -59,25 +59,25 @@ export async function POST(request: Request) {
         fit: "inside",
         withoutEnlargement: true,
       })
-      .webp({
-        quality: WEBP_QUALITY,
+      .avif({
+        quality: AVIF_QUALITY,
         effort: 4,
       })
       .toBuffer();
 
-    const outputName = `${getBaseName(fileValue.name)}.webp`;
+    const outputName = `${getBaseName(fileValue.name)}.avif`;
 
     return new Response(new Uint8Array(output), {
       status: 200,
       headers: {
-        "Content-Type": "image/webp",
+        "Content-Type": "image/avif",
         "Content-Disposition": `inline; filename="${outputName}"`,
         "Cache-Control": "no-store",
         "X-Original-Name": encodeURIComponent(fileValue.name),
         "X-Original-Size": String(fileValue.size),
         "X-Original-Format": metadata.format || fileValue.type || "unknown",
         "X-Optimized-Size": String(output.length),
-        "X-Optimized-Format": "webp",
+        "X-Optimized-Format": "avif",
         "X-Optimized-Width": String(metadata.width || 0),
         "X-Optimized-Height": String(metadata.height || 0),
       },

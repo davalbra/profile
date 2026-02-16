@@ -9,7 +9,7 @@ import { getFirebaseAdminStorage } from "@/lib/firebase/admin";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const MAX_DIMENSION = 2400;
-const WEBP_QUALITY = 82;
+const AVIF_QUALITY = 52;
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_ORIGINALS_FOLDER = "originales";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
@@ -158,7 +158,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Debes enviar un archivo en el campo image o file." }, { status: 400 });
     }
 
-    if (!fileValue.type.startsWith("image/")) {
+    if (fileValue.type && !fileValue.type.startsWith("image/")) {
       return NextResponse.json({ error: "El archivo debe ser una imagen." }, { status: 415 });
     }
 
@@ -182,8 +182,8 @@ export async function POST(request: Request) {
         fit: "inside",
         withoutEnlargement: true,
       })
-      .webp({
-        quality: WEBP_QUALITY,
+      .avif({
+        quality: AVIF_QUALITY,
         effort: 4,
       })
       .toBuffer();
@@ -193,7 +193,7 @@ export async function POST(request: Request) {
     const safeExtension = extension ? extension.replace(/[^a-z0-9]/g, "") || "bin" : "bin";
     const timestamp = Date.now();
     const originalName = `${timestamp}-${baseName}.${safeExtension}`;
-    const optimizedName = `${timestamp}-${baseName}.webp`;
+    const optimizedName = `${timestamp}-${baseName}.avif`;
     const originalPath = `${buildFolderPrefix(sesion.uid, IMAGE_ORIGINALS_FOLDER)}${originalName}`;
     const optimizedPath = `${buildFolderPrefix(sesion.uid, IMAGE_OPTIMIZED_FOLDER)}${optimizedName}`;
     const optimizedToken = crypto.randomUUID();
@@ -217,7 +217,7 @@ export async function POST(request: Request) {
     await optimizedFile.save(output, {
       resumable: false,
       metadata: {
-        contentType: "image/webp",
+        contentType: "image/avif",
         metadata: {
           firebaseStorageDownloadTokens: optimizedToken,
           originalName: fileValue.name,
@@ -236,7 +236,7 @@ export async function POST(request: Request) {
           path: optimizedPath,
           name: optimizedName,
           downloadURL: getDownloadUrl(bucket.name, optimizedPath, optimizedToken),
-          contentType: "image/webp",
+          contentType: "image/avif",
           sizeBytes: output.length,
         } satisfies Partial<ImageItem>,
         original: {
