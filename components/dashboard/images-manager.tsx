@@ -567,6 +567,12 @@ export function ImagesManager() {
                           <Input
                             value={editName}
                             onChange={(event) => setEditName(event.target.value)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" && renamingPath !== image.path) {
+                                event.preventDefault();
+                                void handleRename(image.path);
+                              }
+                            }}
                             maxLength={120}
                             placeholder="Nuevo nombre (.avif opcional)"
                             className="h-8"
