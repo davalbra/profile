@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
 import { AuthProvider } from "@/components/providers/auth-provider";
+import { ThemeProvider } from "@/components/theme-provider";
 import "@/app/globals.css";
 
 const uiSans = Inter({
@@ -42,9 +43,11 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es">
+    <html lang="es" suppressHydrationWarning>
       <body className={`${uiSans.variable} ${mono.variable} antialiased`}>
-        <AuthProvider firebaseConfig={firebaseConfig}>{children}</AuthProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <AuthProvider firebaseConfig={firebaseConfig}>{children}</AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

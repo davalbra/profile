@@ -2,6 +2,7 @@
 
 import {useState} from "react";
 import {GoogleLoginModal} from "@/components/auth/google-login-modal";
+import { ModeToggle } from "@/components/mode-toggle";
 
 export function NavbarSection() {
     const [modalAbierto, setModalAbierto] = useState(false);
@@ -21,23 +22,26 @@ export function NavbarSection() {
                         <span className="text-[#137fec]">.</span>
                     </button>
 
-                    <div className="hidden items-center gap-7 md:flex">
-                        <a href="#home"
-                           className="text-sm font-medium text-white transition-colors hover:text-[#5faaf3]">
-                            Inicio
-                        </a>
-                        <a href="#projects"
-                           className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-                            Proyectos
-                        </a>
-                        <a href="#stack"
-                           className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-                            Tecnologías
-                        </a>
-                        <a href="#contact"
-                           className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
-                            Contacto
-                        </a>
+                    <div className="flex items-center gap-2 md:gap-4">
+                        <div className="hidden items-center gap-7 md:flex">
+                            <a href="#home"
+                               className="text-sm font-medium text-white transition-colors hover:text-[#5faaf3]">
+                                Inicio
+                            </a>
+                            <a href="#projects"
+                               className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
+                                Proyectos
+                            </a>
+                            <a href="#stack"
+                               className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
+                                Tecnologías
+                            </a>
+                            <a href="#contact"
+                               className="text-sm font-medium text-slate-400 transition-colors hover:text-white">
+                                Contacto
+                            </a>
+                        </div>
+                        <ModeToggle />
                     </div>
 
                 </div>
