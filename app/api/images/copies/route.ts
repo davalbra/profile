@@ -173,6 +173,11 @@ function shouldForceJpegConversion(formData: FormData): boolean {
     return rawValue === "1" || rawValue === "true" || rawValue === "yes";
 }
 
+function shouldPrepareOnly(formData: FormData): boolean {
+    const rawValue = String(formData.get("prepareOnly") || "").trim().toLowerCase();
+    return rawValue === "1" || rawValue === "true" || rawValue === "yes";
+}
+
 function normalizeMime(contentType: string | null): string {
     return (contentType || "").toLowerCase().split(";")[0].trim();
 }
@@ -570,6 +575,7 @@ export async function POST(request: Request) {
     try {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const formData = await request.formData();
+        const prepareOnly = shouldPrepareOnly(formData);
         const sourceImage = await resolveSourceImage(formData, sesion.uid);
         let preparedImage = await prepareImageForN8n(sourceImage, {
             forceJpegConversion: shouldForceJpegConversion(formData),
@@ -591,6 +597,27 @@ export async function POST(request: Request) {
                 contentType: n8nCompatibleImage.contentType,
                 storagePath: n8nCompatibleImage.path,
             };
+        }
+
+        if (prepareOnly) {
+            return NextResponse.json(
+                {
+                    ok: true,
+                    prepareOnly: true,
+                    source: preparedImage.source,
+                    fileName: preparedImage.fileName,
+                    contentType: preparedImage.contentType,
+                    originalContentType: preparedImage.originalContentType,
+                    wasConvertedToJpeg: preparedImage.wasConvertedToJpeg,
+                    n8nCompatibleImage,
+                    n8nContentType: null,
+                    n8nResponseType: "none",
+                    n8nImage: null,
+                    n8nStoredImage: null,
+                    n8n: null,
+                },
+                {headers: {"Cache-Control": "no-store"}},
+            );
         }
 
         const outbound = new FormData();

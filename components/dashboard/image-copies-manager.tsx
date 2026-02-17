@@ -14,7 +14,6 @@ import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import type {GalleryImage} from "@/lib/images/gallery-image";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
-import * as React from "react";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
@@ -69,11 +68,11 @@ export function ImageCopiesManager() {
     const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
     const [loadingOptimized, setLoadingOptimized] = useState(false);
     const [sending, setSending] = useState(false);
+    const [preparingGallery, setPreparingGallery] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
     const [responsePayload, setResponsePayload] = useState<unknown>(null);
     const [responseImage, setResponseImage] = useState<N8nImagePreview | null>(null);
-    const [galleryWizardStep, setGalleryWizardStep] = useState<1 | 2>(1);
 
     const {
         images: galleryImages,
@@ -150,10 +149,7 @@ export function ImageCopiesManager() {
             fileName: selectedGalleryImage.name || selectedGalleryImage.path,
         });
     }, [selectedGalleryImage]);
-
-    useEffect(() => {
-        setGalleryWizardStep(1);
-    }, [selectedGalleryPath, sourceMode]);
+    const busy = sending || preparingGallery;
 
     const loadOptimized = useCallback(async () => {
         if (!userId) {
@@ -208,7 +204,9 @@ export function ImageCopiesManager() {
 
     useEffect(() => {
         setSelectedGalleryPath((currentPath) =>
-            currentPath && !galleryImages.some((image) => image.path === currentPath) ? null : currentPath,
+            currentPath && !galleryImages.some((image) => image.path === currentPath)
+                ? (galleryImages.find((image) => image.sourceGalleryPath === currentPath)?.path || null)
+                : currentPath,
         );
     }, [galleryImages]);
 
@@ -226,17 +224,80 @@ export function ImageCopiesManager() {
         setGalleryPage(targetPage);
     }, [galleryImages, galleryPageSize, selectedGalleryPath]);
 
+    async function handlePrepareGalleryForN8n() {
+        if (!user) {
+            setFailure("Debes iniciar sesión para preparar imágenes para n8n.");
+            return;
+        }
+
+        if (sourceMode !== "gallery") {
+            return;
+        }
+
+        if (!selectedGalleryPath) {
+            setFailure("Selecciona una imagen de la galería.");
+            return;
+        }
+
+        if (!selectedGalleryNeedsJpegWizard) {
+            setStatus("Esta imagen ya está en formato compatible con n8n.");
+            return;
+        }
+
+        setPreparingGallery(true);
+        setFailure(null);
+        setStatus(null);
+        setResponsePayload(null);
+        setResponseImage(null);
+
+        try {
+            const formData = new FormData();
+            formData.append("galleryPath", selectedGalleryPath);
+            formData.append("forceJpegConversion", "true");
+            formData.append("prepareOnly", "true");
+
+            const response = await fetch("/api/images/copies", {
+                method: "POST",
+                body: formData,
+            });
+
+            const payload = (await response.json().catch(() => ({}))) as {
+                ok?: boolean;
+                error?: string;
+                wasConvertedToJpeg?: boolean;
+                n8nCompatibleImage?: StoredN8nImage | null;
+            };
+
+            if (!response.ok) {
+                throw new Error(payload.error || "No se pudo convertir la imagen a JPG para n8n.");
+            }
+
+            if (payload.n8nCompatibleImage) {
+                await refreshGallery({force: true});
+                setSelectedGalleryPath(payload.n8nCompatibleImage.path);
+                setStatus(`Paso 1 completado: ${payload.n8nCompatibleImage.name} lista para enviar a n8n.`);
+            } else if (payload.wasConvertedToJpeg) {
+                await refreshGallery({force: true});
+                setStatus("Paso 1 completado: imagen convertida a JPG para n8n.");
+            } else {
+                setStatus("Esta imagen ya estaba en formato compatible con n8n.");
+            }
+        } catch (reason) {
+            const message = reason instanceof Error ? reason.message : "No se pudo preparar la imagen para n8n.";
+            setFailure(message);
+        } finally {
+            setPreparingGallery(false);
+        }
+    }
+
     async function handleSendToN8n() {
         if (!user) {
             setFailure("Debes iniciar sesión para enviar imágenes a n8n.");
             return;
         }
 
-        if (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard && galleryWizardStep === 1) {
-            setFailure(null);
-            setResponsePayload(null);
-            setStatus("Paso 1/2 listo: conversión a JPG activada. Presiona de nuevo para copiar a n8n.");
-            setGalleryWizardStep(2);
+        if (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard) {
+            setFailure("Primero convierte la imagen a JPG en el Paso 1.");
             return;
         }
 
@@ -266,9 +327,6 @@ export function ImageCopiesManager() {
             }
 
             formData.append("galleryPath", selectedGalleryPath);
-            if (selectedGalleryNeedsJpegWizard) {
-                formData.append("forceJpegConversion", "true");
-            }
         } else {
             if (!selectedOptimizedPath) {
                 setFailure("Selecciona una imagen optimizada.");
@@ -332,7 +390,6 @@ export function ImageCopiesManager() {
                 await refreshGallery({force: true});
                 setSelectedGalleryPath(payload.n8nCompatibleImage.path);
             }
-            setGalleryWizardStep(1);
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo enviar la imagen a n8n.";
             setFailure(message);
@@ -377,7 +434,7 @@ export function ImageCopiesManager() {
                             size="sm"
                             variant={sourceMode === "local" ? "default" : "outline"}
                             onClick={() => setSourceMode("local")}
-                            disabled={sending}
+                            disabled={busy}
                         >
                             <Upload className="h-4 w-4"/>
                             Desde computadora
@@ -386,7 +443,7 @@ export function ImageCopiesManager() {
                             size="sm"
                             variant={sourceMode === "gallery" ? "default" : "outline"}
                             onClick={() => setSourceMode("gallery")}
-                            disabled={sending}
+                            disabled={busy}
                         >
                             <GalleryHorizontal className="h-4 w-4"/>
                             Desde galería
@@ -395,7 +452,7 @@ export function ImageCopiesManager() {
                             size="sm"
                             variant={sourceMode === "optimized" ? "default" : "outline"}
                             onClick={() => setSourceMode("optimized")}
-                            disabled={sending}
+                            disabled={busy}
                         >
                             <Sparkles className="h-4 w-4"/>
                             Desde optimizadas
@@ -408,14 +465,14 @@ export function ImageCopiesManager() {
                                 id="images-copies-local-input"
                                 type="file"
                                 accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.svg"
-                                disabled={!user || loading || sending}
+                                disabled={!user || loading || busy}
                                 onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
                                 className="sr-only"
                             />
                             <label
                                 htmlFor="images-copies-local-input"
                                 className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                                    !user || loading || sending
+                                    !user || loading || busy
                                         ? "pointer-events-none cursor-not-allowed opacity-50"
                                         : "cursor-pointer hover:bg-accent hover:text-accent-foreground"
                                 }`}
@@ -455,7 +512,7 @@ export function ImageCopiesManager() {
                         <div className="space-y-3 rounded-lg border p-4">
                             <div className="flex justify-end">
                                 <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
-                                        disabled={loadingGallery || sending || !user}>
+                                        disabled={loadingGallery || busy || !user}>
                                     {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                         <RefreshCcw className="h-4 w-4"/>}
                                     Recargar galería
@@ -473,7 +530,7 @@ export function ImageCopiesManager() {
                                                 active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
                                             }`}
                                             onClick={() => setSelectedGalleryPath(image.path)}
-                                            disabled={sending}
+                                            disabled={busy}
                                         >
                                             <div className="relative aspect-[4/3] bg-muted">
                                                 <Badge
@@ -514,7 +571,7 @@ export function ImageCopiesManager() {
                                     setGalleryPageSize(nextSize);
                                     setGalleryPage(1);
                                 }}
-                                disabled={sending || loadingGallery}
+                                disabled={busy || loadingGallery}
                             />
 
                             {selectedGalleryImage ? (
@@ -537,7 +594,7 @@ export function ImageCopiesManager() {
                         <div className="space-y-3 rounded-lg border p-4">
                             <div className="flex justify-end">
                                 <Button variant="outline" size="sm" onClick={() => void loadOptimized()}
-                                        disabled={loadingOptimized || sending || !user}>
+                                        disabled={loadingOptimized || busy || !user}>
                                     {loadingOptimized ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                         <RefreshCcw className="h-4 w-4"/>}
                                     Recargar optimizadas
@@ -555,7 +612,7 @@ export function ImageCopiesManager() {
                                                 active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
                                             }`}
                                             onClick={() => setSelectedOptimizedPath(image.path)}
-                                            disabled={sending}
+                                            disabled={busy}
                                         >
                                             <div className="relative aspect-[4/3] bg-muted">
                                                 <Badge
@@ -596,14 +653,26 @@ export function ImageCopiesManager() {
                         </div>
                     )}
 
-                    <div className="flex justify-end">
-                        <Button size="sm" onClick={() => void handleSendToN8n()} disabled={sending || !user}>
-                            {sending ? <Sparkles className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
-                            {sourceMode === "gallery" && selectedGalleryNeedsJpegWizard
-                                ? galleryWizardStep === 1
-                                    ? "Paso 1: Convertir a JPG"
-                                    : "Paso 2: Copiar a n8n"
-                                : "Enviar a n8n"}
+                    <div className="flex justify-end gap-2">
+                        {sourceMode === "gallery" && selectedGalleryNeedsJpegWizard ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => void handlePrepareGalleryForN8n()}
+                                disabled={busy || !user || !selectedGalleryPath}
+                            >
+                                {preparingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                                    <Sparkles className="h-4 w-4"/>}
+                                Paso 1: Convertir a JPG
+                            </Button>
+                        ) : null}
+                        <Button
+                            size="sm"
+                            onClick={() => void handleSendToN8n()}
+                            disabled={busy || !user || (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard)}
+                        >
+                            {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <CopyPlus className="h-4 w-4"/>}
+                            Enviar a n8n
                         </Button>
                     </div>
                 </section>
