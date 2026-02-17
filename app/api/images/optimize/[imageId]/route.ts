@@ -17,6 +17,7 @@ type LineageNode = {
     sizeBytes: number | null;
     downloadURL: string | null;
     collection: CollectionType;
+    metadataSource: string | null;
     stepLabel: string;
     isCurrent: boolean;
 };
@@ -96,37 +97,34 @@ function getCollectionFromPath(path: string): CollectionType {
     return "unknown";
 }
 
-function getStepLabel(collection: CollectionType): string {
-    switch (collection) {
-        case "gallery":
-            return "Galería";
-        case "n8n":
-            return "n8n";
-        case "optimized":
-            return "Optimizada";
-        case "original":
-            return "Original";
-        default:
-            return "Archivo";
-    }
-}
-
-function compressLineageNodes(nodes: LineageNode[]): LineageNode[] {
-    if (!nodes.length) {
-        return [];
+function getStepLabel(input: {
+    collection: CollectionType;
+    metadataSource: string | null;
+    isCurrent: boolean;
+}): string {
+    if (input.isCurrent || input.collection === "optimized") {
+        return "optimizada";
     }
 
-    const compressed: LineageNode[] = [];
-    for (const node of nodes) {
-        const previous = compressed[compressed.length - 1];
-        if (previous && previous.collection === "n8n" && node.collection === "n8n") {
-            compressed[compressed.length - 1] = node;
-            continue;
+    if (input.collection === "gallery") {
+        return "galeria";
+    }
+
+    if (input.collection === "n8n") {
+        if (input.metadataSource === "n8n-compatible") {
+            return "formato compatible n8n";
         }
-        compressed.push(node);
+        if (input.metadataSource === "n8n-response") {
+            return "generada n8n";
+        }
+        return "n8n";
     }
 
-    return compressed;
+    if (input.collection === "original") {
+        return "original";
+    }
+
+    return "archivo";
 }
 
 async function readStorageSnapshot(path: string): Promise<{
@@ -135,6 +133,7 @@ async function readStorageSnapshot(path: string): Promise<{
     contentType: string | null;
     sizeBytes: number | null;
     downloadURL: string | null;
+    metadataSource: string | null;
 } | null> {
     const bucket = getFirebaseAdminStorage().bucket();
     const file = bucket.file(path);
@@ -155,6 +154,7 @@ async function readStorageSnapshot(path: string): Promise<{
         contentType: metadata.contentType || null,
         sizeBytes: asNumber(metadata.size),
         downloadURL: token ? getDownloadUrl(bucket.name, path, token) : null,
+        metadataSource: asString(metadata.metadata?.source),
     };
 }
 
@@ -289,7 +289,12 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
                     sizeBytes: optimizedSnapshot?.sizeBytes ?? image.bytesOptimizado,
                     downloadURL: getDownloadUrl(bucketName, image.pathOptimizada, image.tokenOptimizado),
                     collection: "optimized",
-                    stepLabel: getStepLabel("optimized"),
+                    metadataSource: optimizedSnapshot?.metadataSource || null,
+                    stepLabel: getStepLabel({
+                        collection: "optimized",
+                        metadataSource: optimizedSnapshot?.metadataSource || null,
+                        isCurrent: true,
+                    }),
                     isCurrent: true,
                 });
                 continue;
@@ -303,7 +308,12 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
                     sizeBytes: image.bytesOriginal,
                     downloadURL: null,
                     collection: "original",
-                    stepLabel: getStepLabel("original"),
+                    metadataSource: null,
+                    stepLabel: getStepLabel({
+                        collection: "original",
+                        metadataSource: null,
+                        isCurrent: false,
+                    }),
                     isCurrent: false,
                 });
                 continue;
@@ -322,14 +332,18 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
                 sizeBytes: snapshot.sizeBytes,
                 downloadURL: snapshot.downloadURL,
                 collection,
-                stepLabel: getStepLabel(collection),
+                metadataSource: snapshot.metadataSource,
+                stepLabel: getStepLabel({
+                    collection,
+                    metadataSource: snapshot.metadataSource,
+                    isCurrent: false,
+                }),
                 isCurrent: false,
             });
         }
 
-        const normalizedLineage = compressLineageNodes(lineageNodes);
-        const transitions = normalizedLineage.slice(1).map((toNode, index) => {
-            const fromNode = normalizedLineage[index];
+        const transitions = lineageNodes.slice(1).map((toNode, index) => {
+            const fromNode = lineageNodes[index];
             const fromBytes = fromNode.sizeBytes ?? 0;
             const toBytes = toNode.sizeBytes ?? 0;
             const savedBytes = Math.max(0, fromBytes - toBytes);
@@ -388,7 +402,7 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
                         }
                         : null,
                 },
-                lineage: normalizedLineage,
+                lineage: lineageNodes,
                 transitions,
             },
             {headers: {"Cache-Control": "no-store"}},

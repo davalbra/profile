@@ -5,6 +5,7 @@ import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {
     ArrowRight,
+    Download,
     ImagePlus,
     Images,
     Loader2,
@@ -57,6 +58,38 @@ type UploadResult = {
     optimizedPath: string | null;
     optimizedName: string | null;
 };
+
+function extensionFromContentType(contentType: string | null): string {
+    switch ((contentType || "").toLowerCase().split(";")[0].trim()) {
+        case "image/jpeg":
+            return "jpg";
+        case "image/png":
+            return "png";
+        case "image/webp":
+            return "webp";
+        case "image/avif":
+            return "avif";
+        case "image/heic":
+            return "heic";
+        case "image/heif":
+            return "heif";
+        default:
+            return "img";
+    }
+}
+
+function buildDownloadFileName(input: { name: string; contentType: string | null }): string {
+    const trimmed = input.name.trim();
+    if (!trimmed) {
+        return `imagen.${extensionFromContentType(input.contentType)}`;
+    }
+
+    if (/\.[a-z0-9]+$/i.test(trimmed)) {
+        return trimmed;
+    }
+
+    return `${trimmed}.${extensionFromContentType(input.contentType)}`;
+}
 
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
@@ -160,6 +193,7 @@ export function ImagesManager() {
     const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
     const [qualityByPath, setQualityByPath] = useState<Record<string, QualityMode>>({});
     const [optimizingPath, setOptimizingPath] = useState<string | null>(null);
+    const [downloadingPath, setDownloadingPath] = useState<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
     const [historyRecords, setHistoryRecords] = useState<OptimizedHistoryRecord[]>([]);
@@ -380,6 +414,37 @@ export function ImagesManager() {
         }
     }
 
+    async function handleDownloadImage(input: { path: string; name: string; url: string; contentType: string | null }) {
+        setFailure(null);
+        setDownloadingPath(input.path);
+
+        try {
+            const response = await fetch(input.url, {method: "GET"});
+            if (!response.ok) {
+                throw new Error("No se pudo descargar la imagen.");
+            }
+
+            const blob = await response.blob();
+            const objectUrl = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = objectUrl;
+            anchor.download = buildDownloadFileName({
+                name: input.name,
+                contentType: input.contentType,
+            });
+            document.body.append(anchor);
+            anchor.click();
+            anchor.remove();
+            URL.revokeObjectURL(objectUrl);
+            setStatus(`Descarga iniciada: ${anchor.download}`);
+        } catch (reason) {
+            const message = reason instanceof Error ? reason.message : "No se pudo descargar la imagen.";
+            setFailure(message);
+        } finally {
+            setDownloadingPath(null);
+        }
+    }
+
     return (
         <Card>
             <CardHeader className="space-y-3">
@@ -481,6 +546,7 @@ export function ImagesManager() {
                             const isAlreadyOptimized = isOptimizedCollection || Boolean(linkedOptimized);
                             const quality = qualityByPath[image.path] || "balanced";
                             const cardBusy = optimizingPath === image.path;
+                            const cardDownloading = downloadingPath === image.path;
                             const detailSlug = ownStats
                                 ? buildOptimizedImageSlug({id: ownStats.id, name: ownStats.name})
                                 : null;
@@ -549,6 +615,27 @@ export function ImagesManager() {
                                         {sourceMode === "optimized" ? (
                                             <div className="space-y-2">
                                                 <p className="text-xs text-muted-foreground">Este item pertenece al histórico de optimización.</p>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    className="w-full"
+                                                    onClick={() =>
+                                                        void handleDownloadImage({
+                                                            path: image.path,
+                                                            name: image.name,
+                                                            url: image.downloadURL,
+                                                            contentType: image.contentType,
+                                                        })
+                                                    }
+                                                    disabled={cardDownloading}
+                                                >
+                                                    {cardDownloading ? (
+                                                        <Loader2 className="h-4 w-4 animate-spin"/>
+                                                    ) : (
+                                                        <Download className="h-4 w-4"/>
+                                                    )}
+                                                    Descargar
+                                                </Button>
                                                 {detailSlug ? (
                                                     <Button asChild size="sm" variant="outline" className="w-full">
                                                         <Link href={`/dashboard/images/optimize/${encodeURIComponent(detailSlug)}`}>

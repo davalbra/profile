@@ -62,6 +62,12 @@ type DetailPayload = {
     }>;
 };
 
+function getTransitionSummary(input: { fromStep: string; toStep: string }): string {
+    const fromStep = input.fromStep.trim() || "paso anterior";
+    const toStep = input.toStep.trim() || "siguiente paso";
+    return `${fromStep} -> ${toStep}`;
+}
+
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
         return "-";
@@ -288,7 +294,10 @@ export function OptimizedImageDetail({slug}: { slug: string }) {
                                     <div className="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-xs text-emerald-700">
                                         <p className="flex items-center gap-1 font-medium">
                                             <ArrowRight className="h-3 w-3"/>
-                                            Evento {index + 1}
+                                            {getTransitionSummary({
+                                                fromStep: node.stepLabel,
+                                                toStep: data.lineage[index + 1]?.stepLabel || "",
+                                            })}
                                         </p>
                                         <p>
                                             {formatBytes(data.transitions[index].fromSizeBytes)} {"->"} {formatBytes(data.transitions[index].toSizeBytes)}
