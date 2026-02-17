@@ -32,6 +32,7 @@ type GalleryImageResponse = {
     needsN8nTransformation?: boolean;
     n8nVariantPath?: string | null;
     isOptimized?: boolean;
+    optimizedImageId?: string | null;
     optimizedSourceCollection?: SourceCollection | null;
     sourceWasN8n?: boolean;
 };
@@ -323,6 +324,7 @@ async function buildOptimizedScopedGallery(input: { uid: string; bucketName: str
         },
         take: 300,
         select: {
+            id: true,
             pathOptimizada: true,
             nombreOptimizado: true,
             tokenOptimizado: true,
@@ -363,6 +365,7 @@ async function buildOptimizedScopedGallery(input: { uid: string; bucketName: str
                 sizeBytes,
                 createdAt: row.creadoEn.toISOString(),
                 updatedAt: row.actualizadoEn.toISOString(),
+                optimizedImageId: row.id,
                 sourceGalleryPath: asString(metadata.metadata?.sourceStoragePath),
                 isN8nDerived: sourceWasN8n,
                 isN8nGenerated: false,

@@ -414,29 +414,23 @@ export function ImagesManager() {
         }
     }
 
-    async function handleDownloadImage(input: { path: string; name: string; url: string; contentType: string | null }) {
+    async function handleDownloadImage(input: { path: string; name: string; contentType: string | null }) {
         setFailure(null);
         setDownloadingPath(input.path);
 
         try {
-            const response = await fetch(input.url, {method: "GET"});
-            if (!response.ok) {
-                throw new Error("No se pudo descargar la imagen.");
-            }
-
-            const blob = await response.blob();
-            const objectUrl = URL.createObjectURL(blob);
             const anchor = document.createElement("a");
-            anchor.href = objectUrl;
-            anchor.download = buildDownloadFileName({
+            const fileName = buildDownloadFileName({
                 name: input.name,
                 contentType: input.contentType,
             });
+            const downloadUrl = `/api/images/download?path=${encodeURIComponent(input.path)}&name=${encodeURIComponent(fileName)}`;
+            anchor.href = downloadUrl;
+            anchor.download = fileName;
             document.body.append(anchor);
             anchor.click();
             anchor.remove();
-            URL.revokeObjectURL(objectUrl);
-            setStatus(`Descarga iniciada: ${anchor.download}`);
+            setStatus(`Descarga iniciada: ${fileName}`);
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo descargar la imagen.";
             setFailure(message);
@@ -462,7 +456,8 @@ export function ImagesManager() {
                     <Badge variant="secondary">{sourceImages.length} en colección</Badge>
                     <Badge variant="outline">{historyRecords.length} optimizadas</Badge>
                     <Badge variant="outline">
-                        Ahorro acumulado {formatBytes(statsSummary.totalSavedBytes)} ({formatPercent(statsSummary.totalSavedPercent)})
+                        Ahorro
+                        acumulado {formatBytes(statsSummary.totalSavedBytes)} ({formatPercent(statsSummary.totalSavedPercent)})
                     </Badge>
                     <Badge variant="outline">Colección: {activeScopeLabel}</Badge>
                 </div>
@@ -547,8 +542,10 @@ export function ImagesManager() {
                             const quality = qualityByPath[image.path] || "balanced";
                             const cardBusy = optimizingPath === image.path;
                             const cardDownloading = downloadingPath === image.path;
-                            const detailSlug = ownStats
-                                ? buildOptimizedImageSlug({id: ownStats.id, name: ownStats.name})
+                            const detailId = image.optimizedImageId || ownStats?.id || null;
+                            const detailName = ownStats?.name || image.name;
+                            const detailSlug = detailId
+                                ? buildOptimizedImageSlug({id: detailId, name: detailName})
                                 : null;
 
                             return (
@@ -614,7 +611,8 @@ export function ImagesManager() {
 
                                         {sourceMode === "optimized" ? (
                                             <div className="space-y-2">
-                                                <p className="text-xs text-muted-foreground">Este item pertenece al histórico de optimización.</p>
+                                                <p className="text-xs text-muted-foreground">Este item pertenece al
+                                                    histórico de optimización.</p>
                                                 <Button
                                                     size="sm"
                                                     variant="outline"
@@ -623,7 +621,6 @@ export function ImagesManager() {
                                                         void handleDownloadImage({
                                                             path: image.path,
                                                             name: image.name,
-                                                            url: image.downloadURL,
                                                             contentType: image.contentType,
                                                         })
                                                     }
@@ -638,9 +635,10 @@ export function ImagesManager() {
                                                 </Button>
                                                 {detailSlug ? (
                                                     <Button asChild size="sm" variant="outline" className="w-full">
-                                                        <Link href={`/dashboard/images/optimize/${encodeURIComponent(detailSlug)}`}>
+                                                        <Link
+                                                            href={`/dashboard/images/optimize/${encodeURIComponent(detailSlug)}`}>
                                                             <ArrowRight className="h-4 w-4"/>
-                                                            Ver detalle de ruta
+                                                            Detalle
                                                         </Link>
                                                     </Button>
                                                 ) : null}
@@ -683,10 +681,14 @@ export function ImagesManager() {
                                                 <Button
                                                     size="sm"
                                                     className="w-full"
-                                                    onClick={() => void handleOptimizeImage({path: image.path, name: image.name})}
+                                                    onClick={() => void handleOptimizeImage({
+                                                        path: image.path,
+                                                        name: image.name
+                                                    })}
                                                     disabled={busy}
                                                 >
-                                                    {cardBusy ? <Loader2 className="h-4 w-4 animate-spin"/> : <Zap className="h-4 w-4"/>}
+                                                    {cardBusy ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                                                        <Zap className="h-4 w-4"/>}
                                                     Optimizar
                                                 </Button>
                                             </div>
@@ -715,7 +717,8 @@ export function ImagesManager() {
                 </section>
 
                 {!user ? (
-                    <p className="text-sm text-muted-foreground">Inicia sesión para administrar imágenes dentro del dashboard.</p>
+                    <p className="text-sm text-muted-foreground">Inicia sesión para administrar imágenes dentro del
+                        dashboard.</p>
                 ) : null}
             </CardContent>
         </Card>

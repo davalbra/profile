@@ -12,6 +12,7 @@ export type GalleryImage = {
     needsN8nTransformation?: boolean;
     n8nVariantPath?: string | null;
     isOptimized?: boolean;
+    optimizedImageId?: string | null;
     optimizedSourceCollection?: "gallery" | "n8n" | "optimized" | "local" | null;
     sourceWasN8n?: boolean;
 };

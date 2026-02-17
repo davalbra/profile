@@ -308,13 +308,7 @@ export function ImageCopiesManager() {
                 {failure ? <p className="text-sm text-destructive">{failure}</p> : null}
                 {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
 
-                <section className="space-y-4 rounded-lg border p-4">
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button size="sm" variant="default" disabled>
-                            <Images className="h-4 w-4"/>
-                            Desde galería
-                        </Button>
-                    </div>
+
 
                     <div className="space-y-3 rounded-lg border p-4">
                         <div className="flex justify-between gap-2">
@@ -440,7 +434,6 @@ export function ImageCopiesManager() {
                             Enviar a n8n
                         </Button>
                     </div>
-                </section>
 
                 {responsePayload ? (
                     <section className="space-y-2 rounded-lg border p-4">

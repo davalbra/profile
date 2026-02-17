@@ -1,7 +1,6 @@
 "use client";
 
 import {useEffect, useMemo, useState} from "react";
-import Link from "next/link";
 import {
     Check,
     Copy,
@@ -9,7 +8,6 @@ import {
     Loader2,
     Pencil,
     RefreshCcw,
-    Sparkles,
     Trash2,
     Upload,
     X,
@@ -459,22 +457,6 @@ export function ImageGalleryManager() {
                                     </div>
 
                                     <div className="mt-auto grid grid-cols-2 gap-2">
-                                        <Button asChild size="sm" variant="outline" className="w-full">
-                                            <Link
-                                                href={`/dashboard/images/optimize?galleryPath=${encodeURIComponent(image.path)}`}>
-                                                <Sparkles className="h-4 w-4"/>
-                                                Optimizar
-                                            </Link>
-                                        </Button>
-
-                                        <Button asChild size="sm" variant="outline" className="w-full">
-                                            <Link
-                                                href={`/dashboard/images/copies?galleryPath=${encodeURIComponent(image.path)}`}>
-                                                <Sparkles className="h-4 w-4"/>
-                                                Copia n8n
-                                            </Link>
-                                        </Button>
-
                                         <Button size="sm" variant="outline"
                                                 onClick={() => void handleCopy(image.downloadURL)}>
                                             <Copy className="h-4 w-4"/>
