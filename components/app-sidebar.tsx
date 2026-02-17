@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {ChevronDown, CopyPlus, GalleryHorizontal, ImagePlus, PanelTop, Sparkles} from "lucide-react"
+import {ChevronDown, ImagePlus, Images, PanelTop, Sparkles, Zap} from "lucide-react"
 import {usePathname} from "next/navigation"
 import {
     Sidebar,
@@ -66,7 +66,7 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={optimizeActive}>
                                         <Link href="/dashboard/images/optimize">
-                                            <Sparkles/>
+                                            <Zap/>
                                             <span>Optimizar</span>
                                         </Link>
                                     </SidebarMenuSubButton>
@@ -74,15 +74,15 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={copiesActive}>
                                         <Link href="/dashboard/images/copies">
-                                            <CopyPlus/>
-                                            <span>Copias n8n</span>
+                                            <Sparkles/>
+                                            <span>n8n</span>
                                         </Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
                                 <SidebarMenuSubItem>
                                     <SidebarMenuSubButton asChild isActive={galleryActive}>
                                         <Link href="/dashboard/images/gallery">
-                                            <GalleryHorizontal/>
+                                            <Images/>
                                             <span>Galería</span>
                                         </Link>
                                     </SidebarMenuSubButton>
