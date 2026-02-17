@@ -309,131 +309,130 @@ export function ImageCopiesManager() {
                 {status ? <p className="text-sm text-emerald-600">{status}</p> : null}
 
 
-
-                    <div className="space-y-3 rounded-lg border p-4">
-                        <div className="flex justify-between gap-2">
-                            <Button asChild variant="outline" size="sm" disabled={busy}>
-                                <Link href="/dashboard/images/gallery">
-                                    <Images className="h-4 w-4"/>
-                                    Ir a galería
-                                </Link>
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
-                                    disabled={loadingGallery || busy || !user}>
-                                {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
-                                    <RefreshCcw className="h-4 w-4"/>}
-                                Recargar galería
-                            </Button>
-                        </div>
-
-                        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                            {paginatedGalleryImages.map((image) => {
-                                const active = image.path === selectedGalleryPath;
-                                return (
-                                    <button
-                                        key={image.path}
-                                        type="button"
-                                        className={`overflow-hidden rounded-lg border text-left transition ${
-                                            active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
-                                        }`}
-                                        onClick={() => setSelectedGalleryPath(image.path)}
-                                        disabled={busy}
-                                    >
-                                        <div className="relative aspect-[4/3] bg-muted">
-                                            <Badge
-                                                variant="secondary"
-                                                className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
-                                            >
-                                                {getImageFormatLabel({
-                                                    contentType: image.contentType,
-                                                    fileName: image.name || image.path,
-                                                })}
-                                            </Badge>
-                                            {image.isN8nGenerated ? (
-                                                <Badge
-                                                    variant="secondary"
-                                                    className="pointer-events-none absolute right-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
-                                                >
-                                                    <Star className="mr-1 h-3 w-3 fill-current"/>
-                                                    n8n
-                                                </Badge>
-                                            ) : null}
-                                            {isPreviewableImage(image.contentType, image.name) ? (
-                                                <Image src={image.downloadURL} alt={image.name} fill unoptimized
-                                                       className="object-cover"
-                                                       sizes="(max-width: 768px) 100vw, 33vw"/>
-                                            ) : (
-                                                <div
-                                                    className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
-                                                    Vista previa no disponible
-                                                    para {image.contentType || "este formato"}
-                                                </div>
-                                            )}
-                                        </div>
-                                        <div className="space-y-1 p-2">
-                                            <p className="truncate text-xs font-medium">{image.name}</p>
-                                            <p className="text-xs text-muted-foreground">{formatBytes(image.sizeBytes)}</p>
-                                        </div>
-                                    </button>
-                                );
-                            })}
-                        </div>
-                        <GalleryPaginationControls
-                            totalItems={galleryImages.length}
-                            page={galleryPage}
-                            pageSize={galleryPageSize}
-                            onPageChange={setGalleryPage}
-                            onPageSizeChange={(nextSize) => {
-                                setGalleryPageSize(nextSize);
-                                setGalleryPage(1);
-                            }}
-                            disabled={busy || loadingGallery}
-                        />
-
-                        {selectedGalleryImage ? (
-                            <div className="space-y-1">
-                                <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
-                                {selectedGalleryNeedsJpegWizard ? (
-                                    <p className="text-xs text-amber-700">
-                                        Esta imagen no es compatible con n8n. Debes convertir a JPG y luego copiar.
-                                    </p>
-                                ) : (
-                                    <p className="text-xs text-muted-foreground">Formato compatible con n8n, envío
-                                        directo.</p>
-                                )}
-                            </div>
-                        ) : (
-                            <p className="text-xs text-muted-foreground">Selecciona una imagen de la galería.</p>
-                        )}
-                    </div>
-
-                    <div className="flex justify-end gap-2">
-                        {selectedGalleryNeedsJpegWizard ? (
-                            <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => void handlePrepareGalleryForN8n()}
-                                disabled={busy || !user || !selectedGalleryPath}
-                            >
-                                {preparingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
-                                    <Sparkles className="h-4 w-4"/>}
-                                Paso 1: Convertir a JPG
-                            </Button>
-                        ) : null}
-                        <Button
-                            size="sm"
-                            onClick={() => void handleSendToN8n()}
-                            disabled={
-                                busy ||
-                                !user ||
-                                !selectedGalleryPath ||
-                                selectedGalleryNeedsJpegWizard
-                            }
-                        >
-                            {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
-                            Enviar a n8n
+                <div className="space-y-3 rounded-lg border p-4">
+                    <div className="flex justify-between gap-2">
+                        <Button asChild variant="outline" size="sm" disabled={busy}>
+                            <Link href="/dashboard/images/gallery">
+                                <Images className="h-4 w-4"/>
+                                Ir a galería
+                            </Link>
+                        </Button>
+                        <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
+                                disabled={loadingGallery || busy || !user}>
+                            {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                                <RefreshCcw className="h-4 w-4"/>}
+                            Recargar galería
                         </Button>
                     </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                        {paginatedGalleryImages.map((image) => {
+                            const active = image.path === selectedGalleryPath;
+                            return (
+                                <button
+                                    key={image.path}
+                                    type="button"
+                                    className={`overflow-hidden rounded-lg border text-left transition ${
+                                        active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
+                                    }`}
+                                    onClick={() => setSelectedGalleryPath(image.path)}
+                                    disabled={busy}
+                                >
+                                    <div className="relative aspect-[4/3] bg-muted">
+                                        <Badge
+                                            variant="secondary"
+                                            className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                        >
+                                            {getImageFormatLabel({
+                                                contentType: image.contentType,
+                                                fileName: image.name || image.path,
+                                            })}
+                                        </Badge>
+                                        {image.isN8nGenerated ? (
+                                            <Badge
+                                                variant="secondary"
+                                                className="pointer-events-none absolute right-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                            >
+                                                <Star className="mr-1 h-3 w-3 fill-current"/>
+                                                n8n
+                                            </Badge>
+                                        ) : null}
+                                        {isPreviewableImage(image.contentType, image.name) ? (
+                                            <Image src={image.downloadURL} alt={image.name} fill unoptimized
+                                                   className="object-cover"
+                                                   sizes="(max-width: 768px) 100vw, 33vw"/>
+                                        ) : (
+                                            <div
+                                                className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
+                                                Vista previa no disponible
+                                                para {image.contentType || "este formato"}
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="space-y-1 p-2">
+                                        <p className="truncate text-xs font-medium">{image.name}</p>
+                                        <p className="text-xs text-muted-foreground">{formatBytes(image.sizeBytes)}</p>
+                                    </div>
+                                </button>
+                            );
+                        })}
+                    </div>
+                    <GalleryPaginationControls
+                        totalItems={galleryImages.length}
+                        page={galleryPage}
+                        pageSize={galleryPageSize}
+                        onPageChange={setGalleryPage}
+                        onPageSizeChange={(nextSize) => {
+                            setGalleryPageSize(nextSize);
+                            setGalleryPage(1);
+                        }}
+                        disabled={busy || loadingGallery}
+                    />
+
+                    {selectedGalleryImage ? (
+                        <div className="space-y-1">
+                            <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
+                            {selectedGalleryNeedsJpegWizard ? (
+                                <p className="text-xs text-amber-700">
+                                    Esta imagen no es compatible con n8n. Debes convertir a JPG y luego copiar.
+                                </p>
+                            ) : (
+                                <p className="text-xs text-muted-foreground">Formato compatible con n8n, envío
+                                    directo.</p>
+                            )}
+                        </div>
+                    ) : (
+                        <p className="text-xs text-muted-foreground">Selecciona una imagen de la galería.</p>
+                    )}
+                </div>
+
+                <div className="flex justify-end gap-2">
+                    {selectedGalleryNeedsJpegWizard ? (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => void handlePrepareGalleryForN8n()}
+                            disabled={busy || !user || !selectedGalleryPath}
+                        >
+                            {preparingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                                <Sparkles className="h-4 w-4"/>}
+                            Paso 1: Convertir a JPG
+                        </Button>
+                    ) : null}
+                    <Button
+                        size="sm"
+                        onClick={() => void handleSendToN8n()}
+                        disabled={
+                            busy ||
+                            !user ||
+                            !selectedGalleryPath ||
+                            selectedGalleryNeedsJpegWizard
+                        }
+                    >
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
+                        Enviar a n8n
+                    </Button>
+                </div>
 
                 {responsePayload ? (
                     <section className="space-y-2 rounded-lg border p-4">

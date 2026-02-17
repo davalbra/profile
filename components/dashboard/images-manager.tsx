@@ -613,35 +613,42 @@ export function ImagesManager() {
                                             <div className="space-y-2">
                                                 <p className="text-xs text-muted-foreground">Este item pertenece al
                                                     histórico de optimización.</p>
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    className="w-full"
-                                                    onClick={() =>
-                                                        void handleDownloadImage({
-                                                            path: image.path,
-                                                            name: image.name,
-                                                            contentType: image.contentType,
-                                                        })
-                                                    }
-                                                    disabled={cardDownloading}
-                                                >
-                                                    {cardDownloading ? (
-                                                        <Loader2 className="h-4 w-4 animate-spin"/>
+                                                <div className="grid grid-cols-2 gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="w-full"
+                                                        onClick={() =>
+                                                            void handleDownloadImage({
+                                                                path: image.path,
+                                                                name: image.name,
+                                                                contentType: image.contentType,
+                                                            })
+                                                        }
+                                                        disabled={cardDownloading}
+                                                    >
+                                                        {cardDownloading ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin"/>
+                                                        ) : (
+                                                            <Download className="h-4 w-4"/>
+                                                        )}
+                                                        Descargar
+                                                    </Button>
+                                                    {detailSlug ? (
+                                                        <Button asChild size="sm" variant="outline" className="w-full">
+                                                            <Link
+                                                                href={`/dashboard/images/optimize/${encodeURIComponent(detailSlug)}`}>
+                                                                <ArrowRight className="h-4 w-4"/>
+                                                                Detalle
+                                                            </Link>
+                                                        </Button>
                                                     ) : (
-                                                        <Download className="h-4 w-4"/>
-                                                    )}
-                                                    Descargar
-                                                </Button>
-                                                {detailSlug ? (
-                                                    <Button asChild size="sm" variant="outline" className="w-full">
-                                                        <Link
-                                                            href={`/dashboard/images/optimize/${encodeURIComponent(detailSlug)}`}>
+                                                        <Button size="sm" variant="outline" className="w-full" disabled>
                                                             <ArrowRight className="h-4 w-4"/>
                                                             Detalle
-                                                        </Link>
-                                                    </Button>
-                                                ) : null}
+                                                        </Button>
+                                                    )}
+                                                </div>
                                             </div>
                                         ) : isAlreadyOptimized && linkedOptimized ? (
                                             <div className="space-y-2">
