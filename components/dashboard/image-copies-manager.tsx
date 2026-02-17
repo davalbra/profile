@@ -1,8 +1,9 @@
 "use client";
 
 import {useCallback, useEffect, useMemo, useState} from "react";
+import Link from "next/link";
 import {useSearchParams} from "next/navigation";
-import {CopyPlus, GalleryHorizontal, Loader2, RefreshCcw, Sparkles, Upload} from "lucide-react";
+import {CopyPlus, Images, Loader2, RefreshCcw, Sparkles, Star} from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
 import {GalleryPaginationControls} from "@/components/dashboard/gallery-pagination-controls";
@@ -15,9 +16,7 @@ import type {GalleryImage} from "@/lib/images/gallery-image";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
 
-const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
-
-type SourceMode = "local" | "gallery" | "optimized";
+type SourceMode = "gallery" | "optimized";
 
 type SelectableImage = GalleryImage;
 type N8nImagePreview = {
@@ -51,16 +50,13 @@ function formatBytes(bytes: number | null): string {
 }
 
 export function ImageCopiesManager() {
-    const {user, loading, error} = useAuth();
+    const {user, error} = useAuth();
     const userId = user?.uid || null;
     const searchParams = useSearchParams();
     const requestedGalleryPath = searchParams.get("galleryPath");
     const requestedOptimizedPath = searchParams.get("optimizedPath");
 
-    const [sourceMode, setSourceMode] = useState<SourceMode>(
-        requestedOptimizedPath ? "optimized" : requestedGalleryPath ? "gallery" : "local",
-    );
-    const [selectedFile, setSelectedFile] = useState<File | null>(null);
+    const [sourceMode, setSourceMode] = useState<SourceMode>(requestedOptimizedPath ? "optimized" : "gallery");
     const [optimizedImages, setOptimizedImages] = useState<SelectableImage[]>([]);
     const [selectedGalleryPath, setSelectedGalleryPath] = useState<string | null>(requestedGalleryPath);
     const [selectedOptimizedPath, setSelectedOptimizedPath] = useState<string | null>(requestedOptimizedPath);
@@ -102,22 +98,6 @@ export function ImageCopiesManager() {
         setSourceMode("optimized");
         setSelectedOptimizedPath(requestedOptimizedPath);
     }, [requestedOptimizedPath]);
-
-    const localPreviewUrl = useMemo(() => {
-        if (!selectedFile) {
-            return null;
-        }
-
-        return URL.createObjectURL(selectedFile);
-    }, [selectedFile]);
-
-    useEffect(() => {
-        return () => {
-            if (localPreviewUrl) {
-                URL.revokeObjectURL(localPreviewUrl);
-            }
-        };
-    }, [localPreviewUrl]);
 
     const selectedGalleryImage = useMemo(
         () => galleryImages.find((image) => image.path === selectedGalleryPath) || null,
@@ -308,19 +288,7 @@ export function ImageCopiesManager() {
 
         const formData = new FormData();
 
-        if (sourceMode === "local") {
-            if (!selectedFile) {
-                setFailure("Selecciona una imagen local.");
-                return;
-            }
-
-            if (selectedFile.size > MAX_UPLOAD_BYTES) {
-                setFailure("La imagen local supera el límite de 40MB.");
-                return;
-            }
-
-            formData.append("image", selectedFile);
-        } else if (sourceMode === "gallery") {
+        if (sourceMode === "gallery") {
             if (!selectedGalleryPath) {
                 setFailure("Selecciona una imagen de la galería.");
                 return;
@@ -364,11 +332,11 @@ export function ImageCopiesManager() {
                     ? "galería"
                     : payload.source === "n8n"
                         ? "galería n8n"
-                        : payload.source === "optimized"
+                    : payload.source === "optimized"
                             ? "optimizadas"
-                            : "computadora";
+                            : "galería";
             const convertedLabel = payload.wasConvertedToJpeg ? " (convertida a JPG)" : "";
-            const storedLabel = payload.n8nStoredImage ? " Guardada en carpeta n8n." : "";
+            const storedLabel = payload.n8nStoredImage ? " Resultado n8n guardado y reemplazado en galería n8n." : "";
             const compatibleLabel = payload.n8nCompatibleImage ? " Galería n8n actualizada con versión JPG." : "";
             setStatus(
                 `Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${storedLabel}${compatibleLabel}`,
@@ -386,9 +354,9 @@ export function ImageCopiesManager() {
             } else {
                 setResponsePayload(payload.n8n ?? payload);
             }
-            if (payload.n8nCompatibleImage) {
+            if (payload.n8nStoredImage || payload.n8nCompatibleImage) {
                 await refreshGallery({force: true});
-                setSelectedGalleryPath(payload.n8nCompatibleImage.path);
+                setSelectedGalleryPath(payload.n8nStoredImage?.path || payload.n8nCompatibleImage?.path || null);
             }
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo enviar la imagen a n8n.";
@@ -414,7 +382,7 @@ export function ImageCopiesManager() {
 
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
-                        Fuente: {sourceMode === "local" ? "Computadora" : sourceMode === "gallery" ? "Galería" : "Optimizadas"}
+                        Fuente: {sourceMode === "gallery" ? "Galería" : "Optimizadas"}
                     </Badge>
                     {sourceMode === "gallery" ?
                         <Badge variant="outline">{galleryImages.length} en galería</Badge> : null}
@@ -432,20 +400,11 @@ export function ImageCopiesManager() {
                     <div className="flex flex-wrap items-center gap-2">
                         <Button
                             size="sm"
-                            variant={sourceMode === "local" ? "default" : "outline"}
-                            onClick={() => setSourceMode("local")}
-                            disabled={busy}
-                        >
-                            <Upload className="h-4 w-4"/>
-                            Desde computadora
-                        </Button>
-                        <Button
-                            size="sm"
                             variant={sourceMode === "gallery" ? "default" : "outline"}
                             onClick={() => setSourceMode("gallery")}
                             disabled={busy}
                         >
-                            <GalleryHorizontal className="h-4 w-4"/>
+                            <Images className="h-4 w-4"/>
                             Desde galería
                         </Button>
                         <Button
@@ -459,58 +418,15 @@ export function ImageCopiesManager() {
                         </Button>
                     </div>
 
-                    {sourceMode === "local" ? (
-                        <div className="space-y-3 rounded-lg border border-dashed p-4 text-sm">
-                            <input
-                                id="images-copies-local-input"
-                                type="file"
-                                accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.svg"
-                                disabled={!user || loading || busy}
-                                onChange={(event) => setSelectedFile(event.target.files?.[0] || null)}
-                                className="sr-only"
-                            />
-                            <label
-                                htmlFor="images-copies-local-input"
-                                className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                                    !user || loading || busy
-                                        ? "pointer-events-none cursor-not-allowed opacity-50"
-                                        : "cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                }`}
-                            >
-                                <Upload className="h-4 w-4"/>
-                                Seleccionar imagen
-                            </label>
-
-                            <p className="text-xs text-muted-foreground">
-                                {selectedFile ? `${selectedFile.name} (${formatBytes(selectedFile.size)})` : "Ningún archivo seleccionado"}
-                            </p>
-
-                            {localPreviewUrl ? (
-                                <div
-                                    className="relative aspect-[4/3] max-w-xl overflow-hidden rounded-lg border bg-muted">
-                                    <Badge
-                                        variant="secondary"
-                                        className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
-                                    >
-                                        {getImageFormatLabel({
-                                            contentType: selectedFile?.type || null,
-                                            fileName: selectedFile?.name || null,
-                                        })}
-                                    </Badge>
-                                    <Image
-                                        src={localPreviewUrl}
-                                        alt={selectedFile?.name || "Previsualización local"}
-                                        fill
-                                        unoptimized
-                                        className="object-cover"
-                                        sizes="(max-width: 768px) 100vw, 50vw"
-                                    />
-                                </div>
-                            ) : null}
-                        </div>
-                    ) : sourceMode === "gallery" ? (
+                    {sourceMode === "gallery" ? (
                         <div className="space-y-3 rounded-lg border p-4">
-                            <div className="flex justify-end">
+                            <div className="flex justify-between gap-2">
+                                <Button asChild variant="outline" size="sm" disabled={busy}>
+                                    <Link href="/dashboard/images/gallery">
+                                        <Images className="h-4 w-4"/>
+                                        Ir a galería
+                                    </Link>
+                                </Button>
                                 <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
                                         disabled={loadingGallery || busy || !user}>
                                     {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
@@ -542,6 +458,15 @@ export function ImageCopiesManager() {
                                                         fileName: image.name || image.path,
                                                     })}
                                                 </Badge>
+                                                {image.isN8nGenerated ? (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="pointer-events-none absolute right-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                    >
+                                                        <Star className="mr-1 h-3 w-3 fill-current"/>
+                                                        n8n
+                                                    </Badge>
+                                                ) : null}
                                                 {isPreviewableImage(image.contentType, image.name) ? (
                                                     <Image src={image.downloadURL} alt={image.name} fill unoptimized
                                                            className="object-cover"
@@ -669,7 +594,13 @@ export function ImageCopiesManager() {
                         <Button
                             size="sm"
                             onClick={() => void handleSendToN8n()}
-                            disabled={busy || !user || (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard)}
+                            disabled={
+                                busy ||
+                                !user ||
+                                (sourceMode === "gallery" && !selectedGalleryPath) ||
+                                (sourceMode === "optimized" && !selectedOptimizedPath) ||
+                                (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard)
+                            }
                         >
                             {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
                             Enviar a n8n

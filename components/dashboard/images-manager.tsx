@@ -7,14 +7,13 @@ import {
     Check,
     Copy,
     CopyPlus,
-    GalleryHorizontal,
     ImagePlus,
+    Images,
     Loader2,
     Pencil,
     RefreshCcw,
     Sparkles,
     Trash2,
-    Upload,
     X,
 } from "lucide-react";
 import Image from "next/image";
@@ -51,7 +50,6 @@ type StoredFile = {
     updatedAt: string | null;
 };
 
-type SourceMode = "local" | "gallery";
 type QualityMode = "balanced" | "high";
 
 type UploadResult = {
@@ -101,17 +99,11 @@ function formatDate(isoDate: string | null): string {
 }
 
 async function uploadOptimizedImage(input: {
-    file?: File;
-    galleryPath?: string;
+    galleryPath: string;
     qualityMode: QualityMode;
 }): Promise<UploadResult> {
     const formData = new FormData();
-    if (input.file) {
-        formData.append("image", input.file);
-    }
-    if (input.galleryPath) {
-        formData.append("galleryPath", input.galleryPath);
-    }
+    formData.append("galleryPath", input.galleryPath);
     formData.append("qualityMode", input.qualityMode);
 
     const response = await fetch("/api/images", {
@@ -135,7 +127,7 @@ async function uploadOptimizedImage(input: {
     } | null;
 
     const optimizedBytes = Number(payload?.image?.optimizedSizeBytes ?? payload?.image?.sizeBytes ?? 0);
-    const originalBytes = Number(payload?.image?.originalSizeBytes ?? input.file?.size ?? 0);
+    const originalBytes = Number(payload?.image?.originalSizeBytes ?? 0);
     const savedBytes = Number(payload?.image?.savedBytes ?? Math.max(0, originalBytes - optimizedBytes));
     const savedPercent = Number(
         payload?.image?.savedPercent ?? (originalBytes > 0 ? (savedBytes / originalBytes) * 100 : 0),
@@ -145,13 +137,11 @@ async function uploadOptimizedImage(input: {
 }
 
 export function ImagesManager() {
-    const {user, loading, error} = useAuth();
+    const {user, error} = useAuth();
     const searchParams = useSearchParams();
     const requestedGalleryPath = searchParams.get("galleryPath");
     const userId = user?.uid || null;
-    const [files, setFiles] = useState<File[]>([]);
     const [images, setImages] = useState<StoredFile[]>([]);
-    const [sourceMode, setSourceMode] = useState<SourceMode>(requestedGalleryPath ? "gallery" : "local");
     const [qualityMode, setQualityMode] = useState<QualityMode>("balanced");
     const [selectedGalleryPath, setSelectedGalleryPath] = useState<string | null>(requestedGalleryPath);
     const [galleryPage, setGalleryPage] = useState(1);
@@ -181,33 +171,14 @@ export function ImagesManager() {
         refresh: refreshGallery,
     } = useGalleryImages({
         userId,
-        enabled: sourceMode === "gallery" || !!requestedGalleryPath,
+        enabled: true,
     });
-
-    const pendingPreviews = useMemo(
-        () =>
-            files.map((file) => ({
-                name: file.name,
-                size: file.size,
-                previewUrl: URL.createObjectURL(file),
-            })),
-        [files],
-    );
-
-    useEffect(() => {
-        return () => {
-            pendingPreviews.forEach((preview) => {
-                URL.revokeObjectURL(preview.previewUrl);
-            });
-        };
-    }, [pendingPreviews]);
 
     useEffect(() => {
         if (!requestedGalleryPath) {
             return;
         }
 
-        setSourceMode("gallery");
         setSelectedGalleryPath(requestedGalleryPath);
     }, [requestedGalleryPath]);
 
@@ -296,12 +267,7 @@ export function ImagesManager() {
             return;
         }
 
-        if (sourceMode === "local" && !files.length) {
-            setFailure("Selecciona al menos una imagen.");
-            return;
-        }
-
-        if (sourceMode === "gallery" && !selectedGalleryPath) {
+        if (!selectedGalleryPath) {
             setFailure("Selecciona una imagen de la galería.");
             return;
         }
@@ -316,52 +282,25 @@ export function ImagesManager() {
             let batchOptimizedBytes = 0;
             let batchSavedBytes = 0;
             let processedFiles = 0;
+            const selectedName = selectedGalleryImage?.name || "imagen de galería";
+            setCurrentFileName(selectedName);
+            setProgress(15);
+            setStatus(`Optimizando ${selectedName} desde galería...`);
 
-            if (sourceMode === "gallery" && selectedGalleryPath) {
-                const selectedName = selectedGalleryImage?.name || "imagen de galería";
-                setCurrentFileName(selectedName);
-                setProgress(15);
-                setStatus(`Optimizando ${selectedName} desde galería...`);
-
-                const optimized = await uploadOptimizedImage({
-                    galleryPath: selectedGalleryPath,
-                    qualityMode,
-                });
-                batchOriginalBytes += optimized.originalBytes;
-                batchOptimizedBytes += optimized.optimizedBytes;
-                batchSavedBytes += optimized.savedBytes;
-                processedFiles = 1;
-                setProgress(100);
-                setStatus(
-                    `${selectedName}: ${formatBytes(optimized.originalBytes)} -> ${formatBytes(
-                        optimized.optimizedBytes,
-                    )} (ahorro ${formatBytes(optimized.savedBytes)} / ${formatPercent(optimized.savedPercent)})`,
-                );
-            } else {
-                for (const [index, file] of files.entries()) {
-                    setCurrentFileName(file.name);
-                    const baseProgress = Math.round((index / files.length) * 100);
-                    setProgress(baseProgress);
-                    setStatus(`Optimizando ${file.name}...`);
-
-                    const optimized = await uploadOptimizedImage({
-                        file,
-                        qualityMode,
-                    });
-                    batchOriginalBytes += optimized.originalBytes;
-                    batchOptimizedBytes += optimized.optimizedBytes;
-                    batchSavedBytes += optimized.savedBytes;
-                    processedFiles = index + 1;
-
-                    const fileProgress = Math.round(((index + 1) / files.length) * 100);
-                    setProgress(fileProgress);
-                    setStatus(
-                        `${file.name}: ${formatBytes(optimized.originalBytes)} -> ${formatBytes(
-                            optimized.optimizedBytes,
-                        )} (ahorro ${formatBytes(optimized.savedBytes)} / ${formatPercent(optimized.savedPercent)})`,
-                    );
-                }
-            }
+            const optimized = await uploadOptimizedImage({
+                galleryPath: selectedGalleryPath,
+                qualityMode,
+            });
+            batchOriginalBytes += optimized.originalBytes;
+            batchOptimizedBytes += optimized.optimizedBytes;
+            batchSavedBytes += optimized.savedBytes;
+            processedFiles = 1;
+            setProgress(100);
+            setStatus(
+                `${selectedName}: ${formatBytes(optimized.originalBytes)} -> ${formatBytes(
+                    optimized.optimizedBytes,
+                )} (ahorro ${formatBytes(optimized.savedBytes)} / ${formatPercent(optimized.savedPercent)})`,
+            );
 
             const batchSavedPercent = batchOriginalBytes > 0 ? (batchSavedBytes / batchOriginalBytes) * 100 : 0;
             setLastBatchStats({
@@ -371,9 +310,6 @@ export function ImagesManager() {
                 savedBytes: batchSavedBytes,
                 savedPercent: batchSavedPercent,
             });
-            if (sourceMode === "local") {
-                setFiles([]);
-            }
             setStatus(
                 `Imágenes optimizadas (${processedFiles}): ${formatBytes(batchOriginalBytes)} -> ${formatBytes(batchOptimizedBytes)} (ahorro ${formatBytes(batchSavedBytes)} / ${formatPercent(batchSavedPercent)}).`,
             );
@@ -531,10 +467,7 @@ export function ImagesManager() {
         };
     }, [imagesWithStats]);
 
-    const canStartOptimization =
-        !!user &&
-        !busy &&
-        ((sourceMode === "local" && files.length > 0) || (sourceMode === "gallery" && !!selectedGalleryPath));
+    const canStartOptimization = !!user && !busy && !!selectedGalleryPath;
 
     return (
         <Card>
@@ -557,10 +490,8 @@ export function ImagesManager() {
                         Ahorro
                         acumulado {formatBytes(optimizationStats.totalSavedBytes)} ({formatPercent(optimizationStats.totalSavedPercent)})
                     </Badge>
-                    <Badge variant="outline">Origen: {sourceMode === "local" ? "Computadora" : "Galería"}</Badge>
-                    {sourceMode === "local" && files.length > 0 ? <Badge>{files.length} pendientes</Badge> : null}
-                    {sourceMode === "gallery" && selectedGalleryImage ?
-                        <Badge>{selectedGalleryImage.name}</Badge> : null}
+                    <Badge variant="outline">Origen: Galería</Badge>
+                    {selectedGalleryImage ? <Badge>{selectedGalleryImage.name}</Badge> : null}
                 </div>
             </CardHeader>
 
@@ -579,7 +510,7 @@ export function ImagesManager() {
                     <TabsContent value="new" className="space-y-4">
                         <section className="space-y-4 rounded-lg border p-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm font-medium">1. Selecciona origen y calidad de optimización</p>
+                                <p className="text-sm font-medium">1. Selecciona imagen de galería y calidad de optimización</p>
                                 <Button size="sm" onClick={() => void handleUploadAll()}
                                         disabled={!canStartOptimization}>
                                     {busy ? <Loader2 className="h-4 w-4 animate-spin"/> :
@@ -591,26 +522,10 @@ export function ImagesManager() {
                             <div className="grid gap-3 lg:grid-cols-2">
                                 <div className="space-y-2 rounded-lg border p-3">
                                     <p className="text-xs font-medium text-muted-foreground">Origen</p>
-                                    <div className="flex flex-wrap gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant={sourceMode === "local" ? "default" : "outline"}
-                                            onClick={() => setSourceMode("local")}
-                                            disabled={busy}
-                                        >
-                                            <Upload className="h-4 w-4"/>
-                                            Computadora
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant={sourceMode === "gallery" ? "default" : "outline"}
-                                            onClick={() => setSourceMode("gallery")}
-                                            disabled={busy}
-                                        >
-                                            <GalleryHorizontal className="h-4 w-4"/>
-                                            Galería
-                                        </Button>
-                                    </div>
+                                    <Button size="sm" variant="default" disabled>
+                                        <Images className="h-4 w-4"/>
+                                        Desde galería
+                                    </Button>
                                 </div>
                                 <div className="space-y-2 rounded-lg border p-3">
                                     <p className="text-xs font-medium text-muted-foreground">Perfil de calidad</p>
@@ -635,143 +550,81 @@ export function ImagesManager() {
                                 </div>
                             </div>
 
-                            {sourceMode === "local" ? (
-                                <div className="space-y-3 rounded-lg border border-dashed border-border p-4 text-sm">
-                                    <p className="text-muted-foreground">
-                                        Formatos soportados: `png`, `jpg`, `jpeg`, `webp`, `avif`, `heic`, `heif`,
-                                        `gif`, `tiff`, `bmp`, `svg`.
-                                    </p>
-                                    <input
-                                        id="images-upload-input"
-                                        type="file"
-                                        multiple
-                                        accept="image/*,.heic,.heif,.avif,.tif,.tiff,.bmp,.svg"
-                                        disabled={!user || loading || busy}
-                                        onChange={(event) => setFiles(Array.from(event.target.files || []))}
-                                        className="sr-only"
-                                    />
-                                    <label
-                                        htmlFor="images-upload-input"
-                                        className={`inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors ${
-                                            !user || loading || busy
-                                                ? "pointer-events-none cursor-not-allowed opacity-50"
-                                                : "cursor-pointer hover:bg-accent hover:text-accent-foreground"
-                                        }`}
-                                    >
-                                        <Upload className="h-4 w-4"/>
-                                        Seleccionar imágenes
-                                    </label>
-                                    <p className="text-xs text-muted-foreground">
-                                        {files.length > 0 ? `${files.length} archivo(s) seleccionado(s)` : "Ningún archivo seleccionado"}
-                                    </p>
-
-                                    {pendingPreviews.length > 0 ? (
-                                        <div className="space-y-2">
-                                            <p className="text-sm font-medium">
-                                                2. Previsualización
-                                                ({pendingPreviews.length} seleccionada{pendingPreviews.length > 1 ? "s" : ""})
-                                            </p>
-                                            <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-                                                {pendingPreviews.map((preview) => (
-                                                    <article key={preview.previewUrl}
-                                                             className="overflow-hidden rounded-lg border bg-card">
-                                                        <div className="relative aspect-[4/3] bg-muted">
-                                                            <Badge
-                                                                variant="secondary"
-                                                                className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
-                                                            >
-                                                                {getImageFormatLabel({fileName: preview.name})}
-                                                            </Badge>
-                                                            <Image
-                                                                src={preview.previewUrl}
-                                                                alt={`Previsualización de ${preview.name}`}
-                                                                fill
-                                                                unoptimized
-                                                                className="object-cover"
-                                                                sizes="(max-width: 768px) 100vw, 25vw"
-                                                            />
-                                                        </div>
-                                                        <div className="space-y-1 p-2">
-                                                            <p className="truncate text-xs font-medium">{preview.name}</p>
-                                                            <p className="text-xs text-muted-foreground">{formatBytes(preview.size)}</p>
-                                                        </div>
-                                                    </article>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    ) : null}
+                            <div className="space-y-3 rounded-lg border p-4">
+                                <div className="flex justify-between gap-2">
+                                    <Button asChild variant="outline" size="sm" disabled={busy}>
+                                        <Link href="/dashboard/images/gallery">
+                                            <Images className="h-4 w-4"/>
+                                            Ir a galería
+                                        </Link>
+                                    </Button>
+                                    <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
+                                            disabled={loadingGallery || busy || !user}>
+                                        {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
+                                            <RefreshCcw className="h-4 w-4"/>}
+                                        Recargar galería
+                                    </Button>
                                 </div>
-                            ) : (
-                                <div className="space-y-3 rounded-lg border p-4">
-                                    <div className="flex justify-end">
-                                        <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
-                                                disabled={loadingGallery || busy || !user}>
-                                            {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
-                                                <RefreshCcw className="h-4 w-4"/>}
-                                            Recargar galería
-                                        </Button>
-                                    </div>
 
-                                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {paginatedGalleryImages.map((image) => {
-                                            const active = image.path === selectedGalleryPath;
-                                            return (
-                                                <button
-                                                    key={image.path}
-                                                    type="button"
-                                                    className={`overflow-hidden rounded-lg border text-left transition ${
-                                                        active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
-                                                    }`}
-                                                    onClick={() => setSelectedGalleryPath(image.path)}
-                                                    disabled={busy}
-                                                >
-                                                    <div className="relative aspect-[4/3] bg-muted">
-                                                        <Badge
-                                                            variant="secondary"
-                                                            className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
-                                                        >
-                                                            {getImageFormatLabel({
-                                                                contentType: image.contentType,
-                                                                fileName: image.name || image.path,
-                                                            })}
-                                                        </Badge>
-                                                        <Image
-                                                            src={image.downloadURL}
-                                                            alt={image.name}
-                                                            fill
-                                                            unoptimized
-                                                            className="object-cover"
-                                                            sizes="(max-width: 768px) 100vw, 33vw"
-                                                        />
-                                                    </div>
-                                                    <div className="space-y-1 p-2">
-                                                        <p className="truncate text-xs font-medium">{image.name}</p>
-                                                        <p className="text-xs text-muted-foreground">{formatBytes(image.sizeBytes)}</p>
-                                                    </div>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                    <GalleryPaginationControls
-                                        totalItems={galleryImages.length}
-                                        page={galleryPage}
-                                        pageSize={galleryPageSize}
-                                        onPageChange={setGalleryPage}
-                                        onPageSizeChange={(nextSize) => {
-                                            setGalleryPageSize(nextSize);
-                                            setGalleryPage(1);
-                                        }}
-                                        disabled={busy || loadingGallery}
-                                    />
-
-                                    {selectedGalleryImage ? (
-                                        <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
-                                    ) : (
-                                        <p className="text-xs text-muted-foreground">Selecciona una imagen de la galería
-                                            para optimizarla.</p>
-                                    )}
+                                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                                    {paginatedGalleryImages.map((image) => {
+                                        const active = image.path === selectedGalleryPath;
+                                        return (
+                                            <button
+                                                key={image.path}
+                                                type="button"
+                                                className={`overflow-hidden rounded-lg border text-left transition ${
+                                                    active ? "border-primary ring-2 ring-primary/30" : "hover:border-primary/40"
+                                                }`}
+                                                onClick={() => setSelectedGalleryPath(image.path)}
+                                                disabled={busy}
+                                            >
+                                                <div className="relative aspect-[4/3] bg-muted">
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                    >
+                                                        {getImageFormatLabel({
+                                                            contentType: image.contentType,
+                                                            fileName: image.name || image.path,
+                                                        })}
+                                                    </Badge>
+                                                    <Image
+                                                        src={image.downloadURL}
+                                                        alt={image.name}
+                                                        fill
+                                                        unoptimized
+                                                        className="object-cover"
+                                                        sizes="(max-width: 768px) 100vw, 33vw"
+                                                    />
+                                                </div>
+                                                <div className="space-y-1 p-2">
+                                                    <p className="truncate text-xs font-medium">{image.name}</p>
+                                                    <p className="text-xs text-muted-foreground">{formatBytes(image.sizeBytes)}</p>
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
                                 </div>
-                            )}
+                                <GalleryPaginationControls
+                                    totalItems={galleryImages.length}
+                                    page={galleryPage}
+                                    pageSize={galleryPageSize}
+                                    onPageChange={setGalleryPage}
+                                    onPageSizeChange={(nextSize) => {
+                                        setGalleryPageSize(nextSize);
+                                        setGalleryPage(1);
+                                    }}
+                                    disabled={busy || loadingGallery}
+                                />
+
+                                {selectedGalleryImage ? (
+                                    <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
+                                ) : (
+                                    <p className="text-xs text-muted-foreground">Selecciona una imagen de la galería
+                                        para optimizarla.</p>
+                                )}
+                            </div>
 
                             {busy && currentFileName ? (
                                 <div className="space-y-2 rounded-lg border bg-muted/30 p-3">
@@ -956,7 +809,7 @@ export function ImagesManager() {
                     </TabsContent>
                 </Tabs>
 
-                {!user && !loading ? (
+                {!user ? (
                     <p className="text-sm text-muted-foreground">Inicia sesión para administrar imágenes dentro del
                         dashboard.</p>
                 ) : null}

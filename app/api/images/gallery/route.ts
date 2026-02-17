@@ -26,6 +26,7 @@ type GalleryImageResponse = {
     updatedAt: string | null;
     sourceGalleryPath?: string | null;
     isN8nDerived?: boolean;
+    isN8nGenerated?: boolean;
     needsN8nTransformation?: boolean;
     n8nVariantPath?: string | null;
 };
@@ -165,7 +166,7 @@ async function buildN8nScopedGallery(input: {
     const galleryPrefix = buildGalleryPrefix(input.uid);
     const n8nPrefix = buildN8nPrefix(input.uid);
 
-    const relations = await prisma.imagenRelacion.findMany({
+    const compatibleRelations = await prisma.imagenRelacion.findMany({
         where: {
             usuarioId: input.uid,
             tipo: TipoRelacionImagen.N8N_COMPATIBLE,
@@ -176,6 +177,12 @@ async function buildN8nScopedGallery(input: {
                 startsWith: n8nPrefix,
             },
         },
+    });
+    const responseRelations = await prisma.imagenRelacion.findMany({
+        where: {
+            usuarioId: input.uid,
+            tipo: TipoRelacionImagen.N8N_RESPUESTA,
+        },
         select: {
             id: true,
             origenPath: true,
@@ -183,8 +190,11 @@ async function buildN8nScopedGallery(input: {
         },
     });
 
-    const relationByOrigin = new Map(relations.map((relation) => [relation.origenPath, relation]));
-    const uniqueDerivedPaths = Array.from(new Set(relations.map((relation) => relation.destinoPath)));
+    const compatibleByOrigin = new Map(compatibleRelations.map((relation) => [relation.origenPath, relation]));
+    const responseByOrigin = new Map(responseRelations.map((relation) => [relation.origenPath, relation]));
+    const uniqueDerivedPaths = Array.from(
+        new Set([...compatibleRelations, ...responseRelations].map((relation) => relation.destinoPath)),
+    );
     const derivedEntries = await Promise.all(
         uniqueDerivedPaths.map(async (path) => {
             const item = await resolveStorageImageByPath({
@@ -195,10 +205,14 @@ async function buildN8nScopedGallery(input: {
         }),
     );
     const derivedByPath = new Map(derivedEntries);
-    const staleRelationIds = relations
+    const staleCompatibleRelationIds = compatibleRelations
+        .filter((relation) => !derivedByPath.get(relation.destinoPath))
+        .map((relation) => relation.id);
+    const staleResponseRelationIds = responseRelations
         .filter((relation) => !derivedByPath.get(relation.destinoPath))
         .map((relation) => relation.id);
 
+    const staleRelationIds = [...staleCompatibleRelationIds, ...staleResponseRelationIds];
     if (staleRelationIds.length > 0) {
         await prisma.imagenRelacion.deleteMany({
             where: {
@@ -210,16 +224,31 @@ async function buildN8nScopedGallery(input: {
     }
 
     return input.galleryItems.map((item) => {
-        const relation = relationByOrigin.get(item.path);
-        const derived = relation ? derivedByPath.get(relation.destinoPath) || null : null;
+        const compatibleRelation = compatibleByOrigin.get(item.path);
+        const compatibleDerived = compatibleRelation ? derivedByPath.get(compatibleRelation.destinoPath) || null : null;
+        const currentItem = compatibleDerived || item;
+        const responseRelation = responseByOrigin.get(currentItem.path);
+        const responseDerived = responseRelation ? derivedByPath.get(responseRelation.destinoPath) || null : null;
 
-        if (derived) {
+        if (responseDerived) {
             return {
-                ...derived,
+                ...responseDerived,
+                sourceGalleryPath: item.path,
+                isN8nDerived: Boolean(compatibleDerived),
+                isN8nGenerated: true,
+                needsN8nTransformation: false,
+                n8nVariantPath: currentItem.path,
+            };
+        }
+
+        if (compatibleDerived) {
+            return {
+                ...compatibleDerived,
                 sourceGalleryPath: item.path,
                 isN8nDerived: true,
+                isN8nGenerated: false,
                 needsN8nTransformation: false,
-                n8nVariantPath: derived.path,
+                n8nVariantPath: compatibleDerived.path,
             };
         }
 
@@ -232,6 +261,7 @@ async function buildN8nScopedGallery(input: {
             ...item,
             sourceGalleryPath: item.path,
             isN8nDerived: false,
+            isN8nGenerated: false,
             needsN8nTransformation: needsTransformation,
             n8nVariantPath: null,
         };

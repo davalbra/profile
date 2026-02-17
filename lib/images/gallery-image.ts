@@ -8,6 +8,7 @@ export type GalleryImage = {
     updatedAt: string | null;
     sourceGalleryPath?: string | null;
     isN8nDerived?: boolean;
+    isN8nGenerated?: boolean;
     needsN8nTransformation?: boolean;
     n8nVariantPath?: string | null;
 };

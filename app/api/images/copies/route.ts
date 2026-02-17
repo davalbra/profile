@@ -519,6 +519,56 @@ async function createOrUpdateN8nCompatibleDerivative(input: {
     return stored;
 }
 
+async function createOrUpdateN8nResponseDerivative(input: {
+    uid: string;
+    originPath: string;
+    originName: string;
+    originMime: string;
+    responseFileName: string;
+    responseMime: string;
+    responseBuffer: Buffer;
+}): Promise<StoredN8nImage> {
+    const existingRelation = await prisma.imagenRelacion.findUnique({
+        where: {
+            usuarioId_tipo_origenPath: {
+                usuarioId: input.uid,
+                tipo: TipoRelacionImagen.N8N_RESPUESTA,
+                origenPath: input.originPath,
+            },
+        },
+        select: {
+            destinoPath: true,
+        },
+    });
+
+    const stored = await saveImageToN8nFolder({
+        uid: input.uid,
+        fileName: input.responseFileName,
+        contentType: input.responseMime,
+        buffer: input.responseBuffer,
+        metadataSource: "n8n-response",
+        originalPath: input.originPath,
+    });
+
+    await upsertImageRelation({
+        uid: input.uid,
+        tipo: TipoRelacionImagen.N8N_RESPUESTA,
+        origenPath: input.originPath,
+        destinoPath: stored.path,
+        origenMime: input.originMime,
+        destinoMime: stored.contentType,
+        origenNombre: input.originName,
+        destinoNombre: stored.name,
+    });
+
+    if (existingRelation?.destinoPath && existingRelation.destinoPath !== stored.path) {
+        const bucket = getFirebaseAdminStorage().bucket();
+        await bucket.file(existingRelation.destinoPath).delete({ignoreNotFound: true});
+    }
+
+    return stored;
+}
+
 async function prepareImageForN8n(
     sourceImage: SourceImage,
     options: { forceJpegConversion: boolean },
@@ -676,25 +726,24 @@ export async function POST(request: Request) {
             };
 
             if (response.ok) {
-                storedN8nImage = await saveImageToN8nFolder({
-                    uid: sesion.uid,
-                    fileName: n8nImageFileName,
-                    contentType: n8nContentType,
-                    buffer: n8nBuffer,
-                    metadataSource: "n8n-response",
-                    originalPath: preparedImage.storagePath,
-                });
-
                 if (preparedImage.storagePath) {
-                    await upsertImageRelation({
+                    storedN8nImage = await createOrUpdateN8nResponseDerivative({
                         uid: sesion.uid,
-                        tipo: TipoRelacionImagen.N8N_RESPUESTA,
-                        origenPath: preparedImage.storagePath,
-                        destinoPath: storedN8nImage.path,
-                        origenMime: preparedImage.contentType,
-                        destinoMime: storedN8nImage.contentType,
-                        origenNombre: preparedImage.fileName,
-                        destinoNombre: storedN8nImage.name,
+                        originPath: preparedImage.storagePath,
+                        originName: preparedImage.fileName,
+                        originMime: preparedImage.contentType,
+                        responseFileName: n8nImageFileName,
+                        responseMime: n8nContentType,
+                        responseBuffer: n8nBuffer,
+                    });
+                } else {
+                    storedN8nImage = await saveImageToN8nFolder({
+                        uid: sesion.uid,
+                        fileName: n8nImageFileName,
+                        contentType: n8nContentType,
+                        buffer: n8nBuffer,
+                        metadataSource: "n8n-response",
+                        originalPath: null,
                     });
                 }
             }
