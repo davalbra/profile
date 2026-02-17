@@ -1,7 +1,8 @@
 "use client"
 
 import * as React from "react"
-import {ImagePlus, PanelTop} from "lucide-react"
+import Link from "next/link"
+import {ChevronDown, CopyPlus, GalleryHorizontal, ImagePlus, PanelTop, Sparkles} from "lucide-react"
 import {usePathname} from "next/navigation"
 import {
     Sidebar,
@@ -10,10 +11,28 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
 } from "@/components/ui/sidebar"
+import {cn} from "@/lib/utils"
 
 export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
+    const isImagesRoute = pathname.startsWith("/dashboard/images")
+    const [imagesOpen, setImagesOpen] = React.useState(isImagesRoute)
+
+    React.useEffect(() => {
+        if (isImagesRoute) {
+            setImagesOpen(true)
+        }
+    }, [isImagesRoute])
+
+    const optimizeActive =
+        pathname === "/dashboard/images" ||
+        pathname === "/dashboard/images/optimize"
+    const copiesActive = pathname === "/dashboard/images/copies"
+    const galleryActive = pathname === "/dashboard/images/gallery"
 
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -31,12 +50,45 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
             <SidebarContent>
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton asChild isActive={pathname === "/dashboard/images"} tooltip="Imágenes">
-                            <a href="/dashboard/images">
-                                <ImagePlus/>
-                                <span>Imágenes</span>
-                            </a>
+                        <SidebarMenuButton
+                            type="button"
+                            tooltip="Imágenes"
+                            isActive={isImagesRoute}
+                            onClick={() => setImagesOpen((open) => !open)}
+                        >
+                            <ImagePlus/>
+                            <span>Imágenes</span>
+                            <ChevronDown className={cn("ml-auto transition-transform", imagesOpen && "rotate-180")}/>
                         </SidebarMenuButton>
+
+                        {imagesOpen ? (
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={optimizeActive}>
+                                        <Link href="/dashboard/images/optimize">
+                                            <Sparkles/>
+                                            <span>Optimizar</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={copiesActive}>
+                                        <Link href="/dashboard/images/copies">
+                                            <CopyPlus/>
+                                            <span>Copias n8n</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={galleryActive}>
+                                        <Link href="/dashboard/images/gallery">
+                                            <GalleryHorizontal/>
+                                            <span>Galería</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        ) : null}
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarContent>

@@ -12,9 +12,29 @@ import {prisma} from "@/lib/prisma";
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const MAX_DIMENSION = 2400;
 const AVIF_QUALITY = 52;
+const IMAGE_GALLERY_FOLDER = "galeria";
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_ORIGINALS_FOLDER = "originales";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
+type OptimizationMode = "balanced" | "high";
+
+const OPTIMIZATION_PROFILES: Record<
+    OptimizationMode,
+    { quality: number; effort: number; maxDimension: number; engine: string }
+> = {
+    balanced: {
+        quality: AVIF_QUALITY,
+        effort: 4,
+        maxDimension: MAX_DIMENSION,
+        engine: "sharp-avif-balanced",
+    },
+    high: {
+        quality: 68,
+        effort: 6,
+        maxDimension: 3200,
+        engine: "sharp-avif-high",
+    },
+};
 
 type ImageResponse = {
     id: string;
@@ -60,25 +80,41 @@ function getBaseName(fileName: string): string {
 }
 
 function normalizeStoredImageName(rawName: string): string {
-  const trimmed = rawName.trim();
-  if (!trimmed) {
-    throw new Error("El nombre no puede estar vacío.");
-  }
+    const trimmed = rawName.trim();
+    if (!trimmed) {
+        throw new Error("El nombre no puede estar vacío.");
+    }
 
-  const sanitized = trimmed
-    .replace(/[\\/\0]/g, "-")
-    .replace(/\s+/g, " ")
-    .slice(0, 120);
+    const sanitized = trimmed
+        .replace(/[\\/\0]/g, "-")
+        .replace(/\s+/g, " ")
+        .slice(0, 120);
 
-  if (!sanitized) {
-    throw new Error("El nombre no es válido.");
-  }
+    if (!sanitized) {
+        throw new Error("El nombre no es válido.");
+    }
 
-  return sanitized.toLowerCase().endsWith(".avif") ? sanitized : `${sanitized}.avif`;
+    return sanitized.toLowerCase().endsWith(".avif") ? sanitized : `${sanitized}.avif`;
 }
 
 function buildFolderPrefix(uid: string, folder: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${folder}/`;
+}
+
+function parseOptimizationMode(raw: string | null): OptimizationMode {
+    return raw?.toLowerCase() === "high" ? "high" : "balanced";
+}
+
+function asString(value: unknown): string | null {
+    if (typeof value === "string") {
+        return value;
+    }
+
+    if (value === null || value === undefined) {
+        return null;
+    }
+
+    return String(value);
 }
 
 function getDownloadUrl(bucketName: string, path: string, token: string): string {
@@ -137,19 +173,20 @@ async function getLatestOptimizationStats(imageIds: string[]): Promise<Map<strin
 
     try {
         const rows = await prisma.$queryRaw<OptimizationStatsRow[]>(Prisma.sql`
-      SELECT DISTINCT ON ("imagenId")
-        "imagenId",
-        "id",
-        "motor",
-        "calidad",
-        "esfuerzo",
-        "porcentajeAhorro",
-        "bytesAhorrados",
-        "creadoEn"
-      FROM "imagenes_optimizacion_estadisticas"
-      WHERE "imagenId" IN (${Prisma.join(imageIds)})
-      ORDER BY "imagenId", "creadoEn" DESC
-    `);
+            SELECT DISTINCT
+            ON ("imagenId")
+                "imagenId",
+                "id",
+                "motor",
+                "calidad",
+                "esfuerzo",
+                "porcentajeAhorro",
+                "bytesAhorrados",
+                "creadoEn"
+            FROM "imagenes_optimizacion_estadisticas"
+            WHERE "imagenId" IN (${Prisma.join(imageIds)})
+            ORDER BY "imagenId", "creadoEn" DESC
+        `);
 
         return new Map(rows.map((row) => [row.imagenId, row]));
     } catch {
@@ -219,43 +256,84 @@ export async function POST(request: Request) {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const formData = await request.formData();
         const fileValue = formData.get("image") ?? formData.get("file");
+        const galleryPath = String(formData.get("galleryPath") || "").trim();
+        const optimizationMode = parseOptimizationMode(
+            formData.get("qualityMode") ? String(formData.get("qualityMode")) : null,
+        );
+        const profile = OPTIMIZATION_PROFILES[optimizationMode];
 
-        if (!(fileValue instanceof File)) {
-            return NextResponse.json({error: "Debes enviar un archivo en el campo image o file."}, {status: 400});
-        }
+        const bucket = getFirebaseAdminStorage().bucket();
+        let sourceBuffer: Buffer;
+        let sourceName: string;
+        let sourceMime: string;
 
-        if (fileValue.type && !fileValue.type.startsWith("image/")) {
-            return NextResponse.json({error: "El archivo debe ser una imagen."}, {status: 415});
-        }
+        if (fileValue instanceof File) {
+            if (fileValue.type && !fileValue.type.startsWith("image/")) {
+                return NextResponse.json({error: "El archivo debe ser una imagen."}, {status: 415});
+            }
 
-        if (fileValue.size <= 0) {
-            return NextResponse.json({error: "La imagen está vacía."}, {status: 400});
-        }
+            if (fileValue.size <= 0) {
+                return NextResponse.json({error: "La imagen está vacía."}, {status: 400});
+            }
 
-        if (fileValue.size > MAX_UPLOAD_BYTES) {
+            if (fileValue.size > MAX_UPLOAD_BYTES) {
+                return NextResponse.json(
+                    {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
+                    {status: 413},
+                );
+            }
+
+            sourceBuffer = Buffer.from(await fileValue.arrayBuffer());
+            sourceName = fileValue.name || `imagen-${Date.now()}`;
+            sourceMime = fileValue.type || "application/octet-stream";
+        } else if (galleryPath) {
+            const allowedPrefix = buildFolderPrefix(sesion.uid, IMAGE_GALLERY_FOLDER);
+            if (!galleryPath.startsWith(allowedPrefix)) {
+                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería."}, {status: 403});
+            }
+
+            const galleryFile = bucket.file(galleryPath);
+            const [exists] = await galleryFile.exists();
+            if (!exists) {
+                return NextResponse.json({error: "La imagen de galería no existe."}, {status: 404});
+            }
+
+            const [downloaded] = await galleryFile.download();
+            const [metadata] = await galleryFile.getMetadata();
+            if (downloaded.length > MAX_UPLOAD_BYTES) {
+                return NextResponse.json(
+                    {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
+                    {status: 413},
+                );
+            }
+
+            sourceBuffer = downloaded;
+            const originalName = asString(metadata.metadata?.originalName);
+            sourceName = originalName || galleryPath.split("/").pop() || `imagen-${Date.now()}`;
+            sourceMime = metadata.contentType || "application/octet-stream";
+        } else {
             return NextResponse.json(
-                {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
-                {status: 413},
+                {error: "Debes enviar un archivo en el campo image/file o indicar galleryPath."},
+                {status: 400},
             );
         }
 
-        const input = Buffer.from(await fileValue.arrayBuffer());
-        const output = await sharp(input, {failOn: "none", animated: true})
+        const output = await sharp(sourceBuffer, {failOn: "none", animated: true})
             .rotate()
             .resize({
-                width: MAX_DIMENSION,
-                height: MAX_DIMENSION,
+                width: profile.maxDimension,
+                height: profile.maxDimension,
                 fit: "inside",
                 withoutEnlargement: true,
             })
             .avif({
-                quality: AVIF_QUALITY,
-                effort: 4,
+                quality: profile.quality,
+                effort: profile.effort,
             })
             .toBuffer();
 
-        const baseName = getBaseName(fileValue.name);
-        const extension = fileValue.name.includes(".") ? fileValue.name.split(".").pop()?.toLowerCase() : "bin";
+        const baseName = getBaseName(sourceName);
+        const extension = sourceName.includes(".") ? sourceName.split(".").pop()?.toLowerCase() : "bin";
         const safeExtension = extension ? extension.replace(/[^a-z0-9]/g, "") || "bin" : "bin";
         const timestamp = Date.now();
         const originalName = `${timestamp}-${baseName}.${safeExtension}`;
@@ -264,14 +342,13 @@ export async function POST(request: Request) {
         const optimizedPath = `${buildFolderPrefix(sesion.uid, IMAGE_OPTIMIZED_FOLDER)}${optimizedName}`;
         const optimizedToken = crypto.randomUUID();
         const originalToken = crypto.randomUUID();
-        const bucket = getFirebaseAdminStorage().bucket();
         const originalFile = bucket.file(originalPath);
         const optimizedFile = bucket.file(optimizedPath);
 
-        await originalFile.save(input, {
+        await originalFile.save(sourceBuffer, {
             resumable: false,
             metadata: {
-                contentType: fileValue.type || "application/octet-stream",
+                contentType: sourceMime,
                 metadata: {
                     firebaseStorageDownloadTokens: originalToken,
                     source: "original-upload",
@@ -286,31 +363,32 @@ export async function POST(request: Request) {
                 contentType: "image/avif",
                 metadata: {
                     firebaseStorageDownloadTokens: optimizedToken,
-                    originalName: fileValue.name,
+                    originalName: sourceName,
                     originalPath,
-                    originalBytes: String(fileValue.size),
+                    originalBytes: String(sourceBuffer.length),
                     optimizedBytes: String(output.length),
                     optimizedAt: new Date().toISOString(),
+                    optimizationMode,
                 },
             },
         });
 
-        const bytesAhorrados = Math.max(0, fileValue.size - output.length);
-        const porcentajeAhorro = fileValue.size > 0 ? Number(((bytesAhorrados / fileValue.size) * 100).toFixed(1)) : 0;
+        const bytesAhorrados = Math.max(0, sourceBuffer.length - output.length);
+        const porcentajeAhorro = sourceBuffer.length > 0 ? Number(((bytesAhorrados / sourceBuffer.length) * 100).toFixed(1)) : 0;
 
         const image = await prisma.$transaction(async (tx) => {
             const createdImage = await tx.imagen.create({
                 data: {
                     usuarioId: sesion.uid,
-                    nombreOriginal: fileValue.name,
+                    nombreOriginal: sourceName,
                     nombreOptimizado: optimizedName,
                     pathOriginal: originalPath,
                     pathOptimizada: optimizedPath,
                     tokenOriginal: originalToken,
                     tokenOptimizado: optimizedToken,
-                    mimeOriginal: fileValue.type || "application/octet-stream",
+                    mimeOriginal: sourceMime,
                     mimeOptimizado: "image/avif",
-                    bytesOriginal: fileValue.size,
+                    bytesOriginal: sourceBuffer.length,
                     bytesOptimizado: output.length,
                 },
                 select: {
@@ -334,9 +412,9 @@ export async function POST(request: Request) {
                 INSERT INTO "imagenes_optimizacion_estadisticas"
                 ("id", "imagenId", "bytesOriginal", "bytesOptimizado", "bytesAhorrados", "porcentajeAhorro",
                  "formatoOriginal", "formatoOptimizado", "motor", "calidad", "esfuerzo", "creadoEn")
-                VALUES (${crypto.randomUUID()}, ${createdImage.id}, ${fileValue.size}, ${output.length},
-                        ${bytesAhorrados}, ${porcentajeAhorro}, ${fileValue.type || "application/octet-stream"},
-                        ${"image/avif"}, ${"sharp-avif"}, ${AVIF_QUALITY}, ${4}, ${new Date()})
+                VALUES (${crypto.randomUUID()}, ${createdImage.id}, ${sourceBuffer.length}, ${output.length},
+                        ${bytesAhorrados}, ${porcentajeAhorro}, ${sourceMime},
+                        ${"image/avif"}, ${profile.engine}, ${profile.quality}, ${profile.effort}, ${new Date()})
             `;
 
             return createdImage;
@@ -425,74 +503,74 @@ export async function DELETE(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  try {
-    const sesion = await requerirSesionFirebase(request, { rolMinimo: "COLABORADOR" });
-    const payload = (await request.json().catch(() => null)) as { path?: string; name?: string } | null;
-    const path = payload?.path?.trim();
-    const rawName = payload?.name ?? "";
-
-    if (!path) {
-      return NextResponse.json({ error: "Falta path de la imagen." }, { status: 400 });
-    }
-
-    let normalizedName: string;
     try {
-      normalizedName = normalizeStoredImageName(rawName);
+        const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
+        const payload = (await request.json().catch(() => null)) as { path?: string; name?: string } | null;
+        const path = payload?.path?.trim();
+        const rawName = payload?.name ?? "";
+
+        if (!path) {
+            return NextResponse.json({error: "Falta path de la imagen."}, {status: 400});
+        }
+
+        let normalizedName: string;
+        try {
+            normalizedName = normalizeStoredImageName(rawName);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Nombre inválido.";
+            return NextResponse.json({error: message}, {status: 400});
+        }
+
+        const image = await prisma.imagen.findFirst({
+            where: {
+                usuarioId: sesion.uid,
+                pathOptimizada: path,
+                eliminadoEn: null,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        if (!image) {
+            return NextResponse.json({error: "Imagen no encontrada."}, {status: 404});
+        }
+
+        const updated = await prisma.imagen.update({
+            where: {id: image.id},
+            data: {
+                nombreOptimizado: normalizedName,
+            },
+            select: {
+                id: true,
+                pathOptimizada: true,
+                nombreOptimizado: true,
+                mimeOptimizado: true,
+                bytesOptimizado: true,
+                bytesOriginal: true,
+                creadoEn: true,
+                actualizadoEn: true,
+                tokenOptimizado: true,
+            },
+        });
+
+        const statsByImageId = await getLatestOptimizationStats([updated.id]);
+        const bucketName = getFirebaseAdminStorage().bucket().name;
+
+        return NextResponse.json(
+            {
+                ok: true,
+                image: toImageResponse(updated, statsByImageId, bucketName),
+            },
+            {headers: {"Cache-Control": "no-store"}},
+        );
     } catch (error) {
-      const message = error instanceof Error ? error.message : "Nombre inválido.";
-      return NextResponse.json({ error: message }, { status: 400 });
+        const authError = parseAuthError(error);
+        if (authError) {
+            return authError;
+        }
+
+        const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen.";
+        return NextResponse.json({error: message}, {status: 500});
     }
-
-    const image = await prisma.imagen.findFirst({
-      where: {
-        usuarioId: sesion.uid,
-        pathOptimizada: path,
-        eliminadoEn: null,
-      },
-      select: {
-        id: true,
-      },
-    });
-
-    if (!image) {
-      return NextResponse.json({ error: "Imagen no encontrada." }, { status: 404 });
-    }
-
-    const updated = await prisma.imagen.update({
-      where: { id: image.id },
-      data: {
-        nombreOptimizado: normalizedName,
-      },
-      select: {
-        id: true,
-        pathOptimizada: true,
-        nombreOptimizado: true,
-        mimeOptimizado: true,
-        bytesOptimizado: true,
-        bytesOriginal: true,
-        creadoEn: true,
-        actualizadoEn: true,
-        tokenOptimizado: true,
-      },
-    });
-
-    const statsByImageId = await getLatestOptimizationStats([updated.id]);
-    const bucketName = getFirebaseAdminStorage().bucket().name;
-
-    return NextResponse.json(
-      {
-        ok: true,
-        image: toImageResponse(updated, statsByImageId, bucketName),
-      },
-      { headers: { "Cache-Control": "no-store" } },
-    );
-  } catch (error) {
-    const authError = parseAuthError(error);
-    if (authError) {
-      return authError;
-    }
-
-    const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen.";
-    return NextResponse.json({ error: message }, { status: 500 });
-  }
 }

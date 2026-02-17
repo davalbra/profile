@@ -1,11 +1,5 @@
-import { ImagesManager } from "@/components/dashboard/images-manager"
+import {redirect} from "next/navigation"
 
 export default function DashboardImagesPage() {
-  return (
-    <div className="flex flex-col gap-4 py-4 md:gap-6 md:py-6">
-      <div className="px-4 lg:px-6">
-        <ImagesManager />
-      </div>
-    </div>
-  )
+    redirect("/dashboard/images/optimize")
 }
