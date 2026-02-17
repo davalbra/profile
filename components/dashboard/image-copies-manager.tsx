@@ -14,6 +14,7 @@ import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import type {GalleryImage} from "@/lib/images/gallery-image";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
+import * as React from "react";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
@@ -25,6 +26,14 @@ type N8nImagePreview = {
     contentType: string;
     sizeBytes: number;
     fileName: string;
+};
+type StoredN8nImage = {
+    path: string;
+    name: string;
+    downloadURL: string;
+    contentType: string;
+    sizeBytes: number;
+    createdAt: string;
 };
 
 function formatBytes(bytes: number | null): string {
@@ -280,6 +289,7 @@ export function ImageCopiesManager() {
                 error?: string;
                 n8n?: unknown;
                 n8nImage?: N8nImagePreview | null;
+                n8nStoredImage?: StoredN8nImage | null;
                 source?: string;
                 fileName?: string;
                 wasConvertedToJpeg?: boolean;
@@ -296,7 +306,10 @@ export function ImageCopiesManager() {
                         ? "optimizadas"
                         : "computadora";
             const convertedLabel = payload.wasConvertedToJpeg ? " (convertida a JPG)" : "";
-            setStatus(`Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.`);
+            const storedLabel = payload.n8nStoredImage ? " Guardada en carpeta n8n." : "";
+            setStatus(
+                `Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${storedLabel}`,
+            );
             const n8nImage = payload.n8nImage || null;
             setResponseImage(n8nImage);
             if (n8nImage) {
@@ -305,6 +318,7 @@ export function ImageCopiesManager() {
                     contentType: n8nImage.contentType,
                     fileName: n8nImage.fileName,
                     sizeBytes: n8nImage.sizeBytes,
+                    n8nStoredImage: payload.n8nStoredImage || null,
                 });
             } else {
                 setResponsePayload(payload.n8n ?? payload);
@@ -575,7 +589,7 @@ export function ImageCopiesManager() {
 
                     <div className="flex justify-end">
                         <Button size="sm" onClick={() => void handleSendToN8n()} disabled={sending || !user}>
-                            {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <CopyPlus className="h-4 w-4"/>}
+                            {sending ? <Sparkles className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
                             {sourceMode === "gallery" && selectedGalleryNeedsJpegWizard
                                 ? galleryWizardStep === 1
                                     ? "Paso 1: Convertir a JPG"

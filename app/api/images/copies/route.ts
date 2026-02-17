@@ -11,6 +11,7 @@ import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
+const IMAGE_N8N_FOLDER = "n8n";
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const N8N_COPY_WEBHOOK_URL =
     "https://n8n.srv1338422.hstgr.cloud/webhook-test/37f97811-ea45-4d5a-a2c5-6f104ca79b15";
@@ -22,6 +23,14 @@ function buildGalleryPrefix(uid: string): string {
 
 function buildOptimizedPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_OPTIMIZED_FOLDER}/`;
+}
+
+function buildN8nPrefix(uid: string): string {
+    return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_N8N_FOLDER}/`;
+}
+
+function getDownloadUrl(bucketName: string, path: string, token: string): string {
+    return `https://firebasestorage.googleapis.com/v0/b/${bucketName}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
 }
 
 function parseAuthError(error: unknown) {
@@ -187,6 +196,33 @@ function extractFileExtension(fileName: string | null): string | null {
     return parts[parts.length - 1] || null;
 }
 
+function extensionFromMime(contentType: string): string {
+    switch (contentType) {
+        case "image/jpeg":
+            return "jpg";
+        case "image/png":
+            return "png";
+        case "image/webp":
+            return "webp";
+        case "image/gif":
+            return "gif";
+        case "image/bmp":
+            return "bmp";
+        case "image/tiff":
+            return "tiff";
+        case "image/avif":
+            return "avif";
+        case "image/heic":
+            return "heic";
+        case "image/heif":
+            return "heif";
+        case "image/svg+xml":
+            return "svg";
+        default:
+            return "bin";
+    }
+}
+
 function mimeFromFileExtension(extension: string | null): string | null {
     switch (extension) {
         case "jpg":
@@ -303,6 +339,21 @@ function normalizeJpegFileName(fileName: string): string {
     return `${withoutExtension || `image-${Date.now()}`}.jpg`;
 }
 
+function normalizeN8nStoredFileName(fileName: string, contentType: string): string {
+    const trimmed = fileName.trim();
+    const safeRawName = (trimmed || `n8n-image-${Date.now()}`)
+        .replace(/[\\/\0]/g, "-")
+        .replace(/\s+/g, "-")
+        .replace(/[^a-zA-Z0-9._-]/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^-|-$/g, "");
+    const withoutExtension = safeRawName.replace(/\.[^.]+$/, "").replace(/^-|-$/g, "") || `n8n-image-${Date.now()}`;
+    const providedExtension = extractFileExtension(safeRawName);
+    const validProvidedExtension = mimeFromFileExtension(providedExtension) ? providedExtension : null;
+    const extension = validProvidedExtension || extensionFromMime(contentType);
+    return `${withoutExtension}.${extension}`;
+}
+
 async function prepareImageForN8n(
     sourceImage: {
         buffer: Buffer;
@@ -411,16 +462,59 @@ export async function POST(request: Request) {
             fileName: string;
         }
             | null = null;
+        let storedN8nImage:
+            | {
+            path: string;
+            name: string;
+            downloadURL: string;
+            contentType: string;
+            sizeBytes: number;
+            createdAt: string;
+        }
+            | null = null;
 
         if (n8nResponseIsImage) {
             const n8nImageFileName =
                 n8nImageFileNameFromHeaders || preparedImage.fileName;
+            if (n8nBuffer.length > MAX_UPLOAD_BYTES) {
+                throw new Error(
+                    `La imagen devuelta por n8n supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`,
+                );
+            }
+            const n8nStoredFileName = normalizeN8nStoredFileName(n8nImageFileName, n8nContentType);
+            const n8nStoredPath = `${buildN8nPrefix(sesion.uid)}${Date.now()}-${n8nStoredFileName}`;
+            const createdAt = new Date().toISOString();
+            const downloadToken = crypto.randomUUID();
+            const bucket = getFirebaseAdminStorage().bucket();
+            const destination = bucket.file(n8nStoredPath);
+
+            await destination.save(n8nBuffer, {
+                resumable: false,
+                metadata: {
+                    contentType: n8nContentType,
+                    metadata: {
+                        firebaseStorageDownloadTokens: downloadToken,
+                        originalName: n8nImageFileName,
+                        source: "n8n",
+                        createdAt,
+                    },
+                },
+            });
 
             imagePayload = {
                 dataUrl: `data:${n8nContentType};base64,${n8nBuffer.toString("base64")}`,
                 contentType: n8nContentType,
                 sizeBytes: n8nBuffer.length,
                 fileName: n8nImageFileName,
+            };
+
+            storedN8nImage = {
+                path: n8nStoredPath,
+                name: n8nImageFileName,
+                downloadURL: getDownloadUrl(bucket.name, n8nStoredPath, downloadToken),
+                contentType: n8nContentType,
+                sizeBytes: n8nBuffer.length,
+                createdAt,
             };
         } else {
             const rawText = n8nBuffer.toString("utf-8");
@@ -457,6 +551,7 @@ export async function POST(request: Request) {
                 n8nContentType,
                 n8nResponseType: n8nResponseIsImage ? "image" : "data",
                 n8nImage: imagePayload,
+                n8nStoredImage: storedN8nImage,
                 n8n: parsed,
             },
             {headers: {"Cache-Control": "no-store"}},
