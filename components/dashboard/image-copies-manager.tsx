@@ -671,7 +671,7 @@ export function ImageCopiesManager() {
                             onClick={() => void handleSendToN8n()}
                             disabled={busy || !user || (sourceMode === "gallery" && selectedGalleryNeedsJpegWizard)}
                         >
-                            {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <CopyPlus className="h-4 w-4"/>}
+                            {sending ? <Loader2 className="h-4 w-4 animate-spin"/> : <Sparkles className="h-4 w-4"/>}
                             Enviar a n8n
                         </Button>
                     </div>
