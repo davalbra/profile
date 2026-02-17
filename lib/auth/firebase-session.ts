@@ -14,6 +14,8 @@ type RequerirSesionOpciones = {
     rolMinimo?: RolUsuario;
 };
 
+const SESSION_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
 const JERARQUIA_ROL: Record<RolUsuario, number> = {
     LECTOR: 1,
     COLABORADOR: 2,
@@ -109,12 +111,15 @@ async function validarCorreoAutorizado(email: string, emailVerificado: boolean):
 export async function registrarSesionFirebase(idToken: string, request: Request) {
     const auth = getFirebaseAdminAuth();
     const decoded = await auth.verifyIdToken(idToken);
+    const expiraEn = new Date(Date.now() + SESSION_MAX_AGE_MS);
+    const sessionCookie = await auth.createSessionCookie(idToken, {
+        expiresIn: SESSION_MAX_AGE_MS,
+    });
 
     const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
     const emailVerificado = decoded.email_verified ?? false;
     const nombre = decoded.name || "Usuario";
     const avatarUrl = decoded.picture || null;
-    const expiraEn = decoded.exp ? new Date(decoded.exp * 1000) : new Date(Date.now() + 3600_000);
 
     const forwardedFor = request.headers.get("x-forwarded-for") || "";
     const ip = forwardedFor.split(",")[0]?.trim() || null;
@@ -138,7 +143,7 @@ export async function registrarSesionFirebase(idToken: string, request: Request)
     });
 
     await prisma.sesionFirebase.upsert({
-        where: {token: idToken},
+        where: {token: sessionCookie},
         update: {
             usuarioId: decoded.uid,
             expiraEn,
@@ -149,7 +154,7 @@ export async function registrarSesionFirebase(idToken: string, request: Request)
         },
         create: {
             usuarioId: decoded.uid,
-            token: idToken,
+            token: sessionCookie,
             expiraEn,
             ip,
             userAgent,
@@ -163,37 +168,71 @@ export async function registrarSesionFirebase(idToken: string, request: Request)
         nombre,
         avatarUrl,
         expiraEn,
+        sessionCookie,
     };
 }
 
-export async function revocarSesionFirebase(idToken: string): Promise<void> {
+export async function revocarSesionFirebase(token: string): Promise<void> {
+    const auth = getFirebaseAdminAuth();
+    let uid: string | null = null;
+
+    try {
+        const decodedIdToken = await auth.verifyIdToken(token);
+        uid = decodedIdToken.uid;
+    } catch {
+        try {
+            const decodedSessionCookie = await auth.verifySessionCookie(token, false);
+            uid = decodedSessionCookie.uid;
+        } catch {
+            uid = null;
+        }
+    }
+
     await prisma.sesionFirebase.updateMany({
         where: {
-            token: idToken,
             revocadoEn: null,
+            OR: [
+                {token},
+                ...(uid ? [{usuarioId: uid}] : []),
+            ],
         },
         data: {
             revocadoEn: new Date(),
         },
     });
+
+    if (uid) {
+        try {
+            await auth.revokeRefreshTokens(uid);
+        } catch {
+            // Evitamos bloquear el logout si falla la revocación remota.
+        }
+    }
 }
 
-export async function validarSesionFirebase(idToken: string): Promise<SesionFirebaseValidada> {
+export async function validarSesionFirebase(token: string): Promise<SesionFirebaseValidada> {
     const auth = getFirebaseAdminAuth();
-    const decoded = await auth.verifyIdToken(idToken);
+    let decoded: { uid: string; email?: string; email_verified?: boolean };
+
+    try {
+        decoded = await auth.verifySessionCookie(token, false);
+    } catch {
+        decoded = await auth.verifyIdToken(token);
+    }
+
     const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
     const emailVerificado = decoded.email_verified ?? false;
 
     try {
         await validarCorreoAutorizado(email, emailVerificado);
     } catch (error) {
-        await revocarSesionFirebase(idToken);
+        await revocarSesionFirebase(token);
         throw error;
     }
 
     const sesion = await prisma.sesionFirebase.findFirst({
         where: {
-            token: idToken,
+            token,
             usuarioId: decoded.uid,
             revocadoEn: null,
             expiraEn: {gt: new Date()},
@@ -222,6 +261,7 @@ export async function requerirSesionFirebase(
 ): Promise<SesionFirebaseValidada> {
     const token =
         getBearerToken(request.headers.get("authorization")) ||
+        getCookieToken(request.headers.get("cookie"), "firebase_session") ||
         getCookieToken(request.headers.get("cookie"), "firebase_id_token");
 
     if (!token) {

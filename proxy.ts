@@ -68,15 +68,52 @@ function redirectToHome(
     return NextResponse.redirect(redirectUrl);
 }
 
+function rejectApiRequest(authState: "required" | "forbidden" = "required"): NextResponse {
+    const status = authState === "forbidden" ? 403 : 401;
+    return NextResponse.json(
+        {
+            error:
+                authState === "forbidden"
+                    ? "No tienes permisos suficientes para este recurso."
+                    : "Debes iniciar sesión para acceder a este recurso.",
+            auth: authState,
+        },
+        {status},
+    );
+}
+
+function rejectOrRedirect(
+    request: NextRequest,
+    authState: "required" | "forbidden" = "required",
+): NextResponse {
+    if (request.nextUrl.pathname.startsWith("/api/")) {
+        return rejectApiRequest(authState);
+    }
+
+    return redirectToHome(request, authState);
+}
+
+function hasAuthCookie(cookieHeader: string | null): boolean {
+    if (!cookieHeader) {
+        return false;
+    }
+
+    return (
+        cookieHeader.includes("firebase_session=") ||
+        cookieHeader.includes("firebase_id_token=")
+    );
+}
+
 export async function proxy(request: NextRequest) {
     if (isPublicPath(request.nextUrl.pathname)) {
         return NextResponse.next();
     }
 
     const cookieHeader = request.headers.get("cookie");
-    if (!cookieHeader?.includes("firebase_id_token=")) {
-        return redirectToHome(request);
+    if (!hasAuthCookie(cookieHeader)) {
+        return rejectOrRedirect(request);
     }
+    const authCookieHeader = cookieHeader || "";
 
     const rolMinimo = getRolMinimoParaRuta(request.nextUrl.pathname);
 
@@ -89,16 +126,16 @@ export async function proxy(request: NextRequest) {
         const validationResponse = await fetch(validationUrl, {
             method: "GET",
             headers: {
-                cookie: cookieHeader,
+                cookie: authCookieHeader,
             },
             cache: "no-store",
         });
 
         if (!validationResponse.ok) {
             if (validationResponse.status === 403) {
-                return redirectToHome(request, "forbidden");
+                return rejectOrRedirect(request, "forbidden");
             }
-            return redirectToHome(request);
+            return rejectOrRedirect(request);
         }
 
         if (!rolMinimo) {
@@ -111,7 +148,7 @@ export async function proxy(request: NextRequest) {
         const rolActual = payload?.sesion?.rol;
 
         if (!rolActual || !tieneRolMinimo(rolActual, rolMinimo)) {
-            return redirectToHome(request, "forbidden");
+            return rejectOrRedirect(request, "forbidden");
         }
 
         return NextResponse.next();
@@ -119,7 +156,7 @@ export async function proxy(request: NextRequest) {
         // Si falla la validación, tratamos como sesión inválida.
     }
 
-    return redirectToHome(request);
+    return rejectOrRedirect(request);
 }
 
 export const config = {
