@@ -2,12 +2,25 @@
 
 import {useCallback, useEffect, useMemo, useState} from "react";
 import Link from "next/link";
-import {Copy, CopyPlus, GalleryHorizontal, Loader2, RefreshCcw, Sparkles, Trash2, Upload} from "lucide-react";
+import {
+    Check,
+    Copy,
+    CopyPlus,
+    GalleryHorizontal,
+    Loader2,
+    Pencil,
+    RefreshCcw,
+    Sparkles,
+    Trash2,
+    Upload,
+    X,
+} from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {Input} from "@/components/ui/input";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
@@ -53,6 +66,66 @@ function formatDate(isoDate: string | null): string {
     }).format(date);
 }
 
+function extractExtension(fileName: string): string {
+    const trimmed = fileName.trim();
+    const dotIndex = trimmed.lastIndexOf(".");
+
+    if (dotIndex <= -1 || dotIndex === trimmed.length - 1) {
+        return "";
+    }
+
+    return trimmed.slice(dotIndex + 1).toLowerCase();
+}
+
+function getImageFormatLabel(contentType: string | null | undefined, name: string): string {
+    const mime = (contentType || "").toLowerCase().split(";")[0].trim();
+
+    if (mime === "image/jpeg") {
+        return "JPG";
+    }
+    if (mime === "image/png") {
+        return "PNG";
+    }
+    if (mime === "image/webp") {
+        return "WEBP";
+    }
+    if (mime === "image/avif") {
+        return "AVIF";
+    }
+    if (mime === "image/heic") {
+        return "HEIC";
+    }
+    if (mime === "image/heif") {
+        return "HEIF";
+    }
+    if (mime === "image/gif") {
+        return "GIF";
+    }
+    if (mime === "image/bmp") {
+        return "BMP";
+    }
+    if (mime === "image/tiff") {
+        return "TIFF";
+    }
+    if (mime === "image/svg+xml") {
+        return "SVG";
+    }
+
+    const extension = extractExtension(name);
+    if (extension === "jpeg") {
+        return "JPG";
+    }
+    if (extension) {
+        return extension.toUpperCase();
+    }
+
+    if (mime.startsWith("image/")) {
+        return mime.slice(6).replace("+xml", "").toUpperCase() || "IMG";
+    }
+
+    return "IMG";
+}
+
 export function ImageGalleryManager() {
     const {user, loading, error} = useAuth();
     const userId = user?.uid || null;
@@ -61,6 +134,9 @@ export function ImageGalleryManager() {
     const [loadingImages, setLoadingImages] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [deletingPath, setDeletingPath] = useState<string | null>(null);
+    const [editingPath, setEditingPath] = useState<string | null>(null);
+    const [editName, setEditName] = useState("");
+    const [renamingPath, setRenamingPath] = useState<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
 
@@ -188,6 +264,10 @@ export function ImageGalleryManager() {
             }
 
             setStatus("Imagen eliminada de galería.");
+            if (editingPath === path) {
+                setEditingPath(null);
+                setEditName("");
+            }
             await loadImages();
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo eliminar la imagen.";
@@ -203,6 +283,58 @@ export function ImageGalleryManager() {
             setStatus("URL copiada al portapapeles.");
         } catch {
             setFailure("No se pudo copiar la URL.");
+        }
+    }
+
+    function startRename(path: string, currentName: string) {
+        setEditingPath(path);
+        setEditName(currentName);
+        setFailure(null);
+    }
+
+    function cancelRename() {
+        if (renamingPath) {
+            return;
+        }
+        setEditingPath(null);
+        setEditName("");
+    }
+
+    async function handleRename(path: string) {
+        const normalizedName = editName.trim();
+        if (!normalizedName) {
+            setFailure("El nombre no puede estar vacío.");
+            return;
+        }
+
+        setRenamingPath(path);
+        setFailure(null);
+        try {
+            const response = await fetch("/api/images/gallery", {
+                method: "PATCH",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    path,
+                    name: normalizedName,
+                }),
+            });
+
+            if (!response.ok) {
+                const payload = (await response.json().catch(() => ({}))) as { error?: string };
+                throw new Error(payload.error || "No se pudo renombrar la imagen.");
+            }
+
+            setStatus("Nombre de imagen actualizado.");
+            setEditingPath(null);
+            setEditName("");
+            await loadImages();
+        } catch (reason) {
+            const message = reason instanceof Error ? reason.message : "No se pudo renombrar la imagen.";
+            setFailure(message);
+        } finally {
+            setRenamingPath(null);
         }
     }
 
@@ -272,6 +404,12 @@ export function ImageGalleryManager() {
                             {pendingPreviews.map((preview) => (
                                 <article key={preview.previewUrl} className="overflow-hidden rounded-lg border bg-card">
                                     <div className="relative aspect-[4/3] bg-muted">
+                                        <Badge
+                                            variant="secondary"
+                                            className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                        >
+                                            {getImageFormatLabel(null, preview.name)}
+                                        </Badge>
                                         <Image
                                             src={preview.previewUrl}
                                             alt={`Previsualización de ${preview.name}`}
@@ -307,6 +445,12 @@ export function ImageGalleryManager() {
                             <article key={image.path}
                                      className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
                                 <div className="relative aspect-[4/3] bg-muted">
+                                    <Badge
+                                        variant="secondary"
+                                        className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                    >
+                                        {getImageFormatLabel(image.contentType, image.name || image.path)}
+                                    </Badge>
                                     {isPreviewableImage(image.contentType, image.name) ? (
                                         <Image
                                             src={image.downloadURL}
@@ -326,7 +470,63 @@ export function ImageGalleryManager() {
 
                                 <div className="flex flex-1 flex-col gap-3 p-3">
                                     <div className="space-y-1">
-                                        <p className="truncate text-sm font-medium">{image.name}</p>
+                                        {editingPath === image.path ? (
+                                            <div className="space-y-2">
+                                                <Input
+                                                    value={editName}
+                                                    onChange={(event) => setEditName(event.target.value)}
+                                                    onKeyDown={(event) => {
+                                                        if (event.key === "Enter" && renamingPath !== image.path) {
+                                                            event.preventDefault();
+                                                            void handleRename(image.path);
+                                                        }
+                                                    }}
+                                                    maxLength={120}
+                                                    placeholder="Nuevo nombre de imagen"
+                                                    className="h-8"
+                                                    disabled={renamingPath === image.path}
+                                                />
+                                                <div className="flex gap-2">
+                                                    <Button
+                                                        size="sm"
+                                                        className="h-8"
+                                                        onClick={() => void handleRename(image.path)}
+                                                        disabled={renamingPath === image.path}
+                                                    >
+                                                        {renamingPath === image.path ? (
+                                                            <Loader2 className="h-4 w-4 animate-spin"/>
+                                                        ) : (
+                                                            <Check className="h-4 w-4"/>
+                                                        )}
+                                                        Guardar
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="h-8"
+                                                        onClick={cancelRename}
+                                                        disabled={renamingPath === image.path}
+                                                    >
+                                                        <X className="h-4 w-4"/>
+                                                        Cancelar
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="flex items-start justify-between gap-2">
+                                                <p className="truncate text-sm font-medium">{image.name}</p>
+                                                <Button
+                                                    size="icon"
+                                                    variant="ghost"
+                                                    className="h-7 w-7"
+                                                    onClick={() => startRename(image.path, image.name)}
+                                                    disabled={uploading || !!deletingPath || !!renamingPath}
+                                                >
+                                                    <Pencil className="h-4 w-4"/>
+                                                    <span className="sr-only">Renombrar imagen</span>
+                                                </Button>
+                                            </div>
+                                        )}
                                         <p className="text-xs text-muted-foreground">Subida: {formatDate(image.createdAt)}</p>
                                         <p className="text-xs text-muted-foreground">Tamaño: {formatBytes(image.sizeBytes)}</p>
                                     </div>
@@ -358,7 +558,7 @@ export function ImageGalleryManager() {
                                             size="sm"
                                             variant="destructive"
                                             onClick={() => void handleDelete(image.path)}
-                                            disabled={uploading || deletingPath === image.path}
+                                            disabled={uploading || deletingPath === image.path || renamingPath === image.path}
                                         >
                                             {deletingPath === image.path ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                                 <Trash2 className="h-4 w-4"/>}

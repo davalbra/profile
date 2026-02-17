@@ -65,6 +65,19 @@ function normalizeGalleryName(fileName: string): string {
         .replace(/^-|-$/g, "") || "imagen";
 }
 
+function normalizeEditableName(rawName: string): string {
+    const trimmed = rawName.trim();
+    if (!trimmed) {
+        throw new Error("El nombre no puede estar vacío.");
+    }
+
+    if (trimmed.length > 120) {
+        throw new Error("El nombre no puede superar 120 caracteres.");
+    }
+
+    return trimmed;
+}
+
 function asString(value: unknown): string | null {
     if (typeof value === "string") {
         return value;
@@ -237,6 +250,73 @@ export async function DELETE(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo eliminar la imagen de galería.";
+        return NextResponse.json({error: message}, {status: 500});
+    }
+}
+
+export async function PATCH(request: Request) {
+    try {
+        const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
+        const payload = (await request.json().catch(() => null)) as { path?: string; name?: string } | null;
+        const path = payload?.path?.trim();
+        const rawName = typeof payload?.name === "string" ? payload.name : "";
+
+        if (!path) {
+            return NextResponse.json({error: "Falta path de la imagen."}, {status: 400});
+        }
+
+        let normalizedName = "";
+        try {
+            normalizedName = normalizeEditableName(rawName);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : "Nombre inválido.";
+            return NextResponse.json({error: message}, {status: 400});
+        }
+
+        const prefix = buildGalleryPrefix(sesion.uid);
+        if (!path.startsWith(prefix)) {
+            return NextResponse.json({error: "No tienes permisos para renombrar este archivo."}, {status: 403});
+        }
+
+        const bucket = getFirebaseAdminStorage().bucket();
+        const file = bucket.file(path);
+        const [exists] = await file.exists();
+        if (!exists) {
+            return NextResponse.json({error: "La imagen no existe."}, {status: 404});
+        }
+
+        const [metadata] = await file.getMetadata();
+        const currentCustomMetadata = (metadata.metadata || {}) as Record<string, string>;
+
+        await file.setMetadata({
+            metadata: {
+                ...currentCustomMetadata,
+                originalName: normalizedName,
+                renamedAt: new Date().toISOString(),
+            },
+        });
+
+        const [updatedMetadata] = await file.getMetadata();
+        const item = mapStorageFileToResponse(
+            {
+                name: path,
+                metadata: updatedMetadata,
+            },
+            bucket.name,
+        );
+
+        if (!item) {
+            return NextResponse.json({error: "No se pudo construir la imagen actualizada."}, {status: 500});
+        }
+
+        return NextResponse.json({ok: true, image: item}, {headers: {"Cache-Control": "no-store"}});
+    } catch (error) {
+        const authError = parseAuthError(error);
+        if (authError) {
+            return authError;
+        }
+
+        const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen de galería.";
         return NextResponse.json({error: message}, {status: 500});
     }
 }
