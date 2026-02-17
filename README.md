@@ -131,3 +131,27 @@ Si un usuario autenticado no tiene rol suficiente, redirige a `/` con `?auth=for
 ### Cambiar rol de un usuario
 
 Desde Prisma Studio (`pnpm prisma:studio`) en la tabla `usuarios`, edita el campo `rol` del usuario.
+
+## 8. Dashboard de costos por uso (Firebase y Gemini)
+
+Se agregó una nueva sección en el panel: `Billing`, con dos apartados:
+
+- `Firebase`
+- `Google Gemini API`
+
+Estos apartados leen costos reales desde el export de Cloud Billing en BigQuery.
+
+Variables requeridas:
+
+```dotenv
+GOOGLE_BILLING_EXPORT_TABLE=mi-proyecto.billing.gcp_billing_export_v1_*
+GOOGLE_BILLING_QUERY_PROJECT_ID=mi-proyecto
+GOOGLE_BILLING_BQ_LOCATION=US
+```
+
+Notas:
+
+- `GOOGLE_BILLING_EXPORT_TABLE` debe apuntar a tu tabla/vista de export.
+- El service account usado por `FIREBASE_CLIENT_EMAIL` necesita permisos de consulta en BigQuery (ejemplo:
+  `BigQuery Job User` + `BigQuery Data Viewer`).
+- El billing export puede tener retraso, por lo que la vista no siempre es en tiempo real.
