@@ -1,19 +1,27 @@
 import {NextResponse} from "next/server";
+import sharp from "sharp";
 import {
     AccesoDenegadoError,
     requerirSesionFirebase,
     RolInsuficienteError,
 } from "@/lib/auth/firebase-session";
 import {getFirebaseAdminStorage} from "@/lib/firebase/admin";
+import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
 
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
+const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const N8N_COPY_WEBHOOK_URL =
     "https://n8n.srv1338422.hstgr.cloud/webhook-test/37f97811-ea45-4d5a-a2c5-6f104ca79b15";
+const JPEG_CONTENT_TYPE = "image/jpeg";
 
 function buildGalleryPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_GALLERY_FOLDER}/`;
+}
+
+function buildOptimizedPrefix(uid: string): string {
+    return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_OPTIMIZED_FOLDER}/`;
 }
 
 function parseAuthError(error: unknown) {
@@ -45,7 +53,7 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
     buffer: Buffer;
     fileName: string;
     contentType: string;
-    source: "local" | "gallery";
+    source: "local" | "gallery" | "optimized";
 }> {
     const fileValue = formData.get("image") ?? formData.get("file");
 
@@ -71,20 +79,39 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
     }
 
     const galleryPath = String(formData.get("galleryPath") || "").trim();
-    if (!galleryPath) {
-        throw new Error("Debes seleccionar una imagen local o de galería.");
+    const optimizedPath = String(formData.get("optimizedPath") || "").trim();
+
+    let storagePath = "";
+    let prefix = "";
+    let source: "gallery" | "optimized";
+    let forbiddenMessage = "";
+    let notFoundMessage = "";
+
+    if (galleryPath) {
+        storagePath = galleryPath;
+        prefix = buildGalleryPrefix(uid);
+        source = "gallery";
+        forbiddenMessage = "No tienes permisos para usar esta imagen de galería.";
+        notFoundMessage = "La imagen seleccionada en galería no existe.";
+    } else if (optimizedPath) {
+        storagePath = optimizedPath;
+        prefix = buildOptimizedPrefix(uid);
+        source = "optimized";
+        forbiddenMessage = "No tienes permisos para usar esta imagen optimizada.";
+        notFoundMessage = "La imagen optimizada seleccionada no existe.";
+    } else {
+        throw new Error("Debes seleccionar una imagen local, de galería o optimizada.");
     }
 
-    const prefix = buildGalleryPrefix(uid);
-    if (!galleryPath.startsWith(prefix)) {
-        throw new Error("No tienes permisos para usar esta imagen de galería.");
+    if (!storagePath.startsWith(prefix)) {
+        throw new Error(forbiddenMessage);
     }
 
     const bucket = getFirebaseAdminStorage().bucket();
-    const file = bucket.file(galleryPath);
+    const file = bucket.file(storagePath);
     const [exists] = await file.exists();
     if (!exists) {
-        throw new Error("La imagen seleccionada en galería no existe.");
+        throw new Error(notFoundMessage);
     }
 
     const [buffer] = await file.download();
@@ -95,14 +122,91 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
         throw new Error(`La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`);
     }
 
-    const fileName = originalName || galleryPath.split("/").pop() || `gallery-image-${Date.now()}`;
+    const fileName = originalName || storagePath.split("/").pop() || `image-${Date.now()}`;
     const contentType = metadata.contentType || "application/octet-stream";
 
     return {
         buffer,
         fileName,
         contentType,
-        source: "gallery",
+        source,
+    };
+}
+
+function shouldForceJpegConversion(formData: FormData): boolean {
+    const rawValue = String(formData.get("forceJpegConversion") || "").trim().toLowerCase();
+    return rawValue === "1" || rawValue === "true" || rawValue === "yes";
+}
+
+function normalizeJpegFileName(fileName: string): string {
+    const trimmed = fileName.trim();
+    if (!trimmed) {
+        return `image-${Date.now()}.jpg`;
+    }
+
+    const sanitized = trimmed.replace(/[\\/:*?"<>|]/g, "-");
+    const withoutExtension = sanitized.replace(/\.[^.]+$/, "");
+    return `${withoutExtension || `image-${Date.now()}`}.jpg`;
+}
+
+async function prepareImageForN8n(
+    sourceImage: {
+        buffer: Buffer;
+        fileName: string;
+        contentType: string;
+        source: "local" | "gallery" | "optimized";
+    },
+    options: { forceJpegConversion: boolean },
+): Promise<{
+    buffer: Buffer;
+    fileName: string;
+    contentType: string;
+    source: "local" | "gallery" | "optimized";
+    originalContentType: string;
+    wasConvertedToJpeg: boolean;
+}> {
+    const needsJpegConversion =
+        options.forceJpegConversion ||
+        !isN8nSupportedImageFormat({
+            contentType: sourceImage.contentType,
+            fileName: sourceImage.fileName,
+        });
+
+    if (!needsJpegConversion) {
+        return {
+            ...sourceImage,
+            originalContentType: sourceImage.contentType,
+            wasConvertedToJpeg: false,
+        };
+    }
+
+    let converted: Buffer;
+    try {
+        converted = await sharp(sourceImage.buffer, {failOn: "none", animated: true})
+            .rotate()
+            .jpeg({quality: 92, mozjpeg: true})
+            .toBuffer();
+    } catch {
+        throw new Error("No se pudo convertir la imagen a JPG para enviarla a n8n.");
+    }
+
+    if (converted.length <= 0) {
+        throw new Error("La conversión a JPG produjo un archivo vacío.");
+    }
+
+    if (converted.length > MAX_UPLOAD_BYTES) {
+        throw new Error(
+            `La imagen convertida a JPG supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`,
+        );
+    }
+
+    return {
+        buffer: converted,
+        fileName: normalizeJpegFileName(sourceImage.fileName),
+        contentType: JPEG_CONTENT_TYPE,
+        source: sourceImage.source,
+        originalContentType: sourceImage.contentType,
+        wasConvertedToJpeg: true,
     };
 }
 
@@ -113,14 +217,17 @@ export async function POST(request: Request) {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const formData = await request.formData();
         const sourceImage = await resolveSourceImage(formData, sesion.uid);
+        const preparedImage = await prepareImageForN8n(sourceImage, {
+            forceJpegConversion: shouldForceJpegConversion(formData),
+        });
 
         const outbound = new FormData();
         outbound.append(
             "image",
-            new Blob([new Uint8Array(sourceImage.buffer)], {type: sourceImage.contentType}),
-            sourceImage.fileName,
+            new Blob([new Uint8Array(preparedImage.buffer)], {type: preparedImage.contentType}),
+            preparedImage.fileName,
         );
-        outbound.append("source", sourceImage.source);
+        outbound.append("source", preparedImage.source);
         outbound.append("uid", sesion.uid);
 
         const response = await fetch(N8N_COPY_WEBHOOK_URL, {
@@ -151,8 +258,11 @@ export async function POST(request: Request) {
         return NextResponse.json(
             {
                 ok: true,
-                source: sourceImage.source,
-                fileName: sourceImage.fileName,
+                source: preparedImage.source,
+                fileName: preparedImage.fileName,
+                contentType: preparedImage.contentType,
+                originalContentType: preparedImage.originalContentType,
+                wasConvertedToJpeg: preparedImage.wasConvertedToJpeg,
                 n8n: parsed,
             },
             {headers: {"Cache-Control": "no-store"}},

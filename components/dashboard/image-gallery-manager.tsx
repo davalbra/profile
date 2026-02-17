@@ -8,6 +8,7 @@ import {useAuth} from "@/components/providers/auth-provider";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
@@ -306,13 +307,21 @@ export function ImageGalleryManager() {
                             <article key={image.path}
                                      className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
                                 <div className="relative aspect-[4/3] bg-muted">
-                                    <Image
-                                        src={image.downloadURL}
-                                        alt={image.name}
-                                        fill
-                                        className="object-cover"
-                                        sizes="(max-width: 768px) 100vw, 33vw"
-                                    />
+                                    {isPreviewableImage(image.contentType, image.name) ? (
+                                        <Image
+                                            src={image.downloadURL}
+                                            alt={image.name}
+                                            fill
+                                            unoptimized
+                                            className="object-cover"
+                                            sizes="(max-width: 768px) 100vw, 33vw"
+                                        />
+                                    ) : (
+                                        <div
+                                            className="flex h-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
+                                            Vista previa no disponible para {image.contentType || "este formato"}
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="flex flex-1 flex-col gap-3 p-3">

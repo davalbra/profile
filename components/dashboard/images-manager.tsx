@@ -1,10 +1,12 @@
 "use client";
 
 import {useCallback, useEffect, useMemo, useState} from "react";
+import Link from "next/link";
 import {useSearchParams} from "next/navigation";
 import {
     Check,
     Copy,
+    CopyPlus,
     GalleryHorizontal,
     ImagePlus,
     Loader2,
@@ -718,6 +720,7 @@ export function ImagesManager() {
                                                             src={image.downloadURL}
                                                             alt={image.name}
                                                             fill
+                                                            unoptimized
                                                             className="object-cover"
                                                             sizes="(max-width: 768px) 100vw, 33vw"
                                                         />
@@ -798,7 +801,8 @@ export function ImagesManager() {
                                 <article key={image.path}
                                          className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
                                     <div className="relative aspect-[4/3] bg-muted">
-                                        <Image src={image.downloadURL} alt={image.name} fill className="object-cover"
+                                        <Image src={image.downloadURL} alt={image.name} fill unoptimized
+                                               className="object-cover"
                                                sizes="(max-width: 768px) 100vw, 33vw"/>
                                     </div>
                                     <div className="flex flex-1 flex-col gap-3 p-3">
@@ -876,10 +880,17 @@ export function ImagesManager() {
                                             ) : null}
                                         </div>
 
-                                        <div className="mt-auto flex gap-2">
+                                        <div className="mt-auto grid grid-cols-3 gap-2">
+                                            <Button asChild size="sm" variant="outline" className="w-full">
+                                                <Link
+                                                    href={`/dashboard/images/copies?optimizedPath=${encodeURIComponent(image.path)}`}>
+                                                    <CopyPlus className="h-4 w-4"/>
+                                                    n8n
+                                                </Link>
+                                            </Button>
                                             <Button size="sm" variant="outline"
                                                     onClick={() => void handleCopy(image.downloadURL)}
-                                                    className="flex-1">
+                                                    className="w-full">
                                                 <Copy className="h-4 w-4"/>
                                                 Copiar URL
                                             </Button>
@@ -888,7 +899,7 @@ export function ImagesManager() {
                                                 variant="destructive"
                                                 onClick={() => void handleDelete(image.path)}
                                                 disabled={busy}
-                                                className="flex-1"
+                                                className="w-full"
                                             >
                                                 <Trash2 className="h-4 w-4"/>
                                                 Eliminar
