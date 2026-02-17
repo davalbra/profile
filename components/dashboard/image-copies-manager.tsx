@@ -8,6 +8,7 @@ import {useAuth} from "@/components/providers/auth-provider";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
 
@@ -381,6 +382,15 @@ export function ImageCopiesManager() {
                             {localPreviewUrl ? (
                                 <div
                                     className="relative aspect-[4/3] max-w-xl overflow-hidden rounded-lg border bg-muted">
+                                    <Badge
+                                        variant="secondary"
+                                        className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                    >
+                                        {getImageFormatLabel({
+                                            contentType: selectedFile?.type || null,
+                                            fileName: selectedFile?.name || null,
+                                        })}
+                                    </Badge>
                                     <Image
                                         src={localPreviewUrl}
                                         alt={selectedFile?.name || "Previsualización local"}
@@ -417,6 +427,15 @@ export function ImageCopiesManager() {
                                             disabled={sending}
                                         >
                                             <div className="relative aspect-[4/3] bg-muted">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                >
+                                                    {getImageFormatLabel({
+                                                        contentType: image.contentType,
+                                                        fileName: image.name || image.path,
+                                                    })}
+                                                </Badge>
                                                 {isPreviewableImage(image.contentType, image.name) ? (
                                                     <Image src={image.downloadURL} alt={image.name} fill unoptimized
                                                            className="object-cover"
@@ -479,6 +498,15 @@ export function ImageCopiesManager() {
                                             disabled={sending}
                                         >
                                             <div className="relative aspect-[4/3] bg-muted">
+                                                <Badge
+                                                    variant="secondary"
+                                                    className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                >
+                                                    {getImageFormatLabel({
+                                                        contentType: image.contentType,
+                                                        fileName: image.name || image.path,
+                                                    })}
+                                                </Badge>
                                                 {isPreviewableImage(image.contentType, image.name) ? (
                                                     <Image src={image.downloadURL} alt={image.name} fill unoptimized
                                                            className="object-cover"

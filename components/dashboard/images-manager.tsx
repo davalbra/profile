@@ -26,6 +26,7 @@ import {Input} from "@/components/ui/input";
 import {Progress} from "@/components/ui/progress";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from "@/components/ui/tabs";
+import {getImageFormatLabel} from "@/lib/images/image-format-label";
 
 type StoredFile = {
     path: string;
@@ -672,6 +673,12 @@ export function ImagesManager() {
                                                     <article key={preview.previewUrl}
                                                              className="overflow-hidden rounded-lg border bg-card">
                                                         <div className="relative aspect-[4/3] bg-muted">
+                                                            <Badge
+                                                                variant="secondary"
+                                                                className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                            >
+                                                                {getImageFormatLabel({fileName: preview.name})}
+                                                            </Badge>
                                                             <Image
                                                                 src={preview.previewUrl}
                                                                 alt={`Previsualización de ${preview.name}`}
@@ -716,6 +723,15 @@ export function ImagesManager() {
                                                     disabled={busy}
                                                 >
                                                     <div className="relative aspect-[4/3] bg-muted">
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                        >
+                                                            {getImageFormatLabel({
+                                                                contentType: image.contentType,
+                                                                fileName: image.name || image.path,
+                                                            })}
+                                                        </Badge>
                                                         <Image
                                                             src={image.downloadURL}
                                                             alt={image.name}
@@ -801,6 +817,15 @@ export function ImagesManager() {
                                 <article key={image.path}
                                          className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
                                     <div className="relative aspect-[4/3] bg-muted">
+                                        <Badge
+                                            variant="secondary"
+                                            className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                        >
+                                            {getImageFormatLabel({
+                                                contentType: image.contentType,
+                                                fileName: image.name || image.path,
+                                            })}
+                                        </Badge>
                                         <Image src={image.downloadURL} alt={image.name} fill unoptimized
                                                className="object-cover"
                                                sizes="(max-width: 768px) 100vw, 33vw"/>

@@ -21,6 +21,7 @@ import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
+import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
@@ -64,66 +65,6 @@ function formatDate(isoDate: string | null): string {
         dateStyle: "medium",
         timeStyle: "short",
     }).format(date);
-}
-
-function extractExtension(fileName: string): string {
-    const trimmed = fileName.trim();
-    const dotIndex = trimmed.lastIndexOf(".");
-
-    if (dotIndex <= -1 || dotIndex === trimmed.length - 1) {
-        return "";
-    }
-
-    return trimmed.slice(dotIndex + 1).toLowerCase();
-}
-
-function getImageFormatLabel(contentType: string | null | undefined, name: string): string {
-    const mime = (contentType || "").toLowerCase().split(";")[0].trim();
-
-    if (mime === "image/jpeg") {
-        return "JPG";
-    }
-    if (mime === "image/png") {
-        return "PNG";
-    }
-    if (mime === "image/webp") {
-        return "WEBP";
-    }
-    if (mime === "image/avif") {
-        return "AVIF";
-    }
-    if (mime === "image/heic") {
-        return "HEIC";
-    }
-    if (mime === "image/heif") {
-        return "HEIF";
-    }
-    if (mime === "image/gif") {
-        return "GIF";
-    }
-    if (mime === "image/bmp") {
-        return "BMP";
-    }
-    if (mime === "image/tiff") {
-        return "TIFF";
-    }
-    if (mime === "image/svg+xml") {
-        return "SVG";
-    }
-
-    const extension = extractExtension(name);
-    if (extension === "jpeg") {
-        return "JPG";
-    }
-    if (extension) {
-        return extension.toUpperCase();
-    }
-
-    if (mime.startsWith("image/")) {
-        return mime.slice(6).replace("+xml", "").toUpperCase() || "IMG";
-    }
-
-    return "IMG";
 }
 
 export function ImageGalleryManager() {
@@ -408,7 +349,7 @@ export function ImageGalleryManager() {
                                             variant="secondary"
                                             className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
                                         >
-                                            {getImageFormatLabel(null, preview.name)}
+                                            {getImageFormatLabel({fileName: preview.name})}
                                         </Badge>
                                         <Image
                                             src={preview.previewUrl}
@@ -449,7 +390,7 @@ export function ImageGalleryManager() {
                                         variant="secondary"
                                         className="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
                                     >
-                                        {getImageFormatLabel(image.contentType, image.name || image.path)}
+                                        {getImageFormatLabel({contentType: image.contentType, fileName: image.name || image.path})}
                                     </Badge>
                                     {isPreviewableImage(image.contentType, image.name) ? (
                                         <Image
