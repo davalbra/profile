@@ -12,8 +12,10 @@ import {
     Pencil,
     RefreshCcw,
     Sparkles,
+    Star,
     Trash2,
     X,
+    Zap,
 } from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
@@ -57,6 +59,8 @@ type UploadResult = {
     savedBytes: number;
     savedPercent: number;
 };
+
+type OptimizeSourceMode = "gallery" | "n8n" | "optimized";
 
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
@@ -139,9 +143,15 @@ export function ImagesManager() {
     const {user, error} = useAuth();
     const searchParams = useSearchParams();
     const requestedGalleryPath = searchParams.get("galleryPath");
+    const requestedSourceMode: OptimizeSourceMode = requestedGalleryPath?.includes("/n8n/")
+        ? "n8n"
+        : requestedGalleryPath?.includes("/optimizadas/")
+            ? "optimized"
+            : "gallery";
     const userId = user?.uid || null;
     const [images, setImages] = useState<StoredFile[]>([]);
     const [qualityMode, setQualityMode] = useState<QualityMode>("balanced");
+    const [sourceMode, setSourceMode] = useState<OptimizeSourceMode>(requestedSourceMode);
     const [selectedGalleryPath, setSelectedGalleryPath] = useState<string | null>(requestedGalleryPath);
     const [galleryPage, setGalleryPage] = useState(1);
     const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
@@ -171,16 +181,17 @@ export function ImagesManager() {
     } = useGalleryImages({
         userId,
         enabled: true,
-        scope: "n8n",
+        scope: sourceMode,
     });
 
-    useEffect(() => {
-        if (!requestedGalleryPath) {
-            return;
-        }
+    const activeScopeLabel = sourceMode === "n8n" ? "n8n" : sourceMode === "optimized" ? "Optimizadas" : "Galería";
 
-        setSelectedGalleryPath(requestedGalleryPath);
-    }, [requestedGalleryPath]);
+    useEffect(() => {
+        if (requestedGalleryPath) {
+            setSelectedGalleryPath(requestedGalleryPath);
+            setSourceMode(requestedSourceMode);
+        }
+    }, [requestedGalleryPath, requestedSourceMode]);
 
     const loadImages = useCallback(async () => {
         if (!userId) {
@@ -243,7 +254,9 @@ export function ImagesManager() {
 
     useEffect(() => {
         setSelectedGalleryPath((currentPath) =>
-            currentPath && !galleryImages.some((image) => image.path === currentPath) ? null : currentPath,
+            currentPath && !galleryImages.some((image) => image.path === currentPath)
+                ? (galleryImages.find((image) => image.sourceGalleryPath === currentPath)?.path || null)
+                : currentPath,
         );
     }, [galleryImages]);
 
@@ -268,7 +281,7 @@ export function ImagesManager() {
         }
 
         if (!selectedGalleryPath) {
-            setFailure("Selecciona una imagen de la galería.");
+            setFailure("Selecciona una imagen de la colección.");
             return;
         }
 
@@ -282,10 +295,10 @@ export function ImagesManager() {
             let batchOptimizedBytes = 0;
             let batchSavedBytes = 0;
             let processedFiles = 0;
-            const selectedName = selectedGalleryImage?.name || "imagen de galería";
+            const selectedName = selectedGalleryImage?.name || "imagen seleccionada";
             setCurrentFileName(selectedName);
             setProgress(15);
-            setStatus(`Optimizando ${selectedName} desde galería...`);
+            setStatus(`Optimizando ${selectedName} desde ${activeScopeLabel.toLowerCase()}...`);
 
             const optimized = await uploadOptimizedImage({
                 galleryPath: selectedGalleryPath,
@@ -490,7 +503,7 @@ export function ImagesManager() {
                         Ahorro
                         acumulado {formatBytes(optimizationStats.totalSavedBytes)} ({formatPercent(optimizationStats.totalSavedPercent)})
                     </Badge>
-                    <Badge variant="outline">Origen: Galería</Badge>
+                    <Badge variant="outline">Colección: {activeScopeLabel}</Badge>
                     {selectedGalleryImage ? <Badge>{selectedGalleryImage.name}</Badge> : null}
                 </div>
             </CardHeader>
@@ -510,7 +523,7 @@ export function ImagesManager() {
                     <TabsContent value="new" className="space-y-4">
                         <section className="space-y-4 rounded-lg border p-4">
                             <div className="flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-sm font-medium">1. Selecciona imagen de galería y calidad de optimización</p>
+                                <p className="text-sm font-medium">1. Selecciona colección, imagen y calidad de optimización</p>
                                 <Button size="sm" onClick={() => void handleUploadAll()}
                                         disabled={!canStartOptimization}>
                                     {busy ? <Loader2 className="h-4 w-4 animate-spin"/> :
@@ -521,11 +534,48 @@ export function ImagesManager() {
 
                             <div className="grid gap-3 lg:grid-cols-2">
                                 <div className="space-y-2 rounded-lg border p-3">
-                                    <p className="text-xs font-medium text-muted-foreground">Origen</p>
-                                    <Button size="sm" variant="default" disabled>
-                                        <Images className="h-4 w-4"/>
-                                        Desde galería n8n
-                                    </Button>
+                                    <p className="text-xs font-medium text-muted-foreground">Colección</p>
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            size="sm"
+                                            variant={sourceMode === "gallery" ? "default" : "outline"}
+                                            onClick={() => {
+                                                setSourceMode("gallery");
+                                                setSelectedGalleryPath(null);
+                                                setGalleryPage(1);
+                                            }}
+                                            disabled={busy}
+                                        >
+                                            <Images className="h-4 w-4"/>
+                                            Galería
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant={sourceMode === "n8n" ? "default" : "outline"}
+                                            onClick={() => {
+                                                setSourceMode("n8n");
+                                                setSelectedGalleryPath(null);
+                                                setGalleryPage(1);
+                                            }}
+                                            disabled={busy}
+                                        >
+                                            <Sparkles className="h-4 w-4"/>
+                                            n8n
+                                        </Button>
+                                        <Button
+                                            size="sm"
+                                            variant={sourceMode === "optimized" ? "default" : "outline"}
+                                            onClick={() => {
+                                                setSourceMode("optimized");
+                                                setSelectedGalleryPath(null);
+                                                setGalleryPage(1);
+                                            }}
+                                            disabled={busy}
+                                        >
+                                            <Zap className="h-4 w-4"/>
+                                            Optimizadas
+                                        </Button>
+                                    </div>
                                 </div>
                                 <div className="space-y-2 rounded-lg border p-3">
                                     <p className="text-xs font-medium text-muted-foreground">Perfil de calidad</p>
@@ -562,13 +612,15 @@ export function ImagesManager() {
                                             disabled={loadingGallery || busy || !user}>
                                         {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                             <RefreshCcw className="h-4 w-4"/>}
-                                        Recargar galería
+                                        Recargar {sourceMode === "n8n" ? "n8n" : sourceMode === "optimized" ? "optimizadas" : "galería"}
                                     </Button>
                                 </div>
 
                                 <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                                     {paginatedGalleryImages.map((image) => {
                                         const active = image.path === selectedGalleryPath;
+                                        const showN8nBadge = sourceMode === "n8n" || image.isN8nGenerated || image.isN8nDerived;
+                                        const showOptimizedBadge = sourceMode === "optimized" || image.isOptimized;
                                         return (
                                             <button
                                                 key={image.path}
@@ -589,6 +641,24 @@ export function ImagesManager() {
                                                             fileName: image.name || image.path,
                                                         })}
                                                     </Badge>
+                                                    {showN8nBadge ? (
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="pointer-events-none absolute right-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                        >
+                                                            <Star className="mr-1 h-3 w-3 fill-current"/>
+                                                            n8n
+                                                        </Badge>
+                                                    ) : null}
+                                                    {showOptimizedBadge ? (
+                                                        <Badge
+                                                            variant="secondary"
+                                                            className="pointer-events-none absolute bottom-2 right-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+                                                        >
+                                                            <Zap className="mr-1 h-3 w-3"/>
+                                                            optimizada
+                                                        </Badge>
+                                                    ) : null}
                                                     <Image
                                                         src={image.downloadURL}
                                                         alt={image.name}
@@ -621,8 +691,9 @@ export function ImagesManager() {
                                 {selectedGalleryImage ? (
                                     <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
                                 ) : (
-                                    <p className="text-xs text-muted-foreground">Selecciona una imagen de la galería
-                                        para optimizarla.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Selecciona una imagen de {sourceMode === "n8n" ? "n8n" : sourceMode === "optimized" ? "optimizadas" : "la galería"} para optimizarla.
+                                    </p>
                                 )}
                             </div>
 

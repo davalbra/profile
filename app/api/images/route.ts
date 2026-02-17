@@ -18,6 +18,7 @@ const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_ORIGINALS_FOLDER = "originales";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
 type OptimizationMode = "balanced" | "high";
+type SourceCollection = "gallery" | "n8n" | "optimized" | "local";
 
 const OPTIMIZATION_PROFILES: Record<
     OptimizationMode,
@@ -116,6 +117,23 @@ function asString(value: unknown): string | null {
     }
 
     return String(value);
+}
+
+function asBoolean(value: unknown): boolean {
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    if (typeof value === "number") {
+        return value === 1;
+    }
+
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        return normalized === "1" || normalized === "true" || normalized === "yes";
+    }
+
+    return false;
 }
 
 function getDownloadUrl(bucketName: string, path: string, token: string): string {
@@ -267,6 +285,9 @@ export async function POST(request: Request) {
         let sourceBuffer: Buffer;
         let sourceName: string;
         let sourceMime: string;
+        let sourcePath: string | null = null;
+        let sourceCollection: SourceCollection = "local";
+        let sourceWasN8n = false;
 
         if (fileValue instanceof File) {
             if (fileValue.type && !fileValue.type.startsWith("image/")) {
@@ -290,17 +311,30 @@ export async function POST(request: Request) {
         } else if (galleryPath) {
             const allowedGalleryPrefix = buildFolderPrefix(sesion.uid, IMAGE_GALLERY_FOLDER);
             const allowedN8nPrefix = buildFolderPrefix(sesion.uid, IMAGE_N8N_FOLDER);
+            const allowedOptimizedPrefix = buildFolderPrefix(sesion.uid, IMAGE_OPTIMIZED_FOLDER);
             const isAllowedGalleryPath =
-                galleryPath.startsWith(allowedGalleryPrefix) || galleryPath.startsWith(allowedN8nPrefix);
+                galleryPath.startsWith(allowedGalleryPrefix) ||
+                galleryPath.startsWith(allowedN8nPrefix) ||
+                galleryPath.startsWith(allowedOptimizedPrefix);
 
             if (!isAllowedGalleryPath) {
-                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería/n8n."}, {status: 403});
+                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería/n8n/optimizadas."}, {status: 403});
+            }
+
+            sourcePath = galleryPath;
+            if (galleryPath.startsWith(allowedN8nPrefix)) {
+                sourceCollection = "n8n";
+                sourceWasN8n = true;
+            } else if (galleryPath.startsWith(allowedOptimizedPrefix)) {
+                sourceCollection = "optimized";
+            } else {
+                sourceCollection = "gallery";
             }
 
             const galleryFile = bucket.file(galleryPath);
             const [exists] = await galleryFile.exists();
             if (!exists) {
-                return NextResponse.json({error: "La imagen de galería no existe."}, {status: 404});
+                return NextResponse.json({error: "La imagen seleccionada no existe."}, {status: 404});
             }
 
             const [downloaded] = await galleryFile.download();
@@ -316,6 +350,9 @@ export async function POST(request: Request) {
             const originalName = asString(metadata.metadata?.originalName);
             sourceName = originalName || galleryPath.split("/").pop() || `imagen-${Date.now()}`;
             sourceMime = metadata.contentType || "application/octet-stream";
+            if (sourceCollection === "optimized") {
+                sourceWasN8n = asBoolean(metadata.metadata?.sourceWasN8n) || asString(metadata.metadata?.sourceCollection) === "n8n";
+            }
         } else {
             return NextResponse.json(
                 {error: "Debes enviar un archivo en el campo image/file o indicar galleryPath."},
@@ -358,6 +395,9 @@ export async function POST(request: Request) {
                     firebaseStorageDownloadTokens: originalToken,
                     source: "original-upload",
                     uploadedAt: new Date().toISOString(),
+                    sourceCollection,
+                    sourceStoragePath: sourcePath || "",
+                    sourceWasN8n: String(sourceWasN8n),
                 },
             },
         });
@@ -374,6 +414,9 @@ export async function POST(request: Request) {
                     optimizedBytes: String(output.length),
                     optimizedAt: new Date().toISOString(),
                     optimizationMode,
+                    sourceCollection,
+                    sourceStoragePath: sourcePath || "",
+                    sourceWasN8n: String(sourceWasN8n),
                 },
             },
         });

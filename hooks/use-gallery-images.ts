@@ -6,7 +6,7 @@ import type {GalleryImage} from "@/lib/images/gallery-image";
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
 const DEFAULT_GALLERY_SCOPE = "gallery";
 
-export type GalleryScope = "gallery" | "n8n";
+export type GalleryScope = "gallery" | "n8n" | "optimized";
 
 type GalleryCacheEntry = {
     images: GalleryImage[];
@@ -66,7 +66,12 @@ async function requestGalleryImages(force: boolean, userId: string, scope: Galle
     }
 
     const request = (async () => {
-        const endpoint = scope === "n8n" ? "/api/images/gallery?scope=n8n" : "/api/images/gallery";
+        const endpoint =
+            scope === "n8n"
+                ? "/api/images/gallery?scope=n8n"
+                : scope === "optimized"
+                    ? "/api/images/gallery?scope=optimized"
+                    : "/api/images/gallery";
         const response = await fetch(endpoint, {
             method: "GET",
             cache: "no-store",

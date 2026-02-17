@@ -13,8 +13,10 @@ const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
 const IMAGE_N8N_FOLDER = "n8n";
+const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
 
-type GalleryScope = "gallery" | "n8n";
+type GalleryScope = "gallery" | "n8n" | "optimized";
+type SourceCollection = "gallery" | "n8n" | "optimized" | "local";
 
 type GalleryImageResponse = {
     path: string;
@@ -29,6 +31,9 @@ type GalleryImageResponse = {
     isN8nGenerated?: boolean;
     needsN8nTransformation?: boolean;
     n8nVariantPath?: string | null;
+    isOptimized?: boolean;
+    optimizedSourceCollection?: SourceCollection | null;
+    sourceWasN8n?: boolean;
 };
 
 type FirebaseFileWithMetadata = {
@@ -54,10 +59,20 @@ function buildN8nPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_N8N_FOLDER}/`;
 }
 
+function buildOptimizedPrefix(uid: string): string {
+    return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_OPTIMIZED_FOLDER}/`;
+}
+
 function parseGalleryScope(request: Request): GalleryScope {
     const url = new URL(request.url);
     const scope = url.searchParams.get("scope");
-    return scope === "n8n" ? "n8n" : "gallery";
+    if (scope === "n8n") {
+        return "n8n";
+    }
+    if (scope === "optimized") {
+        return "optimized";
+    }
+    return "gallery";
 }
 
 function parseAuthError(error: unknown) {
@@ -109,6 +124,31 @@ function asString(value: unknown): string | null {
     }
 
     return String(value);
+}
+
+function asBoolean(value: unknown): boolean {
+    if (typeof value === "boolean") {
+        return value;
+    }
+
+    if (typeof value === "number") {
+        return value === 1;
+    }
+
+    if (typeof value === "string") {
+        const normalized = value.trim().toLowerCase();
+        return normalized === "1" || normalized === "true" || normalized === "yes";
+    }
+
+    return false;
+}
+
+function parseSourceCollection(value: unknown): SourceCollection | null {
+    const raw = asString(value);
+    if (raw === "gallery" || raw === "n8n" || raw === "optimized" || raw === "local") {
+        return raw;
+    }
+    return null;
 }
 
 function mapStorageFileToResponse(file: FirebaseFileWithMetadata, bucketName: string): GalleryImageResponse | null {
@@ -268,6 +308,76 @@ async function buildN8nScopedGallery(input: {
     });
 }
 
+async function buildOptimizedScopedGallery(input: { uid: string; bucketName: string }): Promise<GalleryImageResponse[]> {
+    const optimizedPrefix = buildOptimizedPrefix(input.uid);
+    const rows = await prisma.imagen.findMany({
+        where: {
+            usuarioId: input.uid,
+            eliminadoEn: null,
+            pathOptimizada: {
+                startsWith: optimizedPrefix,
+            },
+        },
+        orderBy: {
+            creadoEn: "desc",
+        },
+        take: 300,
+        select: {
+            pathOptimizada: true,
+            nombreOptimizado: true,
+            tokenOptimizado: true,
+            mimeOptimizado: true,
+            bytesOptimizado: true,
+            creadoEn: true,
+            actualizadoEn: true,
+        },
+    });
+
+    if (!rows.length) {
+        return [];
+    }
+
+    const bucket = getFirebaseAdminStorage().bucket();
+    const mapped: Array<GalleryImageResponse | null> = await Promise.all(
+        rows.map(async (row): Promise<GalleryImageResponse | null> => {
+            const file = bucket.file(row.pathOptimizada);
+            const [exists] = await file.exists();
+            if (!exists) {
+                return null;
+            }
+
+            const [metadata] = await file.getMetadata();
+            const sourceCollection = parseSourceCollection(metadata.metadata?.sourceCollection);
+            const sourceWasN8n = asBoolean(metadata.metadata?.sourceWasN8n) || sourceCollection === "n8n";
+            const sizeBytes = Number.isFinite(row.bytesOptimizado)
+                ? row.bytesOptimizado
+                : metadata.size
+                    ? Number(metadata.size)
+                    : null;
+
+            return {
+                path: row.pathOptimizada,
+                name: row.nombreOptimizado || row.pathOptimizada.split("/").pop() || row.pathOptimizada,
+                downloadURL: getDownloadUrl(input.bucketName, row.pathOptimizada, row.tokenOptimizado),
+                contentType: row.mimeOptimizado || metadata.contentType || null,
+                sizeBytes,
+                createdAt: row.creadoEn.toISOString(),
+                updatedAt: row.actualizadoEn.toISOString(),
+                sourceGalleryPath: asString(metadata.metadata?.sourceStoragePath),
+                isN8nDerived: sourceWasN8n,
+                isN8nGenerated: false,
+                needsN8nTransformation: false,
+                n8nVariantPath: null,
+                isOptimized: true,
+                optimizedSourceCollection: sourceCollection,
+                sourceWasN8n,
+            };
+        }),
+    );
+
+    return mapped.filter((item): item is GalleryImageResponse => item !== null);
+}
+
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
@@ -275,6 +385,14 @@ export async function GET(request: Request) {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const scope = parseGalleryScope(request);
         const bucket = getFirebaseAdminStorage().bucket();
+        if (scope === "optimized") {
+            const optimizedItems = await buildOptimizedScopedGallery({
+                uid: sesion.uid,
+                bucketName: bucket.name,
+            });
+            return NextResponse.json({ok: true, scope, images: optimizedItems}, {headers: {"Cache-Control": "no-store"}});
+        }
+
         const prefix = buildGalleryPrefix(sesion.uid);
 
         const [files] = await bucket.getFiles({prefix});
