@@ -19,9 +19,11 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
+import {GalleryPaginationControls} from "@/components/dashboard/gallery-pagination-controls";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {useGalleryImages} from "@/hooks/use-gallery-images";
 import {Input} from "@/components/ui/input";
 import {Progress} from "@/components/ui/progress";
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
@@ -45,16 +47,6 @@ type StoredFile = {
         effort: number | null;
         createdAt: string;
     } | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
-
-type GalleryImage = {
-    path: string;
-    name: string;
-    downloadURL: string;
-    contentType: string | null;
-    sizeBytes: number | null;
     createdAt: string | null;
     updatedAt: string | null;
 };
@@ -161,9 +153,9 @@ export function ImagesManager() {
     const [images, setImages] = useState<StoredFile[]>([]);
     const [sourceMode, setSourceMode] = useState<SourceMode>(requestedGalleryPath ? "gallery" : "local");
     const [qualityMode, setQualityMode] = useState<QualityMode>("balanced");
-    const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
     const [selectedGalleryPath, setSelectedGalleryPath] = useState<string | null>(requestedGalleryPath);
-    const [loadingGallery, setLoadingGallery] = useState(false);
+    const [galleryPage, setGalleryPage] = useState(1);
+    const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
     const [busy, setBusy] = useState(false);
     const [loadingImages, setLoadingImages] = useState(false);
     const [progress, setProgress] = useState(0);
@@ -181,6 +173,16 @@ export function ImagesManager() {
         savedBytes: number;
         savedPercent: number;
     } | null>(null);
+
+    const {
+        images: galleryImages,
+        loading: loadingGallery,
+        error: galleryError,
+        refresh: refreshGallery,
+    } = useGalleryImages({
+        userId,
+        enabled: sourceMode === "gallery" || !!requestedGalleryPath,
+    });
 
     const pendingPreviews = useMemo(
         () =>
@@ -242,50 +244,51 @@ export function ImagesManager() {
         void loadImages();
     }, [loadImages]);
 
-    const loadGallery = useCallback(async () => {
-        if (!userId) {
-            setGalleryImages([]);
-            return;
-        }
-
-        setLoadingGallery(true);
-        setFailure(null);
-        try {
-            const response = await fetch("/api/images/gallery", {
-                method: "GET",
-                cache: "no-store",
-            });
-
-            if (!response.ok) {
-                const payload = (await response.json().catch(() => ({}))) as { error?: string };
-                throw new Error(payload.error || "No se pudo cargar la galería.");
-            }
-
-            const payload = (await response.json()) as { images?: GalleryImage[] };
-            const items = payload.images || [];
-            setGalleryImages(items);
-
-            setSelectedGalleryPath((currentPath) =>
-                currentPath && !items.some((image) => image.path === currentPath) ? null : currentPath,
-            );
-        } catch (reason) {
-            const message = reason instanceof Error ? reason.message : "No se pudo cargar la galería.";
-            setFailure(message);
-        } finally {
-            setLoadingGallery(false);
-        }
-    }, [userId]);
-
-    useEffect(() => {
-        if (sourceMode === "gallery" || requestedGalleryPath) {
-            void loadGallery();
-        }
-    }, [loadGallery, requestedGalleryPath, sourceMode]);
-
     const selectedGalleryImage = useMemo(
         () => galleryImages.find((image) => image.path === selectedGalleryPath) || null,
         [galleryImages, selectedGalleryPath],
     );
+
+    const paginatedGalleryImages = useMemo(() => {
+        const start = (galleryPage - 1) * galleryPageSize;
+        return galleryImages.slice(start, start + galleryPageSize);
+    }, [galleryImages, galleryPage, galleryPageSize]);
+
+    const totalGalleryPages = useMemo(
+        () => Math.max(1, Math.ceil(galleryImages.length / galleryPageSize)),
+        [galleryImages.length, galleryPageSize],
+    );
+
+    useEffect(() => {
+        setGalleryPage((currentPage) => Math.min(currentPage, totalGalleryPages));
+    }, [totalGalleryPages]);
+
+    useEffect(() => {
+        if (!galleryError) {
+            return;
+        }
+        setFailure(galleryError);
+    }, [galleryError]);
+
+    useEffect(() => {
+        setSelectedGalleryPath((currentPath) =>
+            currentPath && !galleryImages.some((image) => image.path === currentPath) ? null : currentPath,
+        );
+    }, [galleryImages]);
+
+    useEffect(() => {
+        if (!selectedGalleryPath) {
+            return;
+        }
+
+        const index = galleryImages.findIndex((image) => image.path === selectedGalleryPath);
+        if (index < 0) {
+            return;
+        }
+
+        const targetPage = Math.floor(index / galleryPageSize) + 1;
+        setGalleryPage(targetPage);
+    }, [galleryImages, galleryPageSize, selectedGalleryPath]);
 
     async function handleUploadAll() {
         if (!user) {
@@ -701,7 +704,7 @@ export function ImagesManager() {
                             ) : (
                                 <div className="space-y-3 rounded-lg border p-4">
                                     <div className="flex justify-end">
-                                        <Button variant="outline" size="sm" onClick={() => void loadGallery()}
+                                        <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
                                                 disabled={loadingGallery || busy || !user}>
                                             {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                                 <RefreshCcw className="h-4 w-4"/>}
@@ -710,7 +713,7 @@ export function ImagesManager() {
                                     </div>
 
                                     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                        {galleryImages.map((image) => {
+                                        {paginatedGalleryImages.map((image) => {
                                             const active = image.path === selectedGalleryPath;
                                             return (
                                                 <button
@@ -749,6 +752,17 @@ export function ImagesManager() {
                                             );
                                         })}
                                     </div>
+                                    <GalleryPaginationControls
+                                        totalItems={galleryImages.length}
+                                        page={galleryPage}
+                                        pageSize={galleryPageSize}
+                                        onPageChange={setGalleryPage}
+                                        onPageSizeChange={(nextSize) => {
+                                            setGalleryPageSize(nextSize);
+                                            setGalleryPage(1);
+                                        }}
+                                        disabled={busy || loadingGallery}
+                                    />
 
                                     {selectedGalleryImage ? (
                                         <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>

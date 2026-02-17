@@ -1,6 +1,6 @@
 "use client";
 
-import {useCallback, useEffect, useMemo, useState} from "react";
+import {useEffect, useMemo, useState} from "react";
 import Link from "next/link";
 import {
     Check,
@@ -17,24 +17,16 @@ import {
 } from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
+import {GalleryPaginationControls} from "@/components/dashboard/gallery-pagination-controls";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {useGalleryImages} from "@/hooks/use-gallery-images";
 import {Input} from "@/components/ui/input";
 import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
-
-type GalleryImage = {
-    path: string;
-    name: string;
-    downloadURL: string;
-    contentType: string | null;
-    sizeBytes: number | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
 
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
@@ -71,8 +63,8 @@ export function ImageGalleryManager() {
     const {user, loading, error} = useAuth();
     const userId = user?.uid || null;
     const [files, setFiles] = useState<File[]>([]);
-    const [images, setImages] = useState<GalleryImage[]>([]);
-    const [loadingImages, setLoadingImages] = useState(false);
+    const [galleryPage, setGalleryPage] = useState(1);
+    const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
     const [uploading, setUploading] = useState(false);
     const [deletingPath, setDeletingPath] = useState<string | null>(null);
     const [editingPath, setEditingPath] = useState<string | null>(null);
@@ -80,6 +72,13 @@ export function ImageGalleryManager() {
     const [renamingPath, setRenamingPath] = useState<string | null>(null);
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
+
+    const {
+        images,
+        loading: loadingImages,
+        error: galleryError,
+        refresh: refreshGallery,
+    } = useGalleryImages({userId});
 
     const pendingPreviews = useMemo(
         () =>
@@ -99,38 +98,26 @@ export function ImageGalleryManager() {
         };
     }, [pendingPreviews]);
 
-    const loadImages = useCallback(async () => {
-        if (!userId) {
-            setImages([]);
-            return;
-        }
+    const paginatedImages = useMemo(() => {
+        const start = (galleryPage - 1) * galleryPageSize;
+        return images.slice(start, start + galleryPageSize);
+    }, [galleryPage, galleryPageSize, images]);
 
-        setLoadingImages(true);
-        setFailure(null);
-        try {
-            const response = await fetch("/api/images/gallery", {
-                method: "GET",
-                cache: "no-store",
-            });
-
-            if (!response.ok) {
-                const payload = (await response.json().catch(() => ({}))) as { error?: string };
-                throw new Error(payload.error || "No se pudo cargar la galería.");
-            }
-
-            const payload = (await response.json()) as { images?: GalleryImage[] };
-            setImages(payload.images || []);
-        } catch (reason) {
-            const message = reason instanceof Error ? reason.message : "No se pudo cargar la galería.";
-            setFailure(message);
-        } finally {
-            setLoadingImages(false);
-        }
-    }, [userId]);
+    const totalGalleryPages = useMemo(
+        () => Math.max(1, Math.ceil(images.length / galleryPageSize)),
+        [galleryPageSize, images.length],
+    );
 
     useEffect(() => {
-        void loadImages();
-    }, [loadImages]);
+        setGalleryPage((currentPage) => Math.min(currentPage, totalGalleryPages));
+    }, [totalGalleryPages]);
+
+    useEffect(() => {
+        if (!galleryError) {
+            return;
+        }
+        setFailure(galleryError);
+    }, [galleryError]);
 
     async function handleUploadAll() {
         if (!user) {
@@ -169,7 +156,7 @@ export function ImageGalleryManager() {
 
             setStatus(`${files.length} imagen(es) subida(s) a la galería.`);
             setFiles([]);
-            await loadImages();
+            await refreshGallery({force: true});
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudieron subir las imágenes.";
             setFailure(message);
@@ -209,7 +196,7 @@ export function ImageGalleryManager() {
                 setEditingPath(null);
                 setEditName("");
             }
-            await loadImages();
+            await refreshGallery({force: true});
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo eliminar la imagen.";
             setFailure(message);
@@ -270,7 +257,7 @@ export function ImageGalleryManager() {
             setStatus("Nombre de imagen actualizado.");
             setEditingPath(null);
             setEditName("");
-            await loadImages();
+            await refreshGallery({force: true});
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo renombrar la imagen.";
             setFailure(message);
@@ -373,7 +360,7 @@ export function ImageGalleryManager() {
                 <section className="space-y-4 rounded-lg border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium">2. Imágenes guardadas en galería</p>
-                        <Button variant="outline" size="sm" onClick={() => void loadImages()}
+                        <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
                                 disabled={loadingImages || uploading || !user}>
                             {loadingImages ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                 <RefreshCcw className="h-4 w-4"/>}
@@ -382,7 +369,7 @@ export function ImageGalleryManager() {
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                        {images.map((image) => (
+                        {paginatedImages.map((image) => (
                             <article key={image.path}
                                      className="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
                                 <div className="relative aspect-[4/3] bg-muted">
@@ -510,6 +497,17 @@ export function ImageGalleryManager() {
                             </article>
                         ))}
                     </div>
+                    <GalleryPaginationControls
+                        totalItems={images.length}
+                        page={galleryPage}
+                        pageSize={galleryPageSize}
+                        onPageChange={setGalleryPage}
+                        onPageSizeChange={(nextSize) => {
+                            setGalleryPageSize(nextSize);
+                            setGalleryPage(1);
+                        }}
+                        disabled={uploading || loadingImages || !!renamingPath || !!deletingPath}
+                    />
 
                     {!loadingImages && user && images.length === 0 ? (
                         <p className="text-sm text-muted-foreground">No hay imágenes en galería todavía.</p>

@@ -5,10 +5,13 @@ import {useSearchParams} from "next/navigation";
 import {CopyPlus, GalleryHorizontal, Loader2, RefreshCcw, Sparkles, Upload} from "lucide-react";
 import Image from "next/image";
 import {useAuth} from "@/components/providers/auth-provider";
+import {GalleryPaginationControls} from "@/components/dashboard/gallery-pagination-controls";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {useGalleryImages} from "@/hooks/use-gallery-images";
 import {getImageFormatLabel} from "@/lib/images/image-format-label";
+import type {GalleryImage} from "@/lib/images/gallery-image";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
 
@@ -16,15 +19,7 @@ const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 
 type SourceMode = "local" | "gallery" | "optimized";
 
-type SelectableImage = {
-    path: string;
-    name: string;
-    downloadURL: string;
-    contentType: string | null;
-    sizeBytes: number | null;
-    createdAt: string | null;
-    updatedAt: string | null;
-};
+type SelectableImage = GalleryImage;
 
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
@@ -52,17 +47,27 @@ export function ImageCopiesManager() {
         requestedOptimizedPath ? "optimized" : requestedGalleryPath ? "gallery" : "local",
     );
     const [selectedFile, setSelectedFile] = useState<File | null>(null);
-    const [galleryImages, setGalleryImages] = useState<SelectableImage[]>([]);
     const [optimizedImages, setOptimizedImages] = useState<SelectableImage[]>([]);
     const [selectedGalleryPath, setSelectedGalleryPath] = useState<string | null>(requestedGalleryPath);
     const [selectedOptimizedPath, setSelectedOptimizedPath] = useState<string | null>(requestedOptimizedPath);
-    const [loadingGallery, setLoadingGallery] = useState(false);
+    const [galleryPage, setGalleryPage] = useState(1);
+    const [galleryPageSize, setGalleryPageSize] = useState<10 | 25 | 50>(10);
     const [loadingOptimized, setLoadingOptimized] = useState(false);
     const [sending, setSending] = useState(false);
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
     const [responsePayload, setResponsePayload] = useState<unknown>(null);
     const [galleryWizardStep, setGalleryWizardStep] = useState<1 | 2>(1);
+
+    const {
+        images: galleryImages,
+        loading: loadingGallery,
+        error: galleryError,
+        refresh: refreshGallery,
+    } = useGalleryImages({
+        userId,
+        enabled: sourceMode === "gallery" || !!requestedGalleryPath,
+    });
 
     useEffect(() => {
         if (!requestedGalleryPath) {
@@ -108,6 +113,16 @@ export function ImageCopiesManager() {
         [optimizedImages, selectedOptimizedPath],
     );
 
+    const paginatedGalleryImages = useMemo(() => {
+        const start = (galleryPage - 1) * galleryPageSize;
+        return galleryImages.slice(start, start + galleryPageSize);
+    }, [galleryImages, galleryPage, galleryPageSize]);
+
+    const totalGalleryPages = useMemo(
+        () => Math.max(1, Math.ceil(galleryImages.length / galleryPageSize)),
+        [galleryImages.length, galleryPageSize],
+    );
+
     const selectedGalleryNeedsJpegWizard = useMemo(() => {
         if (!selectedGalleryImage) {
             return false;
@@ -122,40 +137,6 @@ export function ImageCopiesManager() {
     useEffect(() => {
         setGalleryWizardStep(1);
     }, [selectedGalleryPath, sourceMode]);
-
-    const loadGallery = useCallback(async () => {
-        if (!userId) {
-            setGalleryImages([]);
-            return;
-        }
-
-        setLoadingGallery(true);
-        setFailure(null);
-        try {
-            const response = await fetch("/api/images/gallery", {
-                method: "GET",
-                cache: "no-store",
-            });
-
-            if (!response.ok) {
-                const payload = (await response.json().catch(() => ({}))) as { error?: string };
-                throw new Error(payload.error || "No se pudo cargar la galería.");
-            }
-
-            const payload = (await response.json()) as { images?: SelectableImage[] };
-            const items = payload.images || [];
-            setGalleryImages(items);
-
-            setSelectedGalleryPath((currentPath) =>
-                currentPath && !items.some((image) => image.path === currentPath) ? null : currentPath,
-            );
-        } catch (reason) {
-            const message = reason instanceof Error ? reason.message : "No se pudo cargar la galería.";
-            setFailure(message);
-        } finally {
-            setLoadingGallery(false);
-        }
-    }, [userId]);
 
     const loadOptimized = useCallback(async () => {
         if (!userId) {
@@ -192,16 +173,41 @@ export function ImageCopiesManager() {
     }, [userId]);
 
     useEffect(() => {
-        if (sourceMode === "gallery" || requestedGalleryPath) {
-            void loadGallery();
-        }
-    }, [loadGallery, requestedGalleryPath, sourceMode]);
-
-    useEffect(() => {
         if (sourceMode === "optimized" || requestedOptimizedPath) {
             void loadOptimized();
         }
     }, [loadOptimized, requestedOptimizedPath, sourceMode]);
+
+    useEffect(() => {
+        setGalleryPage((currentPage) => Math.min(currentPage, totalGalleryPages));
+    }, [totalGalleryPages]);
+
+    useEffect(() => {
+        if (!galleryError) {
+            return;
+        }
+        setFailure(galleryError);
+    }, [galleryError]);
+
+    useEffect(() => {
+        setSelectedGalleryPath((currentPath) =>
+            currentPath && !galleryImages.some((image) => image.path === currentPath) ? null : currentPath,
+        );
+    }, [galleryImages]);
+
+    useEffect(() => {
+        if (!selectedGalleryPath) {
+            return;
+        }
+
+        const index = galleryImages.findIndex((image) => image.path === selectedGalleryPath);
+        if (index < 0) {
+            return;
+        }
+
+        const targetPage = Math.floor(index / galleryPageSize) + 1;
+        setGalleryPage(targetPage);
+    }, [galleryImages, galleryPageSize, selectedGalleryPath]);
 
     async function handleSendToN8n() {
         if (!user) {
@@ -405,7 +411,7 @@ export function ImageCopiesManager() {
                     ) : sourceMode === "gallery" ? (
                         <div className="space-y-3 rounded-lg border p-4">
                             <div className="flex justify-end">
-                                <Button variant="outline" size="sm" onClick={() => void loadGallery()}
+                                <Button variant="outline" size="sm" onClick={() => void refreshGallery({force: true})}
                                         disabled={loadingGallery || sending || !user}>
                                     {loadingGallery ? <Loader2 className="h-4 w-4 animate-spin"/> :
                                         <RefreshCcw className="h-4 w-4"/>}
@@ -414,7 +420,7 @@ export function ImageCopiesManager() {
                             </div>
 
                             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                                {galleryImages.map((image) => {
+                                {paginatedGalleryImages.map((image) => {
                                     const active = image.path === selectedGalleryPath;
                                     return (
                                         <button
@@ -456,6 +462,17 @@ export function ImageCopiesManager() {
                                     );
                                 })}
                             </div>
+                            <GalleryPaginationControls
+                                totalItems={galleryImages.length}
+                                page={galleryPage}
+                                pageSize={galleryPageSize}
+                                onPageChange={setGalleryPage}
+                                onPageSizeChange={(nextSize) => {
+                                    setGalleryPageSize(nextSize);
+                                    setGalleryPage(1);
+                                }}
+                                disabled={sending || loadingGallery}
+                            />
 
                             {selectedGalleryImage ? (
                                 <div className="space-y-1">
