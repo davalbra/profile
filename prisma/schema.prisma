@@ -25,6 +25,11 @@ enum EstadoLead {
   CERRADO
 }
 
+enum TipoRelacionImagen {
+  N8N_COMPATIBLE
+  N8N_RESPUESTA
+}
+
 model Usuario {
   id            String     @id // UID de Firebase/Auth provider
   email         String     @unique
@@ -34,9 +39,10 @@ model Usuario {
   creadoEn      DateTime   @default(now())
   actualizadoEn DateTime   @updatedAt
 
-  leadsAsignados   ContactoLead[]
-  sesionesFirebase SesionFirebase[]
-  imagenes         Imagen[]
+  leadsAsignados     ContactoLead[]
+  sesionesFirebase   SesionFirebase[]
+  imagenes           Imagen[]
+  imagenesRelaciones ImagenRelacion[]
 
   @@index([rol, creadoEn(sort: Desc)])
   @@map("usuarios")
@@ -84,6 +90,26 @@ model ImagenOptimizacionEstadistica {
 
   @@index([imagenId, creadoEn(sort: Desc)])
   @@map("imagenes_optimizacion_estadisticas")
+}
+
+model ImagenRelacion {
+  id            String             @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tipo          TipoRelacionImagen @default(N8N_COMPATIBLE)
+  origenPath    String             @db.Text
+  destinoPath   String             @db.Text
+  origenMime    String?
+  destinoMime   String?
+  origenNombre  String?
+  destinoNombre String?
+  creadoEn      DateTime           @default(now())
+  actualizadoEn DateTime           @updatedAt
+
+  @@unique([usuarioId, tipo, origenPath])
+  @@index([usuarioId, tipo, creadoEn(sort: Desc)])
+  @@index([usuarioId, destinoPath])
+  @@map("imagenes_relaciones")
 }
 
 model Proyecto {

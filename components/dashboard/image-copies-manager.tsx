@@ -83,6 +83,7 @@ export function ImageCopiesManager() {
     } = useGalleryImages({
         userId,
         enabled: sourceMode === "gallery" || !!requestedGalleryPath,
+        scope: "n8n",
     });
 
     useEffect(() => {
@@ -290,6 +291,7 @@ export function ImageCopiesManager() {
                 n8n?: unknown;
                 n8nImage?: N8nImagePreview | null;
                 n8nStoredImage?: StoredN8nImage | null;
+                n8nCompatibleImage?: StoredN8nImage | null;
                 source?: string;
                 fileName?: string;
                 wasConvertedToJpeg?: boolean;
@@ -302,13 +304,16 @@ export function ImageCopiesManager() {
             const sourceLabel =
                 payload.source === "gallery"
                     ? "galería"
-                    : payload.source === "optimized"
-                        ? "optimizadas"
-                        : "computadora";
+                    : payload.source === "n8n"
+                        ? "galería n8n"
+                        : payload.source === "optimized"
+                            ? "optimizadas"
+                            : "computadora";
             const convertedLabel = payload.wasConvertedToJpeg ? " (convertida a JPG)" : "";
             const storedLabel = payload.n8nStoredImage ? " Guardada en carpeta n8n." : "";
+            const compatibleLabel = payload.n8nCompatibleImage ? " Galería n8n actualizada con versión JPG." : "";
             setStatus(
-                `Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${storedLabel}`,
+                `Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${storedLabel}${compatibleLabel}`,
             );
             const n8nImage = payload.n8nImage || null;
             setResponseImage(n8nImage);
@@ -322,6 +327,10 @@ export function ImageCopiesManager() {
                 });
             } else {
                 setResponsePayload(payload.n8n ?? payload);
+            }
+            if (payload.n8nCompatibleImage) {
+                await refreshGallery({force: true});
+                setSelectedGalleryPath(payload.n8nCompatibleImage.path);
             }
             setGalleryWizardStep(1);
         } catch (reason) {
@@ -614,7 +623,8 @@ export function ImageCopiesManager() {
                         <p className="text-xs text-muted-foreground">
                             {responseImage.fileName} · {responseImage.contentType} · {formatBytes(responseImage.sizeBytes)}
                         </p>
-                        <div className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-lg border bg-muted">
+                        <div
+                            className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-lg border bg-muted">
                             <Image
                                 src={responseImage.dataUrl}
                                 alt={responseImage.fileName || "Imagen generada por n8n"}

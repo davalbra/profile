@@ -1,4 +1,5 @@
 import {NextResponse} from "next/server";
+import {TipoRelacionImagen} from "@prisma/client";
 import sharp from "sharp";
 import {
     AccesoDenegadoError,
@@ -7,6 +8,7 @@ import {
 } from "@/lib/auth/firebase-session";
 import {getFirebaseAdminStorage} from "@/lib/firebase/admin";
 import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
+import {prisma} from "@/lib/prisma";
 
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
@@ -16,6 +18,24 @@ const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const N8N_COPY_WEBHOOK_URL =
     "https://n8n.srv1338422.hstgr.cloud/webhook-test/37f97811-ea45-4d5a-a2c5-6f104ca79b15";
 const JPEG_CONTENT_TYPE = "image/jpeg";
+
+type SourceImage = {
+    buffer: Buffer;
+    fileName: string;
+    contentType: string;
+    source: "local" | "gallery" | "optimized" | "n8n";
+    storagePath: string | null;
+};
+
+type PreparedImage = {
+    buffer: Buffer;
+    fileName: string;
+    contentType: string;
+    source: "local" | "gallery" | "optimized" | "n8n";
+    originalContentType: string;
+    wasConvertedToJpeg: boolean;
+    storagePath: string | null;
+};
 
 function buildGalleryPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_GALLERY_FOLDER}/`;
@@ -58,12 +78,7 @@ function asString(value: unknown): string | null {
     return String(value);
 }
 
-async function resolveSourceImage(formData: FormData, uid: string): Promise<{
-    buffer: Buffer;
-    fileName: string;
-    contentType: string;
-    source: "local" | "gallery" | "optimized";
-}> {
+async function resolveSourceImage(formData: FormData, uid: string): Promise<SourceImage> {
     const fileValue = formData.get("image") ?? formData.get("file");
 
     if (fileValue instanceof File) {
@@ -84,6 +99,7 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
             fileName: fileValue.name || `image-${Date.now()}`,
             contentType: fileValue.type || "application/octet-stream",
             source: "local",
+            storagePath: null,
         };
     }
 
@@ -92,16 +108,25 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
 
     let storagePath = "";
     let prefix = "";
-    let source: "gallery" | "optimized";
+    let source: "gallery" | "optimized" | "n8n";
     let forbiddenMessage = "";
     let notFoundMessage = "";
 
     if (galleryPath) {
         storagePath = galleryPath;
-        prefix = buildGalleryPrefix(uid);
-        source = "gallery";
-        forbiddenMessage = "No tienes permisos para usar esta imagen de galería.";
-        notFoundMessage = "La imagen seleccionada en galería no existe.";
+        if (storagePath.startsWith(buildGalleryPrefix(uid))) {
+            prefix = buildGalleryPrefix(uid);
+            source = "gallery";
+            forbiddenMessage = "No tienes permisos para usar esta imagen de galería.";
+            notFoundMessage = "La imagen seleccionada en galería no existe.";
+        } else if (storagePath.startsWith(buildN8nPrefix(uid))) {
+            prefix = buildN8nPrefix(uid);
+            source = "n8n";
+            forbiddenMessage = "No tienes permisos para usar esta imagen n8n.";
+            notFoundMessage = "La imagen seleccionada en n8n no existe.";
+        } else {
+            throw new Error("No tienes permisos para usar esta imagen.");
+        }
     } else if (optimizedPath) {
         storagePath = optimizedPath;
         prefix = buildOptimizedPrefix(uid);
@@ -139,6 +164,7 @@ async function resolveSourceImage(formData: FormData, uid: string): Promise<{
         fileName,
         contentType,
         source,
+        storagePath,
     };
 }
 
@@ -354,22 +380,144 @@ function normalizeN8nStoredFileName(fileName: string, contentType: string): stri
     return `${withoutExtension}.${extension}`;
 }
 
-async function prepareImageForN8n(
-    sourceImage: {
-        buffer: Buffer;
-        fileName: string;
-        contentType: string;
-        source: "local" | "gallery" | "optimized";
-    },
-    options: { forceJpegConversion: boolean },
-): Promise<{
-    buffer: Buffer;
+type StoredN8nImage = {
+    path: string;
+    name: string;
+    downloadURL: string;
+    contentType: string;
+    sizeBytes: number;
+    createdAt: string;
+};
+
+async function saveImageToN8nFolder(input: {
+    uid: string;
     fileName: string;
     contentType: string;
-    source: "local" | "gallery" | "optimized";
-    originalContentType: string;
-    wasConvertedToJpeg: boolean;
-}> {
+    buffer: Buffer;
+    metadataSource: "n8n-response" | "n8n-compatible";
+    originalPath: string | null;
+}): Promise<StoredN8nImage> {
+    const normalizedFileName = normalizeN8nStoredFileName(input.fileName, input.contentType);
+    const path = `${buildN8nPrefix(input.uid)}${Date.now()}-${normalizedFileName}`;
+    const createdAt = new Date().toISOString();
+    const downloadToken = crypto.randomUUID();
+    const bucket = getFirebaseAdminStorage().bucket();
+    const file = bucket.file(path);
+
+    await file.save(input.buffer, {
+        resumable: false,
+        metadata: {
+            contentType: input.contentType,
+            metadata: {
+                firebaseStorageDownloadTokens: downloadToken,
+                originalName: input.fileName,
+                source: input.metadataSource,
+                originalPath: input.originalPath || "",
+                createdAt,
+            },
+        },
+    });
+
+    return {
+        path,
+        name: input.fileName,
+        downloadURL: getDownloadUrl(bucket.name, path, downloadToken),
+        contentType: input.contentType,
+        sizeBytes: input.buffer.length,
+        createdAt,
+    };
+}
+
+async function upsertImageRelation(input: {
+    uid: string;
+    tipo: TipoRelacionImagen;
+    origenPath: string;
+    destinoPath: string;
+    origenMime?: string | null;
+    destinoMime?: string | null;
+    origenNombre?: string | null;
+    destinoNombre?: string | null;
+}) {
+    return prisma.imagenRelacion.upsert({
+        where: {
+            usuarioId_tipo_origenPath: {
+                usuarioId: input.uid,
+                tipo: input.tipo,
+                origenPath: input.origenPath,
+            },
+        },
+        create: {
+            usuarioId: input.uid,
+            tipo: input.tipo,
+            origenPath: input.origenPath,
+            destinoPath: input.destinoPath,
+            origenMime: input.origenMime || null,
+            destinoMime: input.destinoMime || null,
+            origenNombre: input.origenNombre || null,
+            destinoNombre: input.destinoNombre || null,
+        },
+        update: {
+            destinoPath: input.destinoPath,
+            origenMime: input.origenMime || null,
+            destinoMime: input.destinoMime || null,
+            origenNombre: input.origenNombre || null,
+            destinoNombre: input.destinoNombre || null,
+        },
+    });
+}
+
+async function createOrUpdateN8nCompatibleDerivative(input: {
+    uid: string;
+    originPath: string;
+    originName: string;
+    originMime: string;
+    buffer: Buffer;
+}): Promise<StoredN8nImage> {
+    const existingRelation = await prisma.imagenRelacion.findUnique({
+        where: {
+            usuarioId_tipo_origenPath: {
+                usuarioId: input.uid,
+                tipo: TipoRelacionImagen.N8N_COMPATIBLE,
+                origenPath: input.originPath,
+            },
+        },
+        select: {
+            destinoPath: true,
+        },
+    });
+
+    const stored = await saveImageToN8nFolder({
+        uid: input.uid,
+        fileName: normalizeJpegFileName(input.originName),
+        contentType: JPEG_CONTENT_TYPE,
+        buffer: input.buffer,
+        metadataSource: "n8n-compatible",
+        originalPath: input.originPath,
+    });
+
+    await upsertImageRelation({
+        uid: input.uid,
+        tipo: TipoRelacionImagen.N8N_COMPATIBLE,
+        origenPath: input.originPath,
+        destinoPath: stored.path,
+        origenMime: input.originMime,
+        destinoMime: stored.contentType,
+        origenNombre: input.originName,
+        destinoNombre: stored.name,
+    });
+
+    if (existingRelation?.destinoPath && existingRelation.destinoPath !== stored.path) {
+        const bucket = getFirebaseAdminStorage().bucket();
+        await bucket.file(existingRelation.destinoPath).delete({ignoreNotFound: true});
+    }
+
+    return stored;
+}
+
+async function prepareImageForN8n(
+    sourceImage: SourceImage,
+    options: { forceJpegConversion: boolean },
+): Promise<PreparedImage> {
     const needsJpegConversion =
         options.forceJpegConversion ||
         !isN8nSupportedImageFormat({
@@ -412,6 +560,7 @@ async function prepareImageForN8n(
         source: sourceImage.source,
         originalContentType: sourceImage.contentType,
         wasConvertedToJpeg: true,
+        storagePath: sourceImage.storagePath,
     };
 }
 
@@ -422,9 +571,27 @@ export async function POST(request: Request) {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const formData = await request.formData();
         const sourceImage = await resolveSourceImage(formData, sesion.uid);
-        const preparedImage = await prepareImageForN8n(sourceImage, {
+        let preparedImage = await prepareImageForN8n(sourceImage, {
             forceJpegConversion: shouldForceJpegConversion(formData),
         });
+        let n8nCompatibleImage: StoredN8nImage | null = null;
+
+        if (sourceImage.source === "gallery" && sourceImage.storagePath && preparedImage.wasConvertedToJpeg) {
+            n8nCompatibleImage = await createOrUpdateN8nCompatibleDerivative({
+                uid: sesion.uid,
+                originPath: sourceImage.storagePath,
+                originName: sourceImage.fileName,
+                originMime: sourceImage.contentType,
+                buffer: preparedImage.buffer,
+            });
+
+            preparedImage = {
+                ...preparedImage,
+                fileName: n8nCompatibleImage.name,
+                contentType: n8nCompatibleImage.contentType,
+                storagePath: n8nCompatibleImage.path,
+            };
+        }
 
         const outbound = new FormData();
         outbound.append(
@@ -463,14 +630,7 @@ export async function POST(request: Request) {
         }
             | null = null;
         let storedN8nImage:
-            | {
-            path: string;
-            name: string;
-            downloadURL: string;
-            contentType: string;
-            sizeBytes: number;
-            createdAt: string;
-        }
+            | StoredN8nImage
             | null = null;
 
         if (n8nResponseIsImage) {
@@ -481,26 +641,6 @@ export async function POST(request: Request) {
                     `La imagen devuelta por n8n supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`,
                 );
             }
-            const n8nStoredFileName = normalizeN8nStoredFileName(n8nImageFileName, n8nContentType);
-            const n8nStoredPath = `${buildN8nPrefix(sesion.uid)}${Date.now()}-${n8nStoredFileName}`;
-            const createdAt = new Date().toISOString();
-            const downloadToken = crypto.randomUUID();
-            const bucket = getFirebaseAdminStorage().bucket();
-            const destination = bucket.file(n8nStoredPath);
-
-            await destination.save(n8nBuffer, {
-                resumable: false,
-                metadata: {
-                    contentType: n8nContentType,
-                    metadata: {
-                        firebaseStorageDownloadTokens: downloadToken,
-                        originalName: n8nImageFileName,
-                        source: "n8n",
-                        createdAt,
-                    },
-                },
-            });
-
             imagePayload = {
                 dataUrl: `data:${n8nContentType};base64,${n8nBuffer.toString("base64")}`,
                 contentType: n8nContentType,
@@ -508,14 +648,29 @@ export async function POST(request: Request) {
                 fileName: n8nImageFileName,
             };
 
-            storedN8nImage = {
-                path: n8nStoredPath,
-                name: n8nImageFileName,
-                downloadURL: getDownloadUrl(bucket.name, n8nStoredPath, downloadToken),
-                contentType: n8nContentType,
-                sizeBytes: n8nBuffer.length,
-                createdAt,
-            };
+            if (response.ok) {
+                storedN8nImage = await saveImageToN8nFolder({
+                    uid: sesion.uid,
+                    fileName: n8nImageFileName,
+                    contentType: n8nContentType,
+                    buffer: n8nBuffer,
+                    metadataSource: "n8n-response",
+                    originalPath: preparedImage.storagePath,
+                });
+
+                if (preparedImage.storagePath) {
+                    await upsertImageRelation({
+                        uid: sesion.uid,
+                        tipo: TipoRelacionImagen.N8N_RESPUESTA,
+                        origenPath: preparedImage.storagePath,
+                        destinoPath: storedN8nImage.path,
+                        origenMime: preparedImage.contentType,
+                        destinoMime: storedN8nImage.contentType,
+                        origenNombre: preparedImage.fileName,
+                        destinoNombre: storedN8nImage.name,
+                    });
+                }
+            }
         } else {
             const rawText = n8nBuffer.toString("utf-8");
             parsed = rawText;
@@ -551,6 +706,7 @@ export async function POST(request: Request) {
                 n8nContentType,
                 n8nResponseType: n8nResponseIsImage ? "image" : "data",
                 n8nImage: imagePayload,
+                n8nCompatibleImage,
                 n8nStoredImage: storedN8nImage,
                 n8n: parsed,
             },

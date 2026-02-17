@@ -1,7 +1,6 @@
 const N8N_SUPPORTED_IMAGE_MIME_TYPES = new Set([
     "image/png",
     "image/jpeg",
-    "image/webp",
     "image/heic",
     "image/heif",
 ]);

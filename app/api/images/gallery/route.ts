@@ -1,14 +1,20 @@
 import {NextResponse} from "next/server";
+import {TipoRelacionImagen} from "@prisma/client";
 import {
     AccesoDenegadoError,
     requerirSesionFirebase,
     RolInsuficienteError,
 } from "@/lib/auth/firebase-session";
 import {getFirebaseAdminStorage} from "@/lib/firebase/admin";
+import {isN8nSupportedImageFormat} from "@/lib/images/n8n-supported-format";
+import {prisma} from "@/lib/prisma";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
+const IMAGE_N8N_FOLDER = "n8n";
+
+type GalleryScope = "gallery" | "n8n";
 
 type GalleryImageResponse = {
     path: string;
@@ -18,6 +24,10 @@ type GalleryImageResponse = {
     sizeBytes: number | null;
     createdAt: string | null;
     updatedAt: string | null;
+    sourceGalleryPath?: string | null;
+    isN8nDerived?: boolean;
+    needsN8nTransformation?: boolean;
+    n8nVariantPath?: string | null;
 };
 
 type FirebaseFileWithMetadata = {
@@ -37,6 +47,16 @@ function getDownloadUrl(bucketName: string, path: string, token: string): string
 
 function buildGalleryPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_GALLERY_FOLDER}/`;
+}
+
+function buildN8nPrefix(uid: string): string {
+    return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_N8N_FOLDER}/`;
+}
+
+function parseGalleryScope(request: Request): GalleryScope {
+    const url = new URL(request.url);
+    const scope = url.searchParams.get("scope");
+    return scope === "n8n" ? "n8n" : "gallery";
 }
 
 function parseAuthError(error: unknown) {
@@ -112,11 +132,118 @@ function mapStorageFileToResponse(file: FirebaseFileWithMetadata, bucketName: st
     };
 }
 
+async function resolveStorageImageByPath(input: {
+    bucketName: string;
+    path: string;
+}): Promise<GalleryImageResponse | null> {
+    const bucket = getFirebaseAdminStorage().bucket();
+    const file = bucket.file(input.path);
+    const [exists] = await file.exists();
+    if (!exists) {
+        return null;
+    }
+
+    const [metadata] = await file.getMetadata();
+    return mapStorageFileToResponse(
+        {
+            name: input.path,
+            metadata,
+        },
+        input.bucketName,
+    );
+}
+
+async function buildN8nScopedGallery(input: {
+    uid: string;
+    bucketName: string;
+    galleryItems: GalleryImageResponse[];
+}): Promise<GalleryImageResponse[]> {
+    if (!input.galleryItems.length) {
+        return [];
+    }
+
+    const galleryPrefix = buildGalleryPrefix(input.uid);
+    const n8nPrefix = buildN8nPrefix(input.uid);
+
+    const relations = await prisma.imagenRelacion.findMany({
+        where: {
+            usuarioId: input.uid,
+            tipo: TipoRelacionImagen.N8N_COMPATIBLE,
+            origenPath: {
+                startsWith: galleryPrefix,
+            },
+            destinoPath: {
+                startsWith: n8nPrefix,
+            },
+        },
+        select: {
+            id: true,
+            origenPath: true,
+            destinoPath: true,
+        },
+    });
+
+    const relationByOrigin = new Map(relations.map((relation) => [relation.origenPath, relation]));
+    const uniqueDerivedPaths = Array.from(new Set(relations.map((relation) => relation.destinoPath)));
+    const derivedEntries = await Promise.all(
+        uniqueDerivedPaths.map(async (path) => {
+            const item = await resolveStorageImageByPath({
+                bucketName: input.bucketName,
+                path,
+            });
+            return [path, item] as const;
+        }),
+    );
+    const derivedByPath = new Map(derivedEntries);
+    const staleRelationIds = relations
+        .filter((relation) => !derivedByPath.get(relation.destinoPath))
+        .map((relation) => relation.id);
+
+    if (staleRelationIds.length > 0) {
+        await prisma.imagenRelacion.deleteMany({
+            where: {
+                id: {
+                    in: staleRelationIds,
+                },
+            },
+        });
+    }
+
+    return input.galleryItems.map((item) => {
+        const relation = relationByOrigin.get(item.path);
+        const derived = relation ? derivedByPath.get(relation.destinoPath) || null : null;
+
+        if (derived) {
+            return {
+                ...derived,
+                sourceGalleryPath: item.path,
+                isN8nDerived: true,
+                needsN8nTransformation: false,
+                n8nVariantPath: derived.path,
+            };
+        }
+
+        const needsTransformation = !isN8nSupportedImageFormat({
+            contentType: item.contentType,
+            fileName: item.name || item.path,
+        });
+
+        return {
+            ...item,
+            sourceGalleryPath: item.path,
+            isN8nDerived: false,
+            needsN8nTransformation: needsTransformation,
+            n8nVariantPath: null,
+        };
+    });
+}
+
 export const runtime = "nodejs";
 
 export async function GET(request: Request) {
     try {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
+        const scope = parseGalleryScope(request);
         const bucket = getFirebaseAdminStorage().bucket();
         const prefix = buildGalleryPrefix(sesion.uid);
 
@@ -130,7 +257,7 @@ export async function GET(request: Request) {
                 }),
         );
 
-        const items = fileWithMetadata
+        const baseItems = fileWithMetadata
             .map((file) => mapStorageFileToResponse(file as FirebaseFileWithMetadata, bucket.name))
             .filter((item): item is GalleryImageResponse => item !== null)
             .sort((a, b) => {
@@ -139,7 +266,16 @@ export async function GET(request: Request) {
                 return bTime - aTime;
             });
 
-        return NextResponse.json({ok: true, images: items}, {headers: {"Cache-Control": "no-store"}});
+        const items =
+            scope === "n8n"
+                ? await buildN8nScopedGallery({
+                    uid: sesion.uid,
+                    bucketName: bucket.name,
+                    galleryItems: baseItems,
+                })
+                : baseItems;
+
+        return NextResponse.json({ok: true, scope, images: items}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -240,6 +376,46 @@ export async function DELETE(request: Request) {
         }
 
         const bucket = getFirebaseAdminStorage().bucket();
+        const relatedRelations = await prisma.imagenRelacion.findMany({
+            where: {
+                usuarioId: sesion.uid,
+                OR: [
+                    {origenPath: path},
+                    {destinoPath: path},
+                ],
+            },
+            select: {
+                id: true,
+                tipo: true,
+                origenPath: true,
+                destinoPath: true,
+            },
+        });
+        const n8nPrefix = buildN8nPrefix(sesion.uid);
+        const n8nDerivedPathsToDelete = relatedRelations
+            .filter(
+                (relation) =>
+                    relation.tipo === TipoRelacionImagen.N8N_COMPATIBLE &&
+                    relation.origenPath === path &&
+                    relation.destinoPath.startsWith(n8nPrefix),
+            )
+            .map((relation) => relation.destinoPath);
+
+        if (n8nDerivedPathsToDelete.length > 0) {
+            await Promise.all(
+                n8nDerivedPathsToDelete.map((derivedPath) => bucket.file(derivedPath).delete({ignoreNotFound: true})),
+            );
+        }
+
+        if (relatedRelations.length > 0) {
+            await prisma.imagenRelacion.deleteMany({
+                where: {
+                    id: {
+                        in: relatedRelations.map((relation) => relation.id),
+                    },
+                },
+            });
+        }
         await bucket.file(path).delete({ignoreNotFound: true});
 
         return NextResponse.json({ok: true}, {headers: {"Cache-Control": "no-store"}});

@@ -4,6 +4,9 @@ import {useCallback, useEffect, useMemo, useState} from "react";
 import type {GalleryImage} from "@/lib/images/gallery-image";
 
 const GALLERY_CACHE_TTL_MS = 5 * 60 * 1000;
+const DEFAULT_GALLERY_SCOPE = "gallery";
+
+export type GalleryScope = "gallery" | "n8n";
 
 type GalleryCacheEntry = {
     images: GalleryImage[];
@@ -13,53 +16,58 @@ type GalleryCacheEntry = {
 
 const galleryCacheByUser = new Map<string, GalleryCacheEntry>();
 
-function getUserCacheEntry(userId: string): GalleryCacheEntry | null {
-    return galleryCacheByUser.get(userId) || null;
+function buildCacheKey(userId: string, scope: GalleryScope): string {
+    return `${scope}:${userId}`;
 }
 
-function hasFreshCache(userId: string): boolean {
-    const entry = getUserCacheEntry(userId);
+function getUserCacheEntry(userId: string, scope: GalleryScope): GalleryCacheEntry | null {
+    return galleryCacheByUser.get(buildCacheKey(userId, scope)) || null;
+}
+
+function hasFreshCache(userId: string, scope: GalleryScope): boolean {
+    const entry = getUserCacheEntry(userId, scope);
     if (!entry) {
         return false;
     }
     return Date.now() - entry.fetchedAt < GALLERY_CACHE_TTL_MS;
 }
 
-function readCache(userId: string): GalleryImage[] | null {
-    return getUserCacheEntry(userId)?.images || null;
+function readCache(userId: string, scope: GalleryScope): GalleryImage[] | null {
+    return getUserCacheEntry(userId, scope)?.images || null;
 }
 
-function writeCache(userId: string, images: GalleryImage[]) {
-    const previous = getUserCacheEntry(userId);
-    galleryCacheByUser.set(userId, {
+function writeCache(userId: string, scope: GalleryScope, images: GalleryImage[]) {
+    const previous = getUserCacheEntry(userId, scope);
+    galleryCacheByUser.set(buildCacheKey(userId, scope), {
         images,
         fetchedAt: Date.now(),
         inFlight: previous?.inFlight || null,
     });
 }
 
-function writeInFlight(userId: string, inFlight: Promise<GalleryImage[]> | null) {
-    const previous = getUserCacheEntry(userId);
-    galleryCacheByUser.set(userId, {
+function writeInFlight(userId: string, scope: GalleryScope, inFlight: Promise<GalleryImage[]> | null) {
+    const previous = getUserCacheEntry(userId, scope);
+    galleryCacheByUser.set(buildCacheKey(userId, scope), {
         images: previous?.images || [],
         fetchedAt: previous?.fetchedAt || 0,
         inFlight,
     });
 }
 
-async function requestGalleryImages(force: boolean, userId: string): Promise<GalleryImage[]> {
-    const cachedImages = readCache(userId);
-    if (!force && hasFreshCache(userId) && cachedImages) {
+async function requestGalleryImages(force: boolean, userId: string, scope: GalleryScope): Promise<GalleryImage[]> {
+    const cachedImages = readCache(userId, scope);
+    if (!force && hasFreshCache(userId, scope) && cachedImages) {
         return cachedImages;
     }
 
-    const activeRequest = getUserCacheEntry(userId)?.inFlight || null;
+    const activeRequest = getUserCacheEntry(userId, scope)?.inFlight || null;
     if (activeRequest) {
         return activeRequest;
     }
 
     const request = (async () => {
-        const response = await fetch("/api/images/gallery", {
+        const endpoint = scope === "n8n" ? "/api/images/gallery?scope=n8n" : "/api/images/gallery";
+        const response = await fetch(endpoint, {
             method: "GET",
             cache: "no-store",
         });
@@ -71,29 +79,45 @@ async function requestGalleryImages(force: boolean, userId: string): Promise<Gal
 
         const payload = (await response.json()) as { images?: GalleryImage[] };
         const items = payload.images || [];
-        writeCache(userId, items);
+        writeCache(userId, scope, items);
         return items;
     })();
-    writeInFlight(userId, request);
+    writeInFlight(userId, scope, request);
 
     try {
         return await request;
     } finally {
-        writeInFlight(userId, null);
+        writeInFlight(userId, scope, null);
     }
 }
 
-export function invalidateGalleryImagesCache(userId?: string | null) {
-    if (userId) {
-        galleryCacheByUser.delete(userId);
+export function invalidateGalleryImagesCache(input?: { userId?: string | null; scope?: GalleryScope | null }) {
+    const userId = input?.userId || null;
+    const scope = input?.scope || null;
+
+    if (userId && scope) {
+        galleryCacheByUser.delete(buildCacheKey(userId, scope));
         return;
     }
+
+    if (userId) {
+        for (const key of galleryCacheByUser.keys()) {
+            if (key.endsWith(`:${userId}`)) {
+                galleryCacheByUser.delete(key);
+            }
+        }
+        return;
+    }
+
     galleryCacheByUser.clear();
 }
 
-export function useGalleryImages(input: { userId: string | null; enabled?: boolean }) {
+export function useGalleryImages(input: { userId: string | null; enabled?: boolean; scope?: GalleryScope }) {
+    const scope = input.scope || DEFAULT_GALLERY_SCOPE;
     const enabled = input.enabled ?? true;
-    const [images, setImages] = useState<GalleryImage[]>(() => (input.userId ? readCache(input.userId) || [] : []));
+    const [images, setImages] = useState<GalleryImage[]>(() =>
+        input.userId ? readCache(input.userId, scope) || [] : [],
+    );
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -110,8 +134,8 @@ export function useGalleryImages(input: { userId: string | null; enabled?: boole
                 return [] as GalleryImage[];
             }
 
-            if (!force && hasFreshCache(input.userId)) {
-                const cached = readCache(input.userId) || [];
+            if (!force && hasFreshCache(input.userId, scope)) {
+                const cached = readCache(input.userId, scope) || [];
                 setImages(cached);
                 return cached;
             }
@@ -122,7 +146,7 @@ export function useGalleryImages(input: { userId: string | null; enabled?: boole
             setError(null);
 
             try {
-                const next = await requestGalleryImages(force, input.userId);
+                const next = await requestGalleryImages(force, input.userId, scope);
                 setImages(next);
                 return next;
             } catch (reason) {
@@ -135,7 +159,7 @@ export function useGalleryImages(input: { userId: string | null; enabled?: boole
                 }
             }
         },
-        [canLoad, input.userId],
+        [canLoad, input.userId, scope],
     );
 
     useEffect(() => {
@@ -153,10 +177,10 @@ export function useGalleryImages(input: { userId: string | null; enabled?: boole
             return;
         }
 
-        const cached = readCache(input.userId);
+        const cached = readCache(input.userId, scope);
         if (cached) {
             setImages(cached);
-            if (hasFreshCache(input.userId)) {
+            if (hasFreshCache(input.userId, scope)) {
                 return;
             }
             void refresh({force: true, silent: true}).catch(() => {
@@ -168,7 +192,7 @@ export function useGalleryImages(input: { userId: string | null; enabled?: boole
         void refresh({force: true}).catch(() => {
             // El estado de error se maneja dentro del hook.
         });
-    }, [canLoad, input.userId, refresh]);
+    }, [canLoad, input.userId, refresh, scope]);
 
     return {
         images,
