@@ -20,6 +20,12 @@ const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 type SourceMode = "local" | "gallery" | "optimized";
 
 type SelectableImage = GalleryImage;
+type N8nImagePreview = {
+    dataUrl: string;
+    contentType: string;
+    sizeBytes: number;
+    fileName: string;
+};
 
 function formatBytes(bytes: number | null): string {
     if (!bytes || Number.isNaN(bytes)) {
@@ -57,6 +63,7 @@ export function ImageCopiesManager() {
     const [status, setStatus] = useState<string | null>(null);
     const [failure, setFailure] = useState<string | null>(null);
     const [responsePayload, setResponsePayload] = useState<unknown>(null);
+    const [responseImage, setResponseImage] = useState<N8nImagePreview | null>(null);
     const [galleryWizardStep, setGalleryWizardStep] = useState<1 | 2>(1);
 
     const {
@@ -226,6 +233,7 @@ export function ImageCopiesManager() {
         setFailure(null);
         setStatus(null);
         setResponsePayload(null);
+        setResponseImage(null);
 
         const formData = new FormData();
 
@@ -271,6 +279,7 @@ export function ImageCopiesManager() {
                 ok?: boolean;
                 error?: string;
                 n8n?: unknown;
+                n8nImage?: N8nImagePreview | null;
                 source?: string;
                 fileName?: string;
                 wasConvertedToJpeg?: boolean;
@@ -288,7 +297,18 @@ export function ImageCopiesManager() {
                         : "computadora";
             const convertedLabel = payload.wasConvertedToJpeg ? " (convertida a JPG)" : "";
             setStatus(`Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.`);
-            setResponsePayload(payload.n8n ?? payload);
+            const n8nImage = payload.n8nImage || null;
+            setResponseImage(n8nImage);
+            if (n8nImage) {
+                setResponsePayload({
+                    n8nResponseType: "image",
+                    contentType: n8nImage.contentType,
+                    fileName: n8nImage.fileName,
+                    sizeBytes: n8nImage.sizeBytes,
+                });
+            } else {
+                setResponsePayload(payload.n8n ?? payload);
+            }
             setGalleryWizardStep(1);
         } catch (reason) {
             const message = reason instanceof Error ? reason.message : "No se pudo enviar la imagen a n8n.";
@@ -571,6 +591,25 @@ export function ImageCopiesManager() {
                         <pre className="max-h-80 overflow-auto rounded-md bg-muted p-3 text-xs">
               {JSON.stringify(responsePayload, null, 2)}
             </pre>
+                    </section>
+                ) : null}
+
+                {responseImage ? (
+                    <section className="space-y-2 rounded-lg border p-4">
+                        <p className="text-sm font-medium">Imagen devuelta por n8n</p>
+                        <p className="text-xs text-muted-foreground">
+                            {responseImage.fileName} · {responseImage.contentType} · {formatBytes(responseImage.sizeBytes)}
+                        </p>
+                        <div className="relative aspect-[4/3] w-full max-w-2xl overflow-hidden rounded-lg border bg-muted">
+                            <Image
+                                src={responseImage.dataUrl}
+                                alt={responseImage.fileName || "Imagen generada por n8n"}
+                                fill
+                                unoptimized
+                                className="object-contain"
+                                sizes="(max-width: 768px) 100vw, 66vw"
+                            />
+                        </div>
                     </section>
                 ) : null}
             </CardContent>

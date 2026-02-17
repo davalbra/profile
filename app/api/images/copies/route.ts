@@ -138,6 +138,160 @@ function shouldForceJpegConversion(formData: FormData): boolean {
     return rawValue === "1" || rawValue === "true" || rawValue === "yes";
 }
 
+function normalizeMime(contentType: string | null): string {
+    return (contentType || "").toLowerCase().split(";")[0].trim();
+}
+
+function extractFileNameFromContentDisposition(contentDisposition: string | null): string | null {
+    if (!contentDisposition) {
+        return null;
+    }
+
+    const utf8Match = contentDisposition.match(/filename\*=UTF-8''([^;]+)/i);
+    if (utf8Match?.[1]) {
+        try {
+            return decodeURIComponent(utf8Match[1]);
+        } catch {
+            return utf8Match[1];
+        }
+    }
+
+    const quotedMatch = contentDisposition.match(/filename="([^"]+)"/i);
+    if (quotedMatch?.[1]) {
+        return quotedMatch[1];
+    }
+
+    const plainMatch = contentDisposition.match(/filename=([^;]+)/i);
+    if (plainMatch?.[1]) {
+        return plainMatch[1].trim();
+    }
+
+    return null;
+}
+
+function extractFileExtension(fileName: string | null): string | null {
+    if (!fileName) {
+        return null;
+    }
+
+    const trimmed = fileName.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    const parts = trimmed.toLowerCase().split(".");
+    if (parts.length < 2) {
+        return null;
+    }
+
+    return parts[parts.length - 1] || null;
+}
+
+function mimeFromFileExtension(extension: string | null): string | null {
+    switch (extension) {
+        case "jpg":
+        case "jpeg":
+            return "image/jpeg";
+        case "png":
+            return "image/png";
+        case "webp":
+            return "image/webp";
+        case "gif":
+            return "image/gif";
+        case "bmp":
+            return "image/bmp";
+        case "tif":
+        case "tiff":
+            return "image/tiff";
+        case "avif":
+            return "image/avif";
+        case "heic":
+            return "image/heic";
+        case "heif":
+            return "image/heif";
+        case "svg":
+            return "image/svg+xml";
+        default:
+            return null;
+    }
+}
+
+function sniffImageMimeFromBuffer(buffer: Buffer): string | null {
+    if (buffer.length >= 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff) {
+        return "image/jpeg";
+    }
+
+    if (
+        buffer.length >= 8 &&
+        buffer[0] === 0x89 &&
+        buffer[1] === 0x50 &&
+        buffer[2] === 0x4e &&
+        buffer[3] === 0x47 &&
+        buffer[4] === 0x0d &&
+        buffer[5] === 0x0a &&
+        buffer[6] === 0x1a &&
+        buffer[7] === 0x0a
+    ) {
+        return "image/png";
+    }
+
+    if (
+        buffer.length >= 12 &&
+        buffer[0] === 0x52 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x46 &&
+        buffer[8] === 0x57 &&
+        buffer[9] === 0x45 &&
+        buffer[10] === 0x42 &&
+        buffer[11] === 0x50
+    ) {
+        return "image/webp";
+    }
+
+    if (
+        buffer.length >= 4 &&
+        buffer[0] === 0x47 &&
+        buffer[1] === 0x49 &&
+        buffer[2] === 0x46 &&
+        buffer[3] === 0x38
+    ) {
+        return "image/gif";
+    }
+
+    if (buffer.length >= 2 && buffer[0] === 0x42 && buffer[1] === 0x4d) {
+        return "image/bmp";
+    }
+
+    if (
+        buffer.length >= 4 &&
+        ((buffer[0] === 0x49 && buffer[1] === 0x49 && buffer[2] === 0x2a && buffer[3] === 0x00) ||
+            (buffer[0] === 0x4d && buffer[1] === 0x4d && buffer[2] === 0x00 && buffer[3] === 0x2a))
+    ) {
+        return "image/tiff";
+    }
+
+    if (buffer.length >= 12) {
+        const boxType = buffer.toString("ascii", 4, 8);
+        if (boxType === "ftyp") {
+            const brand = buffer.toString("ascii", 8, 12).trim();
+            if (brand === "avif" || brand === "avis") {
+                return "image/avif";
+            }
+
+            if (brand.startsWith("hei") || brand.startsWith("hev")) {
+                return "image/heic";
+            }
+
+            if (brand === "mif1" || brand === "msf1") {
+                return "image/heif";
+            }
+        }
+    }
+
+    return null;
+}
+
 function normalizeJpegFileName(fileName: string): string {
     const trimmed = fileName.trim();
     if (!trimmed) {
@@ -235,13 +389,47 @@ export async function POST(request: Request) {
             body: outbound,
             cache: "no-store",
         });
+        const n8nContentDisposition = response.headers.get("content-disposition");
+        const n8nHeaderContentType = normalizeMime(response.headers.get("content-type"));
+        const n8nBuffer = Buffer.from(await response.arrayBuffer());
+        const n8nImageFileNameFromHeaders = extractFileNameFromContentDisposition(n8nContentDisposition);
+        const n8nMimeFromFileName = mimeFromFileExtension(extractFileExtension(n8nImageFileNameFromHeaders));
+        const n8nMimeFromBuffer = sniffImageMimeFromBuffer(n8nBuffer);
+        const n8nDetectedImageMime =
+            n8nHeaderContentType.startsWith("image/")
+                ? n8nHeaderContentType
+                : n8nMimeFromFileName || n8nMimeFromBuffer;
+        const n8nResponseIsImage = Boolean(n8nDetectedImageMime);
+        const n8nContentType = n8nDetectedImageMime || n8nHeaderContentType || "application/octet-stream";
 
-        const rawText = await response.text();
-        let parsed: unknown = rawText;
-        try {
-            parsed = JSON.parse(rawText);
-        } catch {
+        let parsed: unknown = null;
+        let imagePayload:
+            | {
+            dataUrl: string;
+            contentType: string;
+            sizeBytes: number;
+            fileName: string;
+        }
+            | null = null;
+
+        if (n8nResponseIsImage) {
+            const n8nImageFileName =
+                n8nImageFileNameFromHeaders || preparedImage.fileName;
+
+            imagePayload = {
+                dataUrl: `data:${n8nContentType};base64,${n8nBuffer.toString("base64")}`,
+                contentType: n8nContentType,
+                sizeBytes: n8nBuffer.length,
+                fileName: n8nImageFileName,
+            };
+        } else {
+            const rawText = n8nBuffer.toString("utf-8");
             parsed = rawText;
+            try {
+                parsed = JSON.parse(rawText);
+            } catch {
+                parsed = rawText;
+            }
         }
 
         if (!response.ok) {
@@ -249,7 +437,10 @@ export async function POST(request: Request) {
                 {
                     error: "n8n respondió con error.",
                     status: response.status,
-                    payload: parsed,
+                    payload: n8nResponseIsImage ? {
+                        contentType: n8nContentType,
+                        message: "n8n devolvió una imagen en una respuesta de error.",
+                    } : parsed,
                 },
                 {status: 502},
             );
@@ -263,6 +454,9 @@ export async function POST(request: Request) {
                 contentType: preparedImage.contentType,
                 originalContentType: preparedImage.originalContentType,
                 wasConvertedToJpeg: preparedImage.wasConvertedToJpeg,
+                n8nContentType,
+                n8nResponseType: n8nResponseIsImage ? "image" : "data",
+                n8nImage: imagePayload,
                 n8n: parsed,
             },
             {headers: {"Cache-Control": "no-store"}},
