@@ -443,8 +443,7 @@ export function ImageCopiesManager() {
                                     <p className="text-xs text-muted-foreground">Seleccionada: {selectedGalleryImage.name}</p>
                                     {selectedGalleryNeedsJpegWizard ? (
                                         <p className="text-xs text-amber-700">
-                                            Esta imagen no es compatible con n8n. Se usará wizard en 2 pasos: convertir
-                                            a JPG y luego copiar.
+                                            Esta imagen no es compatible con n8n. Debes convertir a JPG y luego copiar.
                                         </p>
                                     ) : (
                                         <p className="text-xs text-muted-foreground">Formato compatible con n8n, envío
