@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
     Check,
     Copy,
-    CopyPlus,
     GalleryHorizontal,
     Loader2,
     Pencil,
@@ -471,7 +470,7 @@ export function ImageGalleryManager() {
                                         <Button asChild size="sm" variant="outline" className="w-full">
                                             <Link
                                                 href={`/dashboard/images/copies?galleryPath=${encodeURIComponent(image.path)}`}>
-                                                <CopyPlus className="h-4 w-4"/>
+                                                <Sparkles className="h-4 w-4"/>
                                                 Copia n8n
                                             </Link>
                                         </Button>

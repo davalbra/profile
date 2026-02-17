@@ -6,7 +6,6 @@ import {useSearchParams} from "next/navigation";
 import {
     Check,
     Copy,
-    CopyPlus,
     ImagePlus,
     Images,
     Loader2,
@@ -172,6 +171,7 @@ export function ImagesManager() {
     } = useGalleryImages({
         userId,
         enabled: true,
+        scope: "n8n",
     });
 
     useEffect(() => {
@@ -524,7 +524,7 @@ export function ImagesManager() {
                                     <p className="text-xs font-medium text-muted-foreground">Origen</p>
                                     <Button size="sm" variant="default" disabled>
                                         <Images className="h-4 w-4"/>
-                                        Desde galería
+                                        Desde galería n8n
                                     </Button>
                                 </div>
                                 <div className="space-y-2 rounded-lg border p-3">
@@ -774,9 +774,8 @@ export function ImagesManager() {
 
                                         <div className="mt-auto grid grid-cols-3 gap-2">
                                             <Button asChild size="sm" variant="outline" className="w-full">
-                                                <Link
-                                                    href={`/dashboard/images/copies?optimizedPath=${encodeURIComponent(image.path)}`}>
-                                                    <CopyPlus className="h-4 w-4"/>
+                                                <Link href="/dashboard/images/copies">
+                                                    <Sparkles className="h-4 w-4"/>
                                                     n8n
                                                 </Link>
                                             </Button>

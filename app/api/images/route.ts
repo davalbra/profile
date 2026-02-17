@@ -13,6 +13,7 @@ const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
 const MAX_DIMENSION = 2400;
 const AVIF_QUALITY = 52;
 const IMAGE_GALLERY_FOLDER = "galeria";
+const IMAGE_N8N_FOLDER = "n8n";
 const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_ORIGINALS_FOLDER = "originales";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
@@ -287,9 +288,13 @@ export async function POST(request: Request) {
             sourceName = fileValue.name || `imagen-${Date.now()}`;
             sourceMime = fileValue.type || "application/octet-stream";
         } else if (galleryPath) {
-            const allowedPrefix = buildFolderPrefix(sesion.uid, IMAGE_GALLERY_FOLDER);
-            if (!galleryPath.startsWith(allowedPrefix)) {
-                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería."}, {status: 403});
+            const allowedGalleryPrefix = buildFolderPrefix(sesion.uid, IMAGE_GALLERY_FOLDER);
+            const allowedN8nPrefix = buildFolderPrefix(sesion.uid, IMAGE_N8N_FOLDER);
+            const isAllowedGalleryPath =
+                galleryPath.startsWith(allowedGalleryPrefix) || galleryPath.startsWith(allowedN8nPrefix);
+
+            if (!isAllowedGalleryPath) {
+                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería/n8n."}, {status: 403});
             }
 
             const galleryFile = bucket.file(galleryPath);
