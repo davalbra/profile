@@ -15,8 +15,6 @@ const IMAGE_GALLERY_FOLDER = "galeria";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
 const IMAGE_N8N_FOLDER = "n8n";
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
-const N8N_COPY_WEBHOOK_URL =
-    "https://n8n.srv1338422.hstgr.cloud/webhook-test/37f97811-ea45-4d5a-a2c5-6f104ca79b15";
 const JPEG_CONTENT_TYPE = "image/jpeg";
 
 type SourceImage = {
@@ -76,6 +74,15 @@ function asString(value: unknown): string | null {
     }
 
     return String(value);
+}
+
+function getN8nCopyWebhookUrl(): string | null {
+    const rawUrl = process.env.N8N_COPY_WEBHOOK_URL?.trim() || "";
+    if (!rawUrl) {
+        return null;
+    }
+
+    return rawUrl;
 }
 
 async function resolveSourceImage(formData: FormData, uid: string): Promise<SourceImage> {
@@ -670,6 +677,14 @@ export async function POST(request: Request) {
             );
         }
 
+        const n8nCopyWebhookUrl = getN8nCopyWebhookUrl();
+        if (!n8nCopyWebhookUrl) {
+            return NextResponse.json(
+                {error: "Falta configurar N8N_COPY_WEBHOOK_URL en variables de entorno."},
+                {status: 500},
+            );
+        }
+
         const outbound = new FormData();
         outbound.append(
             "image",
@@ -679,7 +694,7 @@ export async function POST(request: Request) {
         outbound.append("source", preparedImage.source);
         outbound.append("uid", sesion.uid);
 
-        const response = await fetch(N8N_COPY_WEBHOOK_URL, {
+        const response = await fetch(n8nCopyWebhookUrl, {
             method: "POST",
             body: outbound,
             cache: "no-store",
