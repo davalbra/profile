@@ -11,13 +11,13 @@ const SERVICE_FILTER_SQL: Record<BillingServiceKey, string> = {
     firebase: `
         REGEXP_CONTAINS(
             LOWER(CONCAT(service.description, " ", sku.description)),
-            r'(firebase|firestore|realtime database|cloud functions|cloud storage|app hosting|firebase hosting)'
+            r'(firebase|firestore|realtime database|cloud functions|cloud storage|firebase hosting|app hosting|identity platform|cloud run|cloud build|cloud logging|artifact registry)'
         )
     `,
     gemini: `
         REGEXP_CONTAINS(
             LOWER(CONCAT(service.description, " ", sku.description)),
-            r'(gemini|generative language|vertex ai)'
+            r'(gemini|generative language|vertex ai|ai platform|aiplatform|model garden)'
         )
     `,
 };
@@ -30,6 +30,10 @@ type BigQueryQueryResponse = {
     jobComplete?: boolean;
     rows?: BigQueryRow[];
     errors?: Array<{ message?: string }>;
+    error?: {
+        message?: string;
+        errors?: Array<{ message?: string; reason?: string }>;
+    };
 };
 
 type BillingConfig = {
@@ -47,6 +51,8 @@ type UsageQueryRecord = {
     netCost: number;
     currency: string | null;
 };
+
+const USAGE_DATE_SQL = "COALESCE(DATE(usage_end_time), DATE(usage_start_time), DATE(export_time))";
 
 export class BillingConfigurationError extends Error {
     constructor(message: string) {
@@ -208,9 +214,21 @@ async function queryBigQuery(input: {
 
     const payload = (await response.json().catch(() => null)) as BigQueryQueryResponse | null;
 
+    const errorMessage =
+        payload?.errors?.[0]?.message ||
+        payload?.error?.errors?.[0]?.message ||
+        payload?.error?.message ||
+        null;
+    const errorReason = payload?.error?.errors?.[0]?.reason || null;
+
     if (!response.ok) {
-        const errorMessage = payload?.errors?.[0]?.message || `BigQuery respondió con estado ${response.status}.`;
-        throw new Error(`No se pudo consultar costos de billing: ${errorMessage}`);
+        const details = errorMessage || `BigQuery respondió con estado ${response.status}.`;
+        const iamHint =
+            response.status === 403
+                ? " Verifica IAM del service account: BigQuery Job User en el proyecto de consulta y BigQuery Data Viewer en el dataset de billing."
+                : "";
+        const reasonHint = errorReason ? ` [reason=${errorReason}]` : "";
+        throw new Error(`No se pudo consultar costos de billing: ${details}${reasonHint}.${iamHint}`);
     }
 
     if (!payload?.jobComplete) {
@@ -259,6 +277,7 @@ function aggregateUsageData(input: {
     period: BillingPeriodKey;
     startDate: string;
     endDate: string;
+    warning?: string | null;
 }): BillingUsageData {
     const dailyMap = new Map<string, number>();
     const skuMap = new Map<string, BillingSkuBreakdownItem>();
@@ -323,6 +342,9 @@ function aggregateUsageData(input: {
         usageTotals,
         generatedAt: new Date().toISOString(),
         warning:
+            input.warning !== undefined
+                ? input.warning
+                :
             daily.length === 0
                 ? "No se encontraron costos para este servicio en el periodo seleccionado. Verifica filtros y export de billing."
                 : null,
@@ -332,14 +354,47 @@ function aggregateUsageData(input: {
 function buildUsageQuery(input: { billingExportTable: string; service: BillingServiceKey }): string {
     return `
         SELECT
-            DATE (usage_end_time) AS usage_date, service.description AS service_description, sku.description AS sku_description, usage.unit AS usage_unit, SUM (IFNULL(usage.amount, 0)) AS usage_amount, SUM (cost + IFNULL((SELECT SUM (c.amount) FROM UNNEST(credits) c), 0)) AS net_cost, ANY_VALUE(currency) AS currency
+            ${USAGE_DATE_SQL} AS usage_date, service.description AS service_description, sku.description AS sku_description, usage.unit AS usage_unit, SUM (IFNULL(usage.amount, 0)) AS usage_amount, SUM (cost + IFNULL((SELECT SUM (c.amount) FROM UNNEST(credits) c), 0)) AS net_cost, ANY_VALUE(currency) AS currency
         FROM \`${input.billingExportTable}\`
-        WHERE DATE (usage_end_time) BETWEEN @startDate
+        WHERE ${USAGE_DATE_SQL} BETWEEN @startDate
           AND @endDate
           AND ${SERVICE_FILTER_SQL[input.service]}
         GROUP BY usage_date, service_description, sku_description, usage_unit
         ORDER BY usage_date ASC, net_cost DESC
     `;
+}
+
+function buildTopServicesDiagnosticQuery(input: { billingExportTable: string }): string {
+    return `
+        SELECT
+            service.description AS service_description,
+            SUM(cost + IFNULL((SELECT SUM(c.amount) FROM UNNEST(credits) c), 0)) AS net_cost
+        FROM \`${input.billingExportTable}\`
+        WHERE ${USAGE_DATE_SQL} BETWEEN @startDate
+          AND @endDate
+        GROUP BY service_description
+        ORDER BY net_cost DESC
+        LIMIT 5
+    `;
+}
+
+function mapTopServices(rows: BigQueryRow[]): Array<{ serviceName: string; netCost: number }> {
+    return rows
+        .map((row) => {
+            const cells = row.f || [];
+            const serviceName = parseString(cells[0]?.v);
+            const netCost = parseNumber(cells[1]?.v);
+
+            if (!serviceName) {
+                return null;
+            }
+
+            return {
+                serviceName,
+                netCost,
+            };
+        })
+        .filter((item): item is { serviceName: string; netCost: number } => item !== null);
 }
 
 export function parseBillingPeriod(period: string | null): BillingPeriodKey {
@@ -369,6 +424,32 @@ export async function getBillingUsage(input: {
     });
 
     const records = mapUsageRecords(rows);
+    let warning: string | null | undefined;
+
+    if (records.length === 0) {
+        try {
+            const diagnosticRows = await queryBigQuery({
+                queryProjectId: config.queryProjectId,
+                location: config.location,
+                query: buildTopServicesDiagnosticQuery({
+                    billingExportTable: config.billingExportTable,
+                }),
+                startDate,
+                endDate,
+            });
+            const topServices = mapTopServices(diagnosticRows);
+
+            warning =
+                topServices.length === 0
+                    ? "La tabla de billing no devolvió costos en el rango seleccionado. Revisa que el export esté activo y espera propagación (hasta 24h)."
+                    : `Se encontraron costos en el rango, pero no para el filtro de ${input.service}. Servicios detectados: ${topServices
+                          .slice(0, 3)
+                          .map((service) => service.serviceName)
+                          .join(", ")}.`;
+        } catch {
+            warning = "No se encontraron costos para este servicio en el periodo seleccionado. Verifica filtros y export de billing.";
+        }
+    }
 
     return aggregateUsageData({
         records,
@@ -376,5 +457,6 @@ export async function getBillingUsage(input: {
         period: input.period,
         startDate,
         endDate,
+        warning,
     });
 }
