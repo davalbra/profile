@@ -16,6 +16,7 @@ const PUBLIC_EXACT_PATHS = new Set([
     "/sitemap.xml",
     "/api/auth/firebase-session",
     "/api/secure/session",
+    "/api/mcp",
 ]);
 
 const REGLAS_RUTA_ROL: Array<{ prefijo: string; rolMinimo: RolUsuario }> = [
@@ -39,6 +40,10 @@ function tieneRolMinimo(rolActual: RolUsuario, rolMinimo: RolUsuario): boolean {
 
 function isPublicPath(pathname: string): boolean {
     if (PUBLIC_EXACT_PATHS.has(pathname)) {
+        return true;
+    }
+
+    if (pathname.startsWith("/api/mcp/")) {
         return true;
     }
 

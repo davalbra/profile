@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {Bot, ChevronDown, CircleDollarSign, Flame, ImagePlus, Images, PanelTop, Sparkles, Zap} from "lucide-react"
+import {Bot, ChevronDown, CircleDollarSign, Flame, ImagePlus, Images, PanelTop, Sparkles, Wrench, Zap} from "lucide-react"
 import {usePathname} from "next/navigation"
 import {
     Sidebar,
@@ -21,8 +21,10 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const pathname = usePathname()
     const isImagesRoute = pathname.startsWith("/dashboard/images")
     const isBillingRoute = pathname.startsWith("/dashboard/billing")
+    const isMcpRoute = pathname.startsWith("/dashboard/mcp")
     const [imagesOpen, setImagesOpen] = React.useState(isImagesRoute)
     const [billingOpen, setBillingOpen] = React.useState(isBillingRoute)
+    const [mcpOpen, setMcpOpen] = React.useState(isMcpRoute)
 
     React.useEffect(() => {
         if (isImagesRoute) {
@@ -36,6 +38,12 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
         }
     }, [isBillingRoute])
 
+    React.useEffect(() => {
+        if (isMcpRoute) {
+            setMcpOpen(true)
+        }
+    }, [isMcpRoute])
+
     const optimizeActive =
         pathname === "/dashboard/images" ||
         pathname === "/dashboard/images/optimize"
@@ -43,6 +51,8 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const galleryActive = pathname === "/dashboard/images/gallery"
     const billingFirebaseActive = pathname === "/dashboard/billing" || pathname === "/dashboard/billing/firebase"
     const billingGeminiActive = pathname === "/dashboard/billing/gemini"
+    const mcpOptimizeActive = pathname === "/dashboard/mcp" || pathname === "/dashboard/mcp/optimize"
+    const mcpBillingActive = pathname === "/dashboard/mcp/billing"
 
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -127,6 +137,39 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
                                         <Link href="/dashboard/billing/gemini">
                                             <Bot/>
                                             <span>Google Gemini API</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        ) : null}
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            type="button"
+                            tooltip="MCP"
+                            isActive={isMcpRoute}
+                            onClick={() => setMcpOpen((open) => !open)}
+                        >
+                            <Wrench/>
+                            <span>MCP</span>
+                            <ChevronDown className={cn("ml-auto transition-transform", mcpOpen && "rotate-180")}/>
+                        </SidebarMenuButton>
+
+                        {mcpOpen ? (
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={mcpOptimizeActive}>
+                                        <Link href="/dashboard/mcp/optimize">
+                                            <Zap/>
+                                            <span>Optimizar</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={mcpBillingActive}>
+                                        <Link href="/dashboard/mcp/billing">
+                                            <CircleDollarSign/>
+                                            <span>Billing</span>
                                         </Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>

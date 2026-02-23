@@ -1,24 +1,12 @@
 import { NextResponse } from "next/server";
-import sharp from "sharp";
 import {
   AccesoDenegadoError,
   requerirSesionFirebase,
   RolInsuficienteError,
 } from "@/lib/auth/firebase-session";
+import { IMAGE_OPTIMIZATION_DEFAULTS, optimizeImageToAvif } from "@/lib/images/optimize-image";
 
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
-const MAX_DIMENSION = 2400;
-const AVIF_QUALITY = 52;
-
-function getBaseName(fileName: string): string {
-  const trimmed = fileName.trim();
-  if (!trimmed) {
-    return "imagen";
-  }
-
-  const noExt = trimmed.replace(/\.[^.]+$/, "");
-  return noExt.replace(/[^a-zA-Z0-9\-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "imagen";
-}
 
 export const runtime = "nodejs";
 
@@ -49,37 +37,27 @@ export async function POST(request: Request) {
     }
 
     const input = Buffer.from(await fileValue.arrayBuffer());
-    const metadata = await sharp(input, { failOn: "none", animated: true }).metadata();
+    const optimized = await optimizeImageToAvif({
+      input,
+      fileName: fileValue.name,
+      maxDimension: IMAGE_OPTIMIZATION_DEFAULTS.maxDimension,
+      quality: IMAGE_OPTIMIZATION_DEFAULTS.quality,
+      effort: IMAGE_OPTIMIZATION_DEFAULTS.effort,
+    });
 
-    const output = await sharp(input, { failOn: "none", animated: true })
-      .rotate()
-      .resize({
-        width: MAX_DIMENSION,
-        height: MAX_DIMENSION,
-        fit: "inside",
-        withoutEnlargement: true,
-      })
-      .avif({
-        quality: AVIF_QUALITY,
-        effort: 4,
-      })
-      .toBuffer();
-
-    const outputName = `${getBaseName(fileValue.name)}.avif`;
-
-    return new Response(new Uint8Array(output), {
+    return new Response(new Uint8Array(optimized.output), {
       status: 200,
       headers: {
         "Content-Type": "image/avif",
-        "Content-Disposition": `inline; filename="${outputName}"`,
+        "Content-Disposition": `inline; filename="${optimized.outputName}"`,
         "Cache-Control": "no-store",
         "X-Original-Name": encodeURIComponent(fileValue.name),
         "X-Original-Size": String(fileValue.size),
-        "X-Original-Format": metadata.format || fileValue.type || "unknown",
-        "X-Optimized-Size": String(output.length),
+        "X-Original-Format": optimized.original.format || fileValue.type || "unknown",
+        "X-Optimized-Size": String(optimized.optimized.sizeBytes),
         "X-Optimized-Format": "avif",
-        "X-Optimized-Width": String(metadata.width || 0),
-        "X-Optimized-Height": String(metadata.height || 0),
+        "X-Optimized-Width": String(optimized.optimized.width || 0),
+        "X-Optimized-Height": String(optimized.optimized.height || 0),
       },
     });
   } catch (error) {
