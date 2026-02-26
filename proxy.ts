@@ -109,6 +109,29 @@ function hasAuthCookie(cookieHeader: string | null): boolean {
     );
 }
 
+function extractCookieToken(cookieHeader: string | null, cookieName: string): string | null {
+    if (!cookieHeader) {
+        return null;
+    }
+
+    const cookies = cookieHeader.split(";");
+    for (const cookie of cookies) {
+        const [name, ...parts] = cookie.trim().split("=");
+        if (name === cookieName) {
+            return parts.join("=") || null;
+        }
+    }
+
+    return null;
+}
+
+function extractAuthToken(cookieHeader: string | null): string | null {
+    return (
+        extractCookieToken(cookieHeader, "firebase_session") ||
+        extractCookieToken(cookieHeader, "firebase_id_token")
+    );
+}
+
 export async function proxy(request: NextRequest) {
     if (isPublicPath(request.nextUrl.pathname)) {
         return NextResponse.next();
@@ -118,12 +141,26 @@ export async function proxy(request: NextRequest) {
     if (!hasAuthCookie(cookieHeader)) {
         return rejectOrRedirect(request);
     }
-    const authCookieHeader = cookieHeader || "";
+    const authToken = extractAuthToken(cookieHeader);
+    if (!authToken) {
+        return rejectOrRedirect(request);
+    }
 
     const rolMinimo = getRolMinimoParaRuta(request.nextUrl.pathname);
 
     try {
-        const validationUrl = new URL("/api/secure/session", request.url);
+        const configuredInternalBaseUrl = process.env.INTERNAL_VALIDATION_BASE_URL;
+        const validationUrl = configuredInternalBaseUrl
+            ? new URL("/api/secure/session", configuredInternalBaseUrl)
+            : new URL("/api/secure/session", request.url);
+
+        if (!configuredInternalBaseUrl && process.env.NODE_ENV !== "production") {
+            // En desarrollo (ej. Cloudflare Tunnel), forzamos loopback para evitar depender del dominio público.
+            validationUrl.protocol = "http:";
+            validationUrl.hostname = "127.0.0.1";
+            validationUrl.port = request.nextUrl.port || process.env.PORT || "3000";
+        }
+
         if (rolMinimo) {
             validationUrl.searchParams.set("rolMinimo", rolMinimo);
         }
@@ -131,7 +168,7 @@ export async function proxy(request: NextRequest) {
         const validationResponse = await fetch(validationUrl, {
             method: "GET",
             headers: {
-                cookie: authCookieHeader,
+                authorization: `Bearer ${authToken}`,
             },
             cache: "no-store",
         });
