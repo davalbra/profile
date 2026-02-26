@@ -1,6 +1,12 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  allowedDevOrigins: [
+    "https://davalbra.xyz",
+    "http://davalbra.xyz",
+    "https://www.davalbra.xyz",
+    "http://www.davalbra.xyz",
+  ],
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "raw.githubusercontent.com" },
