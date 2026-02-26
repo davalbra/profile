@@ -1,12 +1,14 @@
 "use client";
 
 import {
+  type AuthError,
   createUserWithEmailAndPassword,
   GoogleAuthProvider,
   onIdTokenChanged,
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
   signOut,
   type User,
   type Unsubscribe,
@@ -40,10 +42,35 @@ export async function signInWithEmail(email: string, password: string): Promise<
   return credential.user;
 }
 
-export async function signInWithGoogle(): Promise<User> {
+function shouldFallbackToRedirect(error: unknown): boolean {
+  const authError = error as Partial<AuthError> | null;
+  const code = authError?.code || "";
+  const message = authError?.message?.toLowerCase() || "";
+
+  if (code === "auth/popup-blocked" || code === "auth/web-storage-unsupported") {
+    return true;
+  }
+
+  return (
+    message.includes("cross-origin-opener-policy") ||
+    message.includes("window.close") ||
+    message.includes("window.closed")
+  );
+}
+
+export async function signInWithGoogle(): Promise<User | null> {
   const auth = getFirebaseAuthInstance();
-  const credential = await signInWithPopup(auth, googleProvider);
-  return credential.user;
+  try {
+    const credential = await signInWithPopup(auth, googleProvider);
+    return credential.user;
+  } catch (error) {
+    if (shouldFallbackToRedirect(error)) {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+
+    throw error;
+  }
 }
 
 export async function signOutUser(): Promise<void> {

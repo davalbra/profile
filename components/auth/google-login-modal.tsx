@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Chrome, Loader2, LogOut, X } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAuth } from "@/components/providers/auth-provider";
 import { signInWithGoogle, signOutUser } from "@/lib/firebase/auth";
 
@@ -17,8 +18,22 @@ function parseError(error: unknown): string {
   return "Ocurrió un error inesperado durante el inicio de sesión.";
 }
 
+function parseSafeNextPath(value: string | null): string | null {
+  if (!value) {
+    return null;
+  }
+
+  if (!value.startsWith("/") || value.startsWith("//")) {
+    return null;
+  }
+
+  return value;
+}
+
 export function GoogleLoginModal({ open, onClose }: Readonly<GoogleLoginModalProps>) {
   const { user, loading } = useAuth();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -52,6 +67,11 @@ export function GoogleLoginModal({ open, onClose }: Readonly<GoogleLoginModalPro
 
     try {
       const firebaseUser = await signInWithGoogle();
+      if (!firebaseUser) {
+        // Fallback a redirect flow; el navegador navegará fuera de esta vista.
+        return;
+      }
+
       const idToken = await firebaseUser.getIdToken();
 
       const response = await fetch("/api/auth/firebase-session", {
@@ -67,7 +87,16 @@ export function GoogleLoginModal({ open, onClose }: Readonly<GoogleLoginModalPro
         throw new Error(data.error || "No se pudo registrar la sesión en el servidor.");
       }
 
+      const nextPath =
+        parseSafeNextPath(searchParams.get("next")) ||
+        ((searchParams.get("auth") === "required" || searchParams.get("auth") === "forbidden")
+          ? "/dashboard"
+          : null);
+
       onClose();
+      if (nextPath) {
+        router.replace(nextPath);
+      }
     } catch (reason) {
       setError(parseError(reason));
     } finally {
