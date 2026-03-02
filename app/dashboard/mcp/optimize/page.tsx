@@ -7,10 +7,10 @@ export default function DashboardMcpOptimizePage() {
                 <McpToolPanel
                     toolName="optimize_image"
                     title="MCP: Optimizar imágenes"
-                    description="Expone la optimización AVIF de imágenes como herramienta MCP."
+                    description="Expone la optimización AVIF de imágenes por URL como herramienta MCP."
                     payloadExample={{
+                        imageUrl: "https://example.com/foto.jpg",
                         fileName: "foto.jpg",
-                        imageBase64: "BASE64_IMAGE_DATA",
                         quality: 52,
                         effort: 4,
                         maxDimension: 2400,
