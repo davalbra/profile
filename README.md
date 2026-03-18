@@ -155,3 +155,185 @@ Notas:
 - El service account usado por `FIREBASE_CLIENT_EMAIL` necesita permisos de consulta en BigQuery (ejemplo:
   `BigQuery Job User` + `BigQuery Data Viewer`).
 - El billing export puede tener retraso, por lo que la vista no siempre es en tiempo real.
+
+## 9. Bot de trading para Binance Futures (EMA + RSI + ATR)
+
+Se agregó un bot en `scripts/binance-futures-bot.mjs` que opera futuros USDT-M de Binance.
+
+### ¿Binance da dinero falso para practicar?
+
+Sí. Binance Futures tiene **Testnet** con saldo virtual para paper trading.
+
+- Usa `config/trading-futures.json` con `"testnet": true`
+- Mantén `"dryRun": true` mientras validas lógica/sizing
+- Cuando quieras enviar órdenes de prueba en testnet, cambia `"dryRun": false` y usa credenciales de testnet
+
+### Estrategia implementada
+
+No existe una estrategia "más rentable" garantizada para todos los mercados. Para este proyecto se implementó una
+estrategia robusta de tipo trend-following con control de riesgo:
+
+- Tendencia: cruce de `EMA rápida` (`BINANCE_FAST_EMA`, default `21`) sobre `EMA lenta` (`BINANCE_SLOW_EMA`, default
+  `55`).
+- Filtro de momentum con `RSI` (`BINANCE_RSI_PERIOD`, default `14`):
+  - Long: RSI entre `52` y `70`
+  - Short: RSI entre `30` y `48`
+- Gestión de riesgo con `ATR` (`BINANCE_ATR_PERIOD`, default `14`):
+  - Stop Loss = `ATR * BINANCE_STOP_ATR_MULT` (default `1.5`)
+  - Take Profit = `ATR * BINANCE_TP_ATR_MULT` (default `3`)
+- Tamaño de posición por riesgo fijo:
+  - Riesgo por trade = `balance * BINANCE_RISK_PER_TRADE` (default `1%`).
+
+El bot evita abrir una operación si ya existe una posición abierta en el símbolo.
+
+### Configuración vs secretos
+
+Ahora se separa así:
+
+- Configuración no sensible: `config/trading-futures.json`
+- Secretos: `.env.local`
+
+Variables de entorno de trading necesarias:
+
+```dotenv
+BINANCE_API_KEY=
+BINANCE_API_SECRET=
+TRADING_SCHEDULER_TOKEN=
+CRON_SECRET=
+```
+
+Ejemplo de configuración en archivo:
+
+```json
+{
+  "binance": {
+    "testnet": true,
+    "dryRun": true,
+    "symbol": "BTCUSDT",
+    "interval": "15m",
+    "leverage": 5,
+    "riskPerTrade": 0.01
+  },
+  "scheduler": {
+    "intervalMinutes": 15,
+    "candlesForBacktesting": 500
+  }
+}
+```
+
+### Ejecutar el bot
+
+```bash
+pnpm trading:futures
+```
+
+Comportamiento:
+
+- `"dryRun": true`: calcula señal y tamaño de posición, pero no envía órdenes.
+- `"dryRun": false`: envía orden de entrada (`MARKET`) y crea protección con `STOP_MARKET` + `TAKE_PROFIT_MARKET`.
+
+Recomendación operativa:
+
+1. Probar primero con `"testnet": true`.
+2. Validar logs y sizing con `"dryRun": true`.
+3. Pasar a live solo después de backtesting y límites de riesgo definidos.
+
+### Endpoints API del bot
+
+Se agregaron endpoints protegidos por sesión Firebase y rol `COLABORADOR`:
+
+- `POST /api/trading/futures/run`
+- `POST /api/trading/futures/backtest`
+- `POST /api/trading/futures/indicators`
+- `GET /api/trading/futures/history?limit=20`
+- `GET /api/trading/futures/scheduler`
+- `PUT /api/trading/futures/scheduler`
+
+Ejemplo payload para `run`:
+
+```json
+{
+  "symbol": "BTCUSDT",
+  "interval": "15m",
+  "leverage": 5,
+  "riskPerTrade": 0.01,
+  "fastEma": 21,
+  "slowEma": 55,
+  "rsiPeriod": 14,
+  "atrPeriod": 14,
+  "stopAtrMult": 1.5,
+  "tpAtrMult": 3,
+  "dryRun": true,
+  "testnet": true,
+  "marginType": "ISOLATED",
+  "paperBalance": 1000
+}
+```
+
+Ejemplo payload para `backtest`:
+
+```json
+{
+  "symbol": "BTCUSDT",
+  "interval": "15m",
+  "leverage": 5,
+  "riskPerTrade": 0.01,
+  "fastEma": 21,
+  "slowEma": 55,
+  "rsiPeriod": 14,
+  "atrPeriod": 14,
+  "stopAtrMult": 1.5,
+  "tpAtrMult": 3,
+  "testnet": true,
+  "marginType": "ISOLATED",
+  "paperBalance": 1000,
+  "candlesLimit": 500
+}
+```
+
+### Panel UI de Trading
+
+Nuevo panel disponible en:
+
+- `/dashboard/trading/futures`
+
+Permite:
+
+- Ejecutar `run` (señal y sizing en vivo con opción `dry-run`/`live`).
+- Ejecutar `backtest` histórico sobre velas de Binance.
+- Ver **gráficas de indicadores**: `Precio + EMA`, `RSI`, `ATR`.
+- Ajustar parámetros de estrategia desde UI.
+- Ver métricas (`win rate`, `ROI`, `max drawdown`, `profit factor`), historial de ejecuciones y estado del scheduler.
+
+### Scheduler automático cada X minutos
+
+Se agregó un scheduler persistente en Prisma:
+
+- Configuración: `trading_futures_scheduler_config`
+- Historial de runs: `trading_futures_run_history`
+- Historial de backtests: `trading_futures_backtest_history`
+
+Endpoint cron:
+
+- `POST /api/trading/futures/scheduler/run`
+
+Seguridad:
+
+- Requiere `TRADING_SCHEDULER_TOKEN` o `CRON_SECRET` como Bearer token.
+- En Vercel, el cron se dispara cada minuto (`vercel.json`) y el backend decide si ya tocó ejecutar según `intervalMinutes`.
+
+Configúralo desde UI en `/dashboard/trading/futures`:
+
+- `enabled`: activa/desactiva scheduler
+- `intervalMinutes`: cada cuántos minutos ejecutar
+- `runInDryMode`: dry/live del scheduler
+- `testnet`: red del scheduler
+
+### Sincronizar Prisma después de estos cambios
+
+Después de actualizar código/esquema, aplica tablas nuevas:
+
+```bash
+pnpm prisma:generate
+pnpm prisma:push
+```

@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "trading:futures": "node scripts/binance-futures-bot.mjs",
     "prisma:validate": "prisma validate",
     "prisma:format": "prisma format",
     "prisma:generate": "prisma generate && node scripts/fix-prisma-client-links.mjs",

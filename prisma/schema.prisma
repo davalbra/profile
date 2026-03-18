@@ -30,6 +30,16 @@ enum TipoRelacionImagen {
   N8N_RESPUESTA
 }
 
+enum TradingExecutionSource {
+  MANUAL
+  CRON
+}
+
+enum TradingExecutionStatus {
+  SUCCESS
+  FAILED
+}
+
 model Usuario {
   id            String     @id // UID de Firebase/Auth provider
   email         String     @unique
@@ -43,6 +53,8 @@ model Usuario {
   sesionesFirebase   SesionFirebase[]
   imagenes           Imagen[]
   imagenesRelaciones ImagenRelacion[]
+  tradingRuns        TradingFuturesRunHistory[]
+  tradingBacktests   TradingFuturesBacktestHistory[]
 
   @@index([rol, creadoEn(sort: Desc)])
   @@map("usuarios")
@@ -188,4 +200,102 @@ model CorreoAutorizado {
 
   @@index([activo, email])
   @@map("correos_autorizados")
+}
+
+model TradingFuturesRunHistory {
+  id              String                 @id @default(cuid())
+  ejecutadoPorId  String?
+  ejecutadoPor    Usuario?               @relation(fields: [ejecutadoPorId], references: [id], onDelete: SetNull)
+  source          TradingExecutionSource @default(MANUAL)
+  status          TradingExecutionStatus @default(SUCCESS)
+  symbol          String
+  interval        String
+  network         String
+  dryRun          Boolean                @default(true)
+  leverage        Int
+  marginType      String                 @default("ISOLATED")
+  decision        String
+  close           Float
+  fastEma         Float
+  slowEma         Float
+  rsi             Float
+  atr             Float
+  balance         Float?
+  riskCapital     Float?
+  quantity        Float?
+  notional        Float?
+  stopPrice       Float?
+  takeProfitPrice Float?
+  orders          Json?
+  message         String?
+  error           String?
+  creadoEn        DateTime               @default(now())
+
+  @@index([creadoEn(sort: Desc)])
+  @@index([symbol, interval, creadoEn(sort: Desc)])
+  @@index([source, creadoEn(sort: Desc)])
+  @@index([ejecutadoPorId, creadoEn(sort: Desc)])
+  @@map("trading_futures_run_history")
+}
+
+model TradingFuturesBacktestHistory {
+  id                 String                 @id @default(cuid())
+  ejecutadoPorId     String?
+  ejecutadoPor       Usuario?               @relation(fields: [ejecutadoPorId], references: [id], onDelete: SetNull)
+  source             TradingExecutionSource @default(MANUAL)
+  status             TradingExecutionStatus @default(SUCCESS)
+  symbol             String
+  interval           String
+  candles            Int
+  initialBalance     Float
+  leverage           Int
+  riskPerTrade       Float
+  trades             Int
+  wins               Int
+  losses             Int
+  winRate            Float
+  netPnl             Float
+  roiPercent         Float
+  maxDrawdownPercent Float
+  profitFactor       Float?
+  equity             Json?
+  recentTrades       Json?
+  error              String?
+  creadoEn           DateTime               @default(now())
+
+  @@index([creadoEn(sort: Desc)])
+  @@index([symbol, interval, creadoEn(sort: Desc)])
+  @@index([source, creadoEn(sort: Desc)])
+  @@index([ejecutadoPorId, creadoEn(sort: Desc)])
+  @@map("trading_futures_backtest_history")
+}
+
+model TradingFuturesSchedulerConfig {
+  id                    String   @id @default("futures")
+  enabled               Boolean  @default(false)
+  intervalMinutes       Int      @default(15)
+  runInDryMode          Boolean  @default(true)
+  testnet               Boolean  @default(true)
+  symbol                String?
+  interval              String?
+  leverage              Int?
+  riskPerTrade          Float?
+  paperBalance          Float?
+  marginType            String   @default("ISOLATED")
+  fastEma               Int?
+  slowEma               Int?
+  rsiPeriod             Int?
+  atrPeriod             Int?
+  stopAtrMult           Float?
+  tpAtrMult             Float?
+  candlesForBacktesting Int      @default(500)
+  ultimoIntentoEn       DateTime?
+  ultimaEjecucionEn     DateTime?
+  ultimaDecision        String?
+  ultimoEstado          TradingExecutionStatus?
+  ultimoError           String?
+  creadoEn              DateTime @default(now())
+  actualizadoEn         DateTime @updatedAt
+
+  @@map("trading_futures_scheduler_config")
 }

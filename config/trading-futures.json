@@ -1,0 +1,27 @@
+{
+  "binance": {
+    "testnet": true,
+    "dryRun": true,
+    "futuresBaseUrl": "",
+    "symbol": "BTCUSDT",
+    "interval": "15m",
+    "leverage": 5,
+    "riskPerTrade": 0.01,
+    "fastEma": 21,
+    "slowEma": 55,
+    "rsiPeriod": 14,
+    "atrPeriod": 14,
+    "stopAtrMult": 1.5,
+    "tpAtrMult": 3,
+    "minNotional": 5,
+    "recvWindow": 5000,
+    "marginType": "ISOLATED",
+    "paperBalance": 1000,
+    "backtestCandlesLimit": 500,
+    "indicatorsCandlesLimit": 300
+  },
+  "scheduler": {
+    "intervalMinutes": 15,
+    "candlesForBacktesting": 500
+  }
+}

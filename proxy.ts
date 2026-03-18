@@ -17,6 +17,7 @@ const PUBLIC_EXACT_PATHS = new Set([
     "/api/auth/firebase-session",
     "/api/secure/session",
     "/api/mcp",
+    "/api/trading/futures/scheduler/run",
 ]);
 
 const REGLAS_RUTA_ROL: Array<{ prefijo: string; rolMinimo: RolUsuario }> = [
