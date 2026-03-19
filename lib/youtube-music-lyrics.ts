@@ -1,11 +1,4 @@
-import path from "node:path"
-import { execFile } from "node:child_process"
-import { promisify } from "node:util"
-
-const execFileAsync = promisify(execFile)
-const LOCAL_YT_MUSIC_PYTHON = path.join(process.cwd(), ".venv-ytdlp", "bin", "python")
-const LYRICS_SCRIPT_PATH = path.join(process.cwd(), "scripts", "ytmusic_lyrics.py")
-const lyricsCache = new Map<string, Promise<YouTubeMusicLyricsResult>>()
+import { sendYouTubeMusicRequest } from "@/lib/youtube-music"
 
 export type TimedLyricLine = {
   text: string
@@ -22,53 +15,189 @@ export type YouTubeMusicLyricsResult = {
   browseId?: string
 }
 
-type ScriptSuccessPayload = {
-  ok: true
-  found: boolean
-  hasTimestamps: boolean
-  lyrics: string | TimedLyricLine[] | null
-  source: string | null
-  browseId?: string
+const lyricsCache = new Map<string, Promise<YouTubeMusicLyricsResult>>()
+
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null
 }
 
-type ScriptErrorPayload = {
-  ok: false
-  error: string
+function getNested(value: unknown, path: Array<string | number>): unknown {
+  let current: unknown = value
+  for (const segment of path) {
+    if (typeof segment === "number") {
+      if (!Array.isArray(current)) {
+        return null
+      }
+      current = current[segment]
+      continue
+    }
+
+    const record = asRecord(current)
+    if (!record) {
+      return null
+    }
+    current = record[segment]
+  }
+  return current
 }
 
-function parseLyricsPayload(stdout: string): ScriptSuccessPayload | ScriptErrorPayload {
-  const trimmed = stdout.trim()
-  if (!trimmed) {
-    throw new Error("El script de letras no devolvio salida.")
+function textFromRuns(value: unknown): string | null {
+  const record = asRecord(value)
+  if (!record) {
+    return null
   }
 
-  return JSON.parse(trimmed) as ScriptSuccessPayload | ScriptErrorPayload
+  if (typeof record.simpleText === "string") {
+    return record.simpleText
+  }
+
+  const runs = Array.isArray(record.runs) ? record.runs : []
+  const text = runs
+    .map((run) => {
+      const currentRun = asRecord(run)
+      return typeof currentRun?.text === "string" ? currentRun.text : ""
+    })
+    .join("")
+    .trim()
+
+  return text || null
+}
+
+function extractLyricsBrowseId(payload: unknown) {
+  const tabs = getNested(payload, [
+    "contents",
+    "singleColumnMusicWatchNextResultsRenderer",
+    "tabbedRenderer",
+    "watchNextTabbedResultsRenderer",
+    "tabs",
+  ])
+
+  if (!Array.isArray(tabs) || tabs.length < 2) {
+    return null
+  }
+
+  const browseId = getNested(tabs[1], ["tabRenderer", "endpoint", "browseEndpoint", "browseId"])
+  return typeof browseId === "string" ? browseId : null
+}
+
+function extractTimedLyrics(payload: unknown): YouTubeMusicLyricsResult | null {
+  const timedLyricsData = getNested(payload, [
+    "contents",
+    "elementRenderer",
+    "newElement",
+    "type",
+    "componentType",
+    "model",
+    "timedLyricsData",
+  ])
+
+  if (!Array.isArray(timedLyricsData) || !timedLyricsData.length) {
+    return null
+  }
+
+  const sourceMessage = getNested(payload, [
+    "contents",
+    "elementRenderer",
+    "newElement",
+    "type",
+    "componentType",
+    "model",
+    "sourceMessage",
+  ])
+
+  const lyrics = timedLyricsData
+    .map((line, index) => {
+      const record = asRecord(line)
+      const text = typeof record?.lyricLine === "string" ? record.lyricLine : ""
+      const cueRange = asRecord(record?.cueRange)
+      const startTime = Number(cueRange?.startTimeMilliseconds ?? 0)
+      const endTime = Number(cueRange?.endTimeMilliseconds ?? 0)
+      return {
+        id: index + 1,
+        text,
+        startTime,
+        endTime,
+      }
+    })
+    .filter((line) => line.text || line.startTime || line.endTime)
+
+  return {
+    found: lyrics.length > 0,
+    hasTimestamps: lyrics.length > 0,
+    lyrics,
+    source: typeof sourceMessage === "string" ? sourceMessage : null,
+  }
+}
+
+function extractPlainLyrics(payload: unknown): YouTubeMusicLyricsResult {
+  const lyrics = getNested(payload, [
+    "contents",
+    "sectionListRenderer",
+    "contents",
+    0,
+    "musicDescriptionShelfRenderer",
+    "description",
+  ])
+  const source = getNested(payload, [
+    "contents",
+    "sectionListRenderer",
+    "contents",
+    0,
+    "musicDescriptionShelfRenderer",
+    "footer",
+  ])
+
+  const text = textFromRuns(lyrics)
+  return {
+    found: Boolean(text),
+    hasTimestamps: false,
+    lyrics: text,
+    source: textFromRuns(source),
+  }
 }
 
 async function resolveLyrics(videoId: string): Promise<YouTubeMusicLyricsResult> {
-  try {
-    const { stdout } = await execFileAsync(LOCAL_YT_MUSIC_PYTHON, [LYRICS_SCRIPT_PATH, videoId], {
-      env: process.env,
-    })
+  const watchPayload = await sendYouTubeMusicRequest("next", {
+    enablePersistentPlaylistPanel: true,
+    isAudioOnly: true,
+    tunerSettingValue: "AUTOMIX_SETTING_NORMAL",
+    videoId,
+    playlistId: `RDAMVM${videoId}`,
+    watchEndpointMusicSupportedConfigs: {
+      watchEndpointMusicConfig: {
+        hasPersistentPlaylistPanel: true,
+        musicVideoType: "MUSIC_VIDEO_TYPE_ATV",
+      },
+    },
+  })
 
-    const payload = parseLyricsPayload(stdout)
-    if (!payload.ok) {
-      throw new Error(payload.error)
-    }
-
+  const browseId = extractLyricsBrowseId(watchPayload)
+  if (!browseId) {
     return {
-      found: payload.found,
-      hasTimestamps: payload.hasTimestamps,
-      lyrics: payload.lyrics,
-      source: payload.source,
-      browseId: payload.browseId,
+      found: false,
+      hasTimestamps: false,
+      lyrics: null,
+      source: null,
     }
-  } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudieron obtener las letras."
-    if (message.includes("ENOENT")) {
-      throw new Error("Falta la venv local de YouTube Music. Verifica .venv-ytdlp.")
+  }
+
+  try {
+    const timedPayload = await sendYouTubeMusicRequest("browse", { browseId }, { useMobileClient: true })
+    const timedLyrics = extractTimedLyrics(timedPayload)
+    if (timedLyrics?.found) {
+      return {
+        ...timedLyrics,
+        browseId,
+      }
     }
-    throw new Error(message)
+  } catch {
+    // Fall back to plain lyrics below.
+  }
+
+  const plainPayload = await sendYouTubeMusicRequest("browse", { browseId })
+  return {
+    ...extractPlainLyrics(plainPayload),
+    browseId,
   }
 }
 

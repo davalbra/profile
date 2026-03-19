@@ -2,6 +2,8 @@ import { createHash } from "node:crypto"
 
 const YTM_DOMAIN = "https://music.youtube.com"
 const YTM_BROWSE_ENDPOINT = `${YTM_DOMAIN}/youtubei/v1/browse`
+const YTM_NEXT_ENDPOINT = `${YTM_DOMAIN}/youtubei/v1/next`
+const YTM_SEARCH_ENDPOINT = `${YTM_DOMAIN}/youtubei/v1/search`
 const YTM_DEFAULT_API_KEY = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30"
 const YTM_DEFAULT_USER_AGENT =
   "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36"
@@ -134,6 +136,76 @@ async function getBootstrapConfig(env: YouTubeMusicEnvConfig): Promise<Bootstrap
     clientVersion: extracted.clientVersion || `1.${new Date().toISOString().slice(0, 10).replaceAll("-", "")}.01.00`,
     visitorData: extracted.visitorData || "",
   }
+}
+
+function getEndpointUrl(endpoint: "browse" | "next" | "search", apiKey: string) {
+  const base =
+    endpoint === "browse"
+      ? YTM_BROWSE_ENDPOINT
+      : endpoint === "next"
+        ? YTM_NEXT_ENDPOINT
+        : YTM_SEARCH_ENDPOINT
+
+  return `${base}?alt=json&key=${apiKey}`
+}
+
+export async function sendYouTubeMusicRequest(
+  endpoint: "browse" | "next" | "search",
+  body: Record<string, unknown>,
+  options?: {
+    useMobileClient?: boolean
+  }
+) {
+  const env = getYouTubeMusicEnvConfig()
+  const bootstrap = await getBootstrapConfig(env)
+  const client = options?.useMobileClient
+    ? {
+        clientName: "ANDROID_MUSIC",
+        clientVersion: "7.21.50",
+      }
+    : {
+        clientName: "WEB_REMIX",
+        clientVersion: bootstrap.clientVersion,
+      }
+
+  const response = await fetch(getEndpointUrl(endpoint, bootstrap.apiKey), {
+    method: "POST",
+    headers: {
+      accept: "*/*",
+      authorization: buildAuthorizationHeader(env.cookie),
+      cookie: mergeCookieHeader(env.cookie),
+      "content-type": "application/json",
+      origin: YTM_DOMAIN,
+      "user-agent": env.userAgent,
+      "x-goog-authuser": "0",
+      "x-goog-visitor-id": bootstrap.visitorData,
+      "x-origin": YTM_DOMAIN,
+    },
+    body: JSON.stringify({
+      ...body,
+      context: {
+        client: {
+          ...client,
+          hl: "es",
+        },
+        user: env.accountId
+          ? {
+              onBehalfOfUser: env.accountId,
+            }
+          : {},
+      },
+    }),
+    cache: "no-store",
+  })
+
+  if (!response.ok) {
+    const responseText = await response.text()
+    throw new Error(
+      `YouTube Music respondio ${response.status}. ${responseText.slice(0, 180) || "Sin detalle adicional."}`
+    )
+  }
+
+  return (await response.json()) as Record<string, unknown>
 }
 
 function findValuesByKey(value: unknown, key: string, results: unknown[] = []): unknown[] {
@@ -286,54 +358,9 @@ function parseSongRenderer(renderer: Record<string, unknown>): YouTubeMusicSong 
 }
 
 export async function getYouTubeMusicLibrarySongs(limit = 25): Promise<YouTubeMusicSong[]> {
-  const env = getYouTubeMusicEnvConfig()
-  const bootstrap = await getBootstrapConfig(env)
-  const body: Record<string, unknown> = {
+  const payload = await sendYouTubeMusicRequest("browse", {
     browseId: YTM_LIBRARY_SONGS_BROWSE_ID,
-    context: {
-      client: {
-        clientName: "WEB_REMIX",
-        clientVersion: bootstrap.clientVersion,
-        hl: "es",
-      },
-      user: {},
-    },
-  }
-
-  if (env.accountId) {
-    body.context = {
-      ...(body.context as Record<string, unknown>),
-      user: {
-        onBehalfOfUser: env.accountId,
-      },
-    }
-  }
-
-  const response = await fetch(`${YTM_BROWSE_ENDPOINT}?alt=json&key=${bootstrap.apiKey}`, {
-    method: "POST",
-    headers: {
-      accept: "*/*",
-      authorization: buildAuthorizationHeader(env.cookie),
-      cookie: mergeCookieHeader(env.cookie),
-      "content-type": "application/json",
-      origin: YTM_DOMAIN,
-      "user-agent": env.userAgent,
-      "x-goog-authuser": "0",
-      "x-goog-visitor-id": bootstrap.visitorData,
-      "x-origin": YTM_DOMAIN,
-    },
-    body: JSON.stringify(body),
-    cache: "no-store",
   })
-
-  if (!response.ok) {
-    const responseText = await response.text()
-    throw new Error(
-      `YouTube Music respondio ${response.status}. ${responseText.slice(0, 180) || "Sin detalle adicional."}`
-    )
-  }
-
-  const payload = (await response.json()) as Record<string, unknown>
   const renderers = findValuesByKey(payload, "musicResponsiveListItemRenderer")
     .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object")
     .map(parseSongRenderer)
