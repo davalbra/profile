@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server"
-import { getStoredLyricsForVideoId, persistYouTubeLyrics, type SongMetadataInput } from "@/lib/lyrics-sync"
-import { getYouTubeMusicLyrics } from "@/lib/youtube-music-lyrics"
+import { getStoredLyricsForVideoId, synchronizeLyrics, type SongMetadataInput } from "@/lib/lyrics-sync"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -29,12 +28,24 @@ export async function GET(request: Request) {
       thumbnailUrl: url.searchParams.get("thumbnailUrl")?.trim() || null,
     }
 
-    const data = await getYouTubeMusicLyrics(videoId)
-    if (data.found) {
-      await persistYouTubeLyrics(song, data)
+    const syncResult = await synchronizeLyrics(song)
+    const syncedLyrics = syncResult.summary?.activeLyrics || syncResult.summary?.officialLyrics || null
+    if (syncedLyrics) {
+      return NextResponse.json({ ok: true, data: syncedLyrics }, { headers: { "Cache-Control": "no-store" } })
     }
 
-    return NextResponse.json({ ok: true, data }, { headers: { "Cache-Control": "no-store" } })
+    return NextResponse.json(
+      {
+        ok: true,
+        data: {
+          found: false,
+          hasTimestamps: false,
+          lyrics: null,
+          source: null,
+        },
+      },
+      { headers: { "Cache-Control": "no-store" } }
+    )
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron obtener las letras."
     return NextResponse.json({ error: message }, { status: 500 })

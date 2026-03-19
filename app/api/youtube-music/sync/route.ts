@@ -4,11 +4,10 @@ import {z} from "zod"
 import {
     getLyricsSyncSummary,
     persistCandidateLyrics,
-    persistYouTubeLyrics,
+    synchronizeLyrics,
     type CandidateLyricsInput,
     type SongMetadataInput,
 } from "@/lib/lyrics-sync"
-import {getYouTubeMusicLyrics} from "@/lib/youtube-music-lyrics"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -79,12 +78,9 @@ export async function POST(request: Request) {
         const payload = requestSchema.parse(rawPayload)
         const song = payload.song as SongMetadataInput
 
-        let officialSet = null
+        let syncResult = null
         if (payload.refreshOfficial !== false) {
-            const officialLyrics = await getYouTubeMusicLyrics(song.videoId)
-            if (officialLyrics.found) {
-                officialSet = await persistYouTubeLyrics(song, officialLyrics)
-            }
+            syncResult = await synchronizeLyrics(song, {refreshOfficial: true})
         }
 
         let candidateSet = null
@@ -99,8 +95,8 @@ export async function POST(request: Request) {
                 data: {
                     summary,
                     persisted: {
-                        officialSetId: officialSet?.id || null,
-                        candidateSetId: candidateSet?.id || null,
+                        officialSetId: syncResult?.persisted.officialSetId || null,
+                        candidateSetId: candidateSet?.id || syncResult?.persisted.candidateSetId || null,
                     },
                 },
             },

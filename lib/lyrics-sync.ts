@@ -1,6 +1,8 @@
 import { LyricsSetStatus, LyricsSource, type Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
 import type { TimedLyricLine, YouTubeMusicLyricsResult } from "@/lib/youtube-music-lyrics"
+import { getYouTubeCaptionLyrics } from "@/lib/youtube-captions"
+import { getYouTubeMusicLyrics } from "@/lib/youtube-music-lyrics"
 
 export type SongMetadataInput = {
   videoId: string
@@ -294,12 +296,21 @@ async function persistLyricsSet(input: PersistLyricsSetInput) {
     let activateSet = false
     if (input.isOfficial && input.isSynced) {
       activateSet = true
-    } else if (input.isSynced && (input.comparisonScore ?? 0) >= 0.72) {
+    } else if (input.isSynced) {
       const existingActive = await tx.lyricsSet.findFirst({
         where: { songId: song.id, isActive: true },
-        select: { id: true },
+        select: { id: true, isOfficial: true, isSynced: true },
       })
-      activateSet = !existingActive
+      const officialSetCount = await tx.lyricsSet.count({
+        where: { songId: song.id, isOfficial: true },
+      })
+      const meetsComparisonThreshold = (input.comparisonScore ?? 0) >= 0.72
+      const noExistingActive = !existingActive
+      const noOfficialLyrics = officialSetCount === 0
+
+      activateSet =
+        (meetsComparisonThreshold && noExistingActive) ||
+        (noOfficialLyrics && noExistingActive && input.lines.length >= 3)
     }
 
     if (activateSet) {
@@ -465,6 +476,49 @@ export async function persistCandidateLyrics(song: SongMetadataInput, candidate:
     comparedAgainstSetId: officialSet?.id || null,
     analysisMetadata: candidate.analysisMetadata,
   })
+}
+
+export async function synchronizeLyrics(song: SongMetadataInput, options?: { refreshOfficial?: boolean }) {
+  let officialSet = null
+  let candidateSet = null
+
+  if (options?.refreshOfficial !== false) {
+    const officialLyrics = await getYouTubeMusicLyrics(song.videoId)
+    if (officialLyrics.found) {
+      officialSet = await persistYouTubeLyrics(song, officialLyrics)
+    }
+
+    if (!officialLyrics.hasTimestamps) {
+      const captionLyrics = await getYouTubeCaptionLyrics(song.videoId).catch(() => null)
+      if (captionLyrics?.found) {
+        candidateSet = await persistCandidateLyrics(song, {
+          source: LyricsSource.EXTERNAL_ALIGNMENT,
+          sourceLabel: captionLyrics.sourceLabel,
+          language: captionLyrics.language,
+          lines: captionLyrics.lines.map((line) => ({
+            text: line.text,
+            startMs: line.startMs,
+            endMs: line.endMs,
+          })),
+          plainText: captionLyrics.lines.map((line) => line.text).join("\n"),
+          analysisMetadata: {
+            provider: "youtube_captions",
+            trackKind: captionLyrics.trackKind,
+            language: captionLyrics.language,
+          },
+        })
+      }
+    }
+  }
+
+  const summary = await getLyricsSyncSummary(song.videoId)
+  return {
+    summary,
+    persisted: {
+      officialSetId: officialSet?.id || null,
+      candidateSetId: candidateSet?.id || null,
+    },
+  }
 }
 
 export async function getLyricsSyncSummary(videoId: string) {
