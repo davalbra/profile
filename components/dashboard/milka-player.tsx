@@ -523,6 +523,11 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
               <div className="text-sm text-muted-foreground">Esta cancion no tiene letras disponibles.</div>
             ) : currentLyrics.hasTimestamps && Array.isArray(currentLyrics.lyrics) ? (
               <div className="space-y-1">
+                {(() => {
+                  const timedLyrics = currentLyrics.lyrics
+
+                  return (
+                    <>
                 <div className="mb-3 flex items-center justify-between gap-2">
                   <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
                     Letra sincronizada
@@ -532,10 +537,10 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
                   ) : null}
                 </div>
                 <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
-                  {currentLyrics.lyrics.map((line, index) => {
+                  {timedLyrics.map((line, index) => {
                     const isActiveLine = activeTimedLine?.id === line.id
                     const progress = isActiveLine
-                      ? getKaraokeLineProgress(line, currentLyrics.lyrics[index + 1], currentTimeMs)
+                      ? getKaraokeLineProgress(line, timedLyrics[index + 1], currentTimeMs)
                       : 0
                     return (
                       <p
@@ -567,6 +572,9 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
                     )
                   })}
                 </div>
+                    </>
+                  )
+                })()}
               </div>
             ) : (
               <div className="space-y-3">
