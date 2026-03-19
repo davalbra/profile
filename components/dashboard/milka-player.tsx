@@ -39,6 +39,58 @@ type PersistedMilkaPlayerState = {
 
 const PLAYER_STORAGE_KEY = "milka-player-state"
 
+function getTimedLineEffectiveEnd(
+  line: TimedLyricLine,
+  nextLine: TimedLyricLine | undefined
+) {
+  const hasExplicitEnd = Number.isFinite(line.endTime) && line.endTime > line.startTime
+  const nextStart =
+    nextLine && Number.isFinite(nextLine.startTime) && nextLine.startTime > line.startTime
+      ? nextLine.startTime
+      : null
+
+  if (hasExplicitEnd && typeof nextStart === "number") {
+    return Math.min(line.endTime, nextStart)
+  }
+
+  if (hasExplicitEnd) {
+    return line.endTime
+  }
+
+  if (typeof nextStart === "number") {
+    return nextStart
+  }
+
+  return line.startTime + 3000
+}
+
+function getActiveTimedLine(lines: TimedLyricLine[], currentTimeMs: number) {
+  for (let index = lines.length - 1; index >= 0; index -= 1) {
+    const line = lines[index]
+    if (currentTimeMs < line.startTime) {
+      continue
+    }
+
+    const effectiveEnd = getTimedLineEffectiveEnd(line, lines[index + 1])
+    if (currentTimeMs < effectiveEnd) {
+      return line
+    }
+  }
+
+  return null
+}
+
+function getKaraokeLineProgress(
+  line: TimedLyricLine,
+  nextLine: TimedLyricLine | undefined,
+  currentTimeMs: number
+) {
+  const end = getTimedLineEffectiveEnd(line, nextLine)
+  const duration = Math.max(1, end - line.startTime)
+  const elapsed = Math.min(Math.max(currentTimeMs - line.startTime, 0), duration)
+  return elapsed / duration
+}
+
 export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [autoPlay, setAutoPlay] = React.useState(false)
@@ -52,13 +104,15 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
   const [isScanningLyrics, setIsScanningLyrics] = React.useState(false)
   const [pendingRestoreState, setPendingRestoreState] = React.useState<PersistedMilkaPlayerState | null>(null)
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
+  const activeLyricLineRef = React.useRef<HTMLParagraphElement | null>(null)
+  const refreshedLyricsRef = React.useRef<Record<string, true>>({})
 
   const currentSong = props.songs[selectedIndex] || null
   const currentAudioUrl = currentSong
     ? `/api/youtube-music/audio?videoId=${encodeURIComponent(currentSong.videoId)}`
     : ""
 
-  function buildLyricsUrl(song: YouTubeMusicSong) {
+  function buildLyricsUrl(song: YouTubeMusicSong, options?: { refresh?: boolean }) {
     const url = new URL("/api/youtube-music/lyrics", window.location.origin)
     url.searchParams.set("videoId", song.videoId)
     url.searchParams.set("title", song.title)
@@ -70,6 +124,9 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     }
     if (song.thumbnailUrl) {
       url.searchParams.set("thumbnailUrl", song.thumbnailUrl)
+    }
+    if (options?.refresh) {
+      url.searchParams.set("refresh", "true")
     }
     return url.toString()
   }
@@ -111,15 +168,22 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     }
 
     const cachedLyrics = lyricsByVideoId[currentSong.videoId]
-    if (cachedLyrics) {
+    const hasRefreshAttempt = Boolean(refreshedLyricsRef.current[currentSong.videoId])
+    const shouldRefreshSyncedLyrics = !cachedLyrics?.hasTimestamps && !hasRefreshAttempt
+
+    if (cachedLyrics?.hasTimestamps) {
+      return
+    }
+    if (cachedLyrics && !shouldRefreshSyncedLyrics) {
       return
     }
 
     const controller = new AbortController()
     setLyricsLoadingVideoId(currentSong.videoId)
     setLyricsError(null)
+    refreshedLyricsRef.current[currentSong.videoId] = true
 
-    fetch(buildLyricsUrl(currentSong), {
+    fetch(buildLyricsUrl(currentSong, { refresh: shouldRefreshSyncedLyrics }), {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -216,6 +280,38 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(persistedState))
   }, [currentSong, currentTimeMs, isPlaying])
 
+  React.useEffect(() => {
+    if (!isPlaying) {
+      return
+    }
+
+    let frameId = 0
+    const syncCurrentTime = () => {
+      const audio = audioRef.current
+      if (audio) {
+        setCurrentTimeMs(Math.floor(audio.currentTime * 1000))
+      }
+      frameId = window.requestAnimationFrame(syncCurrentTime)
+    }
+
+    frameId = window.requestAnimationFrame(syncCurrentTime)
+    return () => window.cancelAnimationFrame(frameId)
+  }, [currentSong?.videoId, isPlaying])
+
+  const currentLyrics = currentSong ? lyricsByVideoId[currentSong.videoId] : undefined
+  const isLyricsLoading = currentSong ? lyricsLoadingVideoId === currentSong.videoId : false
+  const activeTimedLine =
+    currentLyrics?.hasTimestamps && Array.isArray(currentLyrics.lyrics)
+      ? getActiveTimedLine(currentLyrics.lyrics, currentTimeMs)
+      : null
+
+  React.useEffect(() => {
+    activeLyricLineRef.current?.scrollIntoView({
+      block: "nearest",
+      behavior: isPlaying ? "smooth" : "auto",
+    })
+  }, [activeTimedLine?.id, isPlaying])
+
   if (!currentSong) {
     return (
       <Card>
@@ -238,14 +334,6 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     setLoadError(null)
   }
 
-  const currentLyrics = lyricsByVideoId[currentSong.videoId]
-  const isLyricsLoading = lyricsLoadingVideoId === currentSong.videoId
-  const activeTimedLine =
-    currentLyrics?.hasTimestamps && Array.isArray(currentLyrics.lyrics)
-      ? currentLyrics.lyrics.find(
-          (line) => currentTimeMs >= line.startTime && currentTimeMs < (line.endTime || line.startTime + 3000)
-        ) || null
-      : null
   const filteredSongs = props.songs.filter((song) => {
     const lyricsState = lyricsByVideoId[song.videoId]
 
@@ -440,19 +528,37 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
                   ) : null}
                 </div>
                 <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
-                  {currentLyrics.lyrics.map((line) => {
+                  {currentLyrics.lyrics.map((line, index) => {
                     const isActiveLine = activeTimedLine?.id === line.id
+                    const progress = isActiveLine
+                      ? getKaraokeLineProgress(line, currentLyrics.lyrics[index + 1], currentTimeMs)
+                      : 0
                     return (
                       <p
                         key={line.id}
+                        ref={isActiveLine ? activeLyricLineRef : null}
                         className={cn(
-                          "rounded-lg px-3 py-2 text-sm transition",
+                          "relative overflow-hidden rounded-xl border px-4 py-3 text-center text-base leading-7 transition-all duration-300",
                           isActiveLine
-                            ? "bg-emerald-500/12 font-medium text-emerald-700 dark:text-emerald-300"
-                            : "text-muted-foreground"
+                            ? "border-emerald-500/30 bg-emerald-500/12 font-semibold text-emerald-700 shadow-sm dark:text-emerald-300"
+                            : "border-transparent text-muted-foreground/75"
                         )}
                       >
-                        {line.text || "♪"}
+                        {isActiveLine ? (
+                          <span
+                            aria-hidden="true"
+                            className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/12 transition-[width] duration-150"
+                            style={{ width: `${Math.max(progress * 100, 8)}%` }}
+                          />
+                        ) : null}
+                        <span
+                          className={cn(
+                            "relative z-10",
+                            isActiveLine ? "underline decoration-emerald-500 decoration-2 underline-offset-4" : ""
+                          )}
+                        >
+                          {line.text || "♪"}
+                        </span>
                       </p>
                     )
                   })}
