@@ -106,6 +106,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const activeLyricLineRef = React.useRef<HTMLParagraphElement | null>(null)
   const refreshedLyricsRef = React.useRef<Record<string, true>>({})
+  const scannedLyricsRef = React.useRef<Record<string, true>>({})
 
   const currentSong = props.songs[selectedIndex] || null
   const currentAudioUrl = currentSong
@@ -214,7 +215,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     let cancelled = false
 
     async function scanLyricsAvailability() {
-      const pendingSongs = props.songs.filter((song) => !lyricsByVideoId[song.videoId])
+      const pendingSongs = props.songs.filter((song) => !scannedLyricsRef.current[song.videoId])
       if (!pendingSongs.length) {
         return
       }
@@ -227,7 +228,9 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
         }
 
         try {
-          const response = await fetch(buildLyricsUrl(song), {
+          scannedLyricsRef.current[song.videoId] = true
+
+          const response = await fetch(buildLyricsUrl(song, { refresh: true }), {
             cache: "no-store",
           })
           const payload = (await response.json()) as { ok?: boolean; data?: LyricsPayload }
@@ -240,7 +243,8 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
           }
 
           setLyricsByVideoId((current) => {
-            if (current[song.videoId]) {
+            const existingLyrics = current[song.videoId]
+            if (existingLyrics?.hasTimestamps) {
               return current
             }
 
@@ -264,7 +268,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     return () => {
       cancelled = true
     }
-  }, [lyricsByVideoId, props.songs])
+  }, [props.songs])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !currentSong) {

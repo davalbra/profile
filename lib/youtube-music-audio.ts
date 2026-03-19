@@ -94,11 +94,10 @@ export async function ensureCachedYouTubeMusicAudio(videoId: string) {
 
 function createSafeWebStream(filePath: string, options?: { start?: number; end?: number }) {
   const source = createReadStream(filePath, options)
+  let closed = false
 
   return new ReadableStream<Uint8Array>({
     start(controller) {
-      let closed = false
-
       const cleanup = () => {
         source.off("data", onData)
         source.off("end", onEnd)
@@ -112,7 +111,13 @@ function createSafeWebStream(filePath: string, options?: { start?: number; end?:
         }
         closed = true
         cleanup()
-        controller.close()
+        try {
+          controller.close()
+        } catch (error) {
+          if (!(error instanceof TypeError && error.message.includes("Controller is already closed"))) {
+            throw error
+          }
+        }
       }
 
       const onData = (chunk: string | Buffer) => {
@@ -161,6 +166,10 @@ function createSafeWebStream(filePath: string, options?: { start?: number; end?:
       source.on("close", onClose)
     },
     cancel() {
+      if (closed) {
+        return
+      }
+      closed = true
       source.destroy()
     },
   })
