@@ -3,7 +3,6 @@ import { mkdir, readdir, stat } from "node:fs/promises"
 import path from "node:path"
 import { execFile } from "node:child_process"
 import { promisify } from "node:util"
-import { Readable } from "node:stream"
 import { getYouTubeMusicEnvConfig } from "@/lib/youtube-music"
 
 const execFileAsync = promisify(execFile)
@@ -93,6 +92,80 @@ export async function ensureCachedYouTubeMusicAudio(videoId: string) {
   return lock
 }
 
+function createSafeWebStream(filePath: string, options?: { start?: number; end?: number }) {
+  const source = createReadStream(filePath, options)
+
+  return new ReadableStream<Uint8Array>({
+    start(controller) {
+      let closed = false
+
+      const cleanup = () => {
+        source.off("data", onData)
+        source.off("end", onEnd)
+        source.off("error", onError)
+        source.off("close", onClose)
+      }
+
+      const closeController = () => {
+        if (closed) {
+          return
+        }
+        closed = true
+        cleanup()
+        controller.close()
+      }
+
+      const onData = (chunk: string | Buffer) => {
+        if (closed) {
+          return
+        }
+
+        try {
+          const data =
+            chunk instanceof Uint8Array ? chunk : new Uint8Array(Buffer.from(chunk))
+          controller.enqueue(data)
+        } catch (error) {
+          if (error instanceof TypeError && error.message.includes("Controller is already closed")) {
+            closed = true
+            cleanup()
+            source.destroy()
+            return
+          }
+
+          throw error
+        }
+      }
+
+      const onEnd = () => {
+        closeController()
+      }
+
+      const onClose = () => {
+        if (!closed) {
+          closeController()
+        }
+      }
+
+      const onError = (error: Error) => {
+        if (closed) {
+          return
+        }
+        closed = true
+        cleanup()
+        controller.error(error)
+      }
+
+      source.on("data", onData)
+      source.on("end", onEnd)
+      source.on("error", onError)
+      source.on("close", onClose)
+    },
+    cancel() {
+      source.destroy()
+    },
+  })
+}
+
 export async function createAudioStreamResponse(request: Request, filePath: string) {
   const fileStats = await stat(filePath)
   const totalSize = fileStats.size
@@ -100,8 +173,7 @@ export async function createAudioStreamResponse(request: Request, filePath: stri
   const contentType = getAudioContentType(filePath)
 
   if (!range) {
-    const stream = createReadStream(filePath)
-    return new Response(Readable.toWeb(stream) as ReadableStream, {
+    return new Response(createSafeWebStream(filePath), {
       status: 200,
       headers: {
         "Accept-Ranges": "bytes",
@@ -124,8 +196,7 @@ export async function createAudioStreamResponse(request: Request, filePath: stri
   }
 
   const chunkSize = end - start + 1
-  const stream = createReadStream(filePath, { start, end })
-  return new Response(Readable.toWeb(stream) as ReadableStream, {
+  return new Response(createSafeWebStream(filePath, { start, end }), {
     status: 206,
     headers: {
       "Accept-Ranges": "bytes",

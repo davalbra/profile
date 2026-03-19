@@ -58,6 +58,22 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     ? `/api/youtube-music/audio?videoId=${encodeURIComponent(currentSong.videoId)}`
     : ""
 
+  function buildLyricsUrl(song: YouTubeMusicSong) {
+    const url = new URL("/api/youtube-music/lyrics", window.location.origin)
+    url.searchParams.set("videoId", song.videoId)
+    url.searchParams.set("title", song.title)
+    if (song.album) {
+      url.searchParams.set("album", song.album)
+    }
+    if (song.duration) {
+      url.searchParams.set("duration", song.duration)
+    }
+    if (song.thumbnailUrl) {
+      url.searchParams.set("thumbnailUrl", song.thumbnailUrl)
+    }
+    return url.toString()
+  }
+
   React.useEffect(() => {
     if (selectedIndex >= props.songs.length && props.songs.length > 0) {
       setSelectedIndex(0)
@@ -103,7 +119,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
     setLyricsLoadingVideoId(currentSong.videoId)
     setLyricsError(null)
 
-    fetch(`/api/youtube-music/lyrics?videoId=${encodeURIComponent(currentSong.videoId)}`, {
+    fetch(buildLyricsUrl(currentSong), {
       cache: "no-store",
       signal: controller.signal,
     })
@@ -147,7 +163,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
         }
 
         try {
-          const response = await fetch(`/api/youtube-music/lyrics?videoId=${encodeURIComponent(song.videoId)}`, {
+          const response = await fetch(buildLyricsUrl(song), {
             cache: "no-store",
           })
           const payload = (await response.json()) as { ok?: boolean; data?: LyricsPayload }
