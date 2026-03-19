@@ -221,8 +221,8 @@ function pickBestLyricsSet(lyricsSets: LyricsSetWithLines[]): LyricsSetWithLines
 
   return (
     lyricsSets.find((set) => set.isOfficial && set.isSynced) ||
-    lyricsSets.find((set) => set.isOfficial) ||
     lyricsSets.find((set) => set.isSynced) ||
+    lyricsSets.find((set) => set.isOfficial) ||
     lyricsSets[0] ||
     null
   )
@@ -301,16 +301,19 @@ async function persistLyricsSet(input: PersistLyricsSetInput) {
         where: { songId: song.id, isActive: true },
         select: { id: true, isOfficial: true, isSynced: true },
       })
-      const officialSetCount = await tx.lyricsSet.count({
+      const officialSets = await tx.lyricsSet.findMany({
         where: { songId: song.id, isOfficial: true },
+        select: { id: true, isSynced: true },
       })
       const meetsComparisonThreshold = (input.comparisonScore ?? 0) >= 0.72
       const noExistingActive = !existingActive
-      const noOfficialLyrics = officialSetCount === 0
+      const noOfficialLyrics = officialSets.length === 0
+      const hasOnlyUnsyncedOfficialLyrics =
+        officialSets.length > 0 && officialSets.every((set) => !set.isSynced)
 
       activateSet =
         (meetsComparisonThreshold && noExistingActive) ||
-        (noOfficialLyrics && noExistingActive && input.lines.length >= 3)
+        ((noOfficialLyrics || hasOnlyUnsyncedOfficialLyrics) && noExistingActive && input.lines.length >= 3)
     }
 
     if (activateSet) {
