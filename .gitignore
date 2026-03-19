@@ -25,6 +25,7 @@
 *.pem
 .cache/
 .venv-ytdlp/
+__pycache__/
 
 # debug
 npm-debug.log*
