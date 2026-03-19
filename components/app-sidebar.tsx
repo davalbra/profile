@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {Bot, ChevronDown, CircleDollarSign, Flame, ImagePlus, Images, PanelTop, Sparkles, TrendingUp, Wrench, Zap} from "lucide-react"
+import {Bot, ChevronDown, CircleDollarSign, Cookie, Flame, Headphones, ImagePlus, Images, Music4, PanelTop, Search, Sparkles, TrendingUp, Wrench, Zap} from "lucide-react"
 import {usePathname} from "next/navigation"
 import {
     Sidebar,
@@ -23,10 +23,12 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const isBillingRoute = pathname.startsWith("/dashboard/billing")
     const isMcpRoute = pathname.startsWith("/dashboard/mcp")
     const isTradingRoute = pathname.startsWith("/dashboard/trading")
+    const isMilkaRoute = pathname.startsWith("/dashboard/milka")
     const [imagesOpen, setImagesOpen] = React.useState(isImagesRoute)
     const [billingOpen, setBillingOpen] = React.useState(isBillingRoute)
     const [mcpOpen, setMcpOpen] = React.useState(isMcpRoute)
     const [tradingOpen, setTradingOpen] = React.useState(isTradingRoute)
+    const [milkaOpen, setMilkaOpen] = React.useState(isMilkaRoute)
 
     React.useEffect(() => {
         if (isImagesRoute) {
@@ -52,6 +54,12 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
         }
     }, [isTradingRoute])
 
+    React.useEffect(() => {
+        if (isMilkaRoute) {
+            setMilkaOpen(true)
+        }
+    }, [isMilkaRoute])
+
     const optimizeActive =
         pathname === "/dashboard/images" ||
         pathname === "/dashboard/images/optimize"
@@ -62,6 +70,9 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const mcpOptimizeActive = pathname === "/dashboard/mcp" || pathname === "/dashboard/mcp/optimize"
     const mcpBillingActive = pathname === "/dashboard/mcp/billing"
     const tradingFuturesActive = pathname === "/dashboard/trading" || pathname === "/dashboard/trading/futures"
+    const milkaMusicaActive = pathname === "/dashboard/milka" || pathname === "/dashboard/milka/musica"
+    const milkaCookiesActive = pathname === "/dashboard/milka/cookies"
+    const milkaSearchSyncActive = pathname === "/dashboard/milka/search-sync"
 
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -171,6 +182,47 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
                                         <Link href="/dashboard/trading/futures">
                                             <TrendingUp/>
                                             <span>Futuros Binance</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                            </SidebarMenuSub>
+                        ) : null}
+                    </SidebarMenuItem>
+                    <SidebarMenuItem>
+                        <SidebarMenuButton
+                            type="button"
+                            tooltip="Milka"
+                            isActive={isMilkaRoute}
+                            onClick={() => setMilkaOpen((open) => !open)}
+                        >
+                            <Headphones/>
+                            <span>Milka</span>
+                            <ChevronDown className={cn("ml-auto transition-transform", milkaOpen && "rotate-180")}/>
+                        </SidebarMenuButton>
+
+                        {milkaOpen ? (
+                            <SidebarMenuSub>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={milkaMusicaActive}>
+                                        <Link href="/dashboard/milka/musica">
+                                            <Music4/>
+                                            <span>Musica</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={milkaCookiesActive}>
+                                        <Link href="/dashboard/milka/cookies">
+                                            <Cookie/>
+                                            <span>Cookies</span>
+                                        </Link>
+                                    </SidebarMenuSubButton>
+                                </SidebarMenuSubItem>
+                                <SidebarMenuSubItem>
+                                    <SidebarMenuSubButton asChild isActive={milkaSearchSyncActive}>
+                                        <Link href="/dashboard/milka/search-sync">
+                                            <Search/>
+                                            <span>Buscar Sync</span>
                                         </Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>

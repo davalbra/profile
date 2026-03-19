@@ -16,6 +16,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "streak-stats.demolab.com" },
       { protocol: "https", hostname: "github-readme-activity-graph.vercel.app" },
       { protocol: "https", hostname: "firebasestorage.googleapis.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
     ],
   },
 };
