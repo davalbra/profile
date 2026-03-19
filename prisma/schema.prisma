@@ -40,6 +40,19 @@ enum TradingExecutionStatus {
   FAILED
 }
 
+enum LyricsSource {
+  YOUTUBE_MUSIC_SYNCED
+  YOUTUBE_MUSIC_PLAIN
+  AUTO_ALIGNED
+  EXTERNAL_ALIGNMENT
+}
+
+enum LyricsSetStatus {
+  PENDING
+  READY
+  REJECTED
+}
+
 model Usuario {
   id            String     @id // UID de Firebase/Auth provider
   email         String     @unique
@@ -236,6 +249,83 @@ model TradingFuturesRunHistory {
   @@index([source, creadoEn(sort: Desc)])
   @@index([ejecutadoPorId, creadoEn(sort: Desc)])
   @@map("trading_futures_run_history")
+}
+
+model Song {
+  id             String      @id @default(cuid())
+  videoId        String      @unique
+  titulo         String
+  album          String?
+  duracionTexto  String?
+  duracionMs     Int?
+  thumbnailUrl   String?     @db.Text
+  creadoEn       DateTime    @default(now())
+  actualizadoEn  DateTime    @updatedAt
+  artistas       SongArtist[]
+  lyricsSets     LyricsSet[]
+
+  @@index([creadoEn(sort: Desc)])
+  @@map("songs")
+}
+
+model SongArtist {
+  id        String   @id @default(cuid())
+  songId     String
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  nombre     String
+  browseId   String?
+  posicion   Int
+  creadoEn   DateTime @default(now())
+
+  @@unique([songId, posicion])
+  @@index([songId, nombre])
+  @@map("song_artists")
+}
+
+model LyricsSet {
+  id                   String          @id @default(cuid())
+  songId               String
+  song                 Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  source               LyricsSource
+  status               LyricsSetStatus @default(READY)
+  sourceLabel          String?
+  browseId             String?
+  language             String?
+  isOfficial           Boolean         @default(false)
+  isSynced             Boolean         @default(false)
+  isActive             Boolean         @default(false)
+  plainText            String?         @db.Text
+  normalizedPlainText  String?         @db.Text
+  comparisonScore      Float?
+  comparisonCoverage   Float?
+  comparedAgainstSetId String?
+  comparedAgainstSet   LyricsSet?      @relation("LyricsSetComparison", fields: [comparedAgainstSetId], references: [id], onDelete: SetNull)
+  comparedBySets       LyricsSet[]     @relation("LyricsSetComparison")
+  analysisMetadata     Json?
+  creadoEn             DateTime        @default(now())
+  actualizadoEn        DateTime        @updatedAt
+  lineas               LyricsLine[]
+
+  @@index([songId, isActive, creadoEn(sort: Desc)])
+  @@index([songId, source, creadoEn(sort: Desc)])
+  @@index([comparedAgainstSetId])
+  @@map("lyrics_sets")
+}
+
+model LyricsLine {
+  id              String    @id @default(cuid())
+  lyricsSetId     String
+  lyricsSet       LyricsSet @relation(fields: [lyricsSetId], references: [id], onDelete: Cascade)
+  posicion        Int
+  text            String    @db.Text
+  normalizedText  String    @db.Text
+  startMs         Int?
+  endMs           Int?
+  creadoEn        DateTime  @default(now())
+
+  @@unique([lyricsSetId, posicion])
+  @@index([lyricsSetId, startMs])
+  @@map("lyrics_lines")
 }
 
 model TradingFuturesBacktestHistory {

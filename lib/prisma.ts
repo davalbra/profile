@@ -14,7 +14,10 @@ function hasTradingModels(client: PrismaClient): boolean {
     return (
         typeof maybeClient.tradingFuturesSchedulerConfig === "object" &&
         typeof maybeClient.tradingFuturesRunHistory === "object" &&
-        typeof maybeClient.tradingFuturesBacktestHistory === "object"
+        typeof maybeClient.tradingFuturesBacktestHistory === "object" &&
+        typeof maybeClient.song === "object" &&
+        typeof maybeClient.lyricsSet === "object" &&
+        typeof maybeClient.lyricsLine === "object"
     );
 }
 
@@ -22,7 +25,7 @@ declare const globalThis: {
     prismaGlobal: ReturnType<typeof prismaClientSingleton> | undefined;
     prismaGlobalSchemaTag: string | undefined;
 } & typeof global;
-const PRISMA_SCHEMA_TAG = "2026-03-trading-futures-v1";
+const PRISMA_SCHEMA_TAG = "2026-03-lyrics-sync-v1";
 
 const shouldReuseGlobal =
     globalThis.prismaGlobal &&
