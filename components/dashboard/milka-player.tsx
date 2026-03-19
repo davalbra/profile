@@ -31,6 +31,13 @@ type LyricsPayload = {
 }
 
 type QueueFilter = "all" | "synced" | "lyrics" | "no-lyrics"
+type PersistedMilkaPlayerState = {
+  videoId: string
+  currentTimeMs: number
+  wasPlaying: boolean
+}
+
+const PLAYER_STORAGE_KEY = "milka-player-state"
 
 export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
   const [selectedIndex, setSelectedIndex] = React.useState(0)
@@ -43,6 +50,7 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
   const [lyricsError, setLyricsError] = React.useState<string | null>(null)
   const [queueFilter, setQueueFilter] = React.useState<QueueFilter>("all")
   const [isScanningLyrics, setIsScanningLyrics] = React.useState(false)
+  const [pendingRestoreState, setPendingRestoreState] = React.useState<PersistedMilkaPlayerState | null>(null)
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
 
   const currentSong = props.songs[selectedIndex] || null
@@ -55,6 +63,31 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
       setSelectedIndex(0)
     }
   }, [props.songs.length, selectedIndex])
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !props.songs.length) {
+      return
+    }
+
+    try {
+      const rawState = window.localStorage.getItem(PLAYER_STORAGE_KEY)
+      if (!rawState) {
+        return
+      }
+
+      const persistedState = JSON.parse(rawState) as PersistedMilkaPlayerState
+      const restoredIndex = props.songs.findIndex((song) => song.videoId === persistedState.videoId)
+      if (restoredIndex < 0) {
+        return
+      }
+
+      setSelectedIndex(restoredIndex)
+      setPendingRestoreState(persistedState)
+      setAutoPlay(Boolean(persistedState.wasPlaying))
+    } catch {
+      // Ignore malformed local state.
+    }
+  }, [props.songs])
 
   React.useEffect(() => {
     if (!currentSong) {
@@ -152,6 +185,20 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
       cancelled = true
     }
   }, [lyricsByVideoId, props.songs])
+
+  React.useEffect(() => {
+    if (typeof window === "undefined" || !currentSong) {
+      return
+    }
+
+    const persistedState: PersistedMilkaPlayerState = {
+      videoId: currentSong.videoId,
+      currentTimeMs,
+      wasPlaying: isPlaying,
+    }
+
+    window.localStorage.setItem(PLAYER_STORAGE_KEY, JSON.stringify(persistedState))
+  }, [currentSong, currentTimeMs, isPlaying])
 
   if (!currentSong) {
     return (
@@ -272,6 +319,22 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
               onPlay={() => setIsPlaying(true)}
               onPause={() => setIsPlaying(false)}
               onTimeUpdate={(event) => setCurrentTimeMs(Math.floor(event.currentTarget.currentTime * 1000))}
+              onLoadedMetadata={(event) => {
+                if (!pendingRestoreState || pendingRestoreState.videoId !== currentSong.videoId) {
+                  return
+                }
+
+                if (pendingRestoreState.currentTimeMs > 0) {
+                  event.currentTarget.currentTime = pendingRestoreState.currentTimeMs / 1000
+                  setCurrentTimeMs(pendingRestoreState.currentTimeMs)
+                }
+
+                if (pendingRestoreState.wasPlaying) {
+                  void event.currentTarget.play().catch(() => undefined)
+                }
+
+                setPendingRestoreState(null)
+              }}
               onError={() =>
                 setLoadError(
                   "No se pudo cargar el audio. Revisa que yt-dlp este instalado y que la cookie siga vigente."
