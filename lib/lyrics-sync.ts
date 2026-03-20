@@ -572,7 +572,7 @@ export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual
     .filter((segment) => segment.text && segment.endMs > segment.startMs)
 
   if (!lines.length) {
-    throw new Error("No hay estrofas manuales para guardar.")
+    throw new Error("No hay lineas manuales para guardar.")
   }
 
   const lyricsSet = await persistLyricsSet({
@@ -587,7 +587,7 @@ export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual
       startMs: segment.startMs,
       endMs: segment.endMs,
     })),
-    plainText: manual.plainText || lines.map((segment) => segment.text).join("\n\n"),
+    plainText: manual.plainText || lines.map((segment) => segment.text).join("\n"),
     status: LyricsSetStatus.READY,
     analysisMetadata: {
       kind: "manual_karaoke",

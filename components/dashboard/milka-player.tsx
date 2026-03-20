@@ -346,393 +346,389 @@ export function MilkaPlayer(props: {
   })
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[1.1fr_0.9fr]">
+    <div className="grid gap-4 xl:grid-cols-[0.95fr_1.05fr]">
       <div className="space-y-4">
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>Milka / Musica</CardTitle>
-              <CardDescription>
-                Reproduccion local servida por tu backend, con audio cacheado en disco a partir de YouTube Music.
-              </CardDescription>
-            </div>
-            <Badge variant="secondary">{props.songs.length} canciones</Badge>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="rounded-2xl border bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-800 p-5 text-white">
-            <div className="flex flex-wrap items-center gap-4">
-              {currentSong.thumbnailUrl ? (
-                <Image
-                  src={currentSong.thumbnailUrl}
-                  alt={currentSong.title}
-                  width={88}
-                  height={88}
-                  className="rounded-xl border border-white/10 object-cover"
-                />
-              ) : (
-                <div className="flex h-[88px] w-[88px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
-                  <Music4 className="size-6 text-white/60" />
-                </div>
-              )}
-
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate text-lg font-semibold">{currentSong.title}</p>
-                  {currentLyrics?.found ? (
-                    currentLyrics.hasTimestamps ? (
-                      <Badge className="border-emerald-400/30 bg-emerald-400/15 text-emerald-100">
-                        <AudioLines className="size-3.5" />
-                        Letra sincronizada
-                      </Badge>
-                    ) : (
-                      <Badge variant="secondary">Con letra</Badge>
-                    )
-                  ) : null}
-                  {isLyricsLoading ? (
-                    <Badge variant="secondary">
-                      <LoaderCircle className="size-3.5 animate-spin" />
-                      Buscando letra
-                    </Badge>
-                  ) : null}
-                </div>
-                <p className="truncate text-sm text-white/70">{renderArtists(currentSong.artists)}</p>
-                <p className="truncate text-xs uppercase tracking-[0.18em] text-white/50">
-                  {currentSong.album || "Sin album"} {currentSong.duration ? `· ${currentSong.duration}` : ""}
-                </p>
-              </div>
-            </div>
-
-            <audio
-              key={currentSong.videoId}
-              ref={audioRef}
-              className="mt-5 w-full"
-              controls
-              autoPlay={autoPlay}
-              preload="metadata"
-              src={currentAudioUrl}
-              onEnded={() => goToIndex(selectedIndex + 1)}
-              onPlay={() => setIsPlaying(true)}
-              onPause={() => setIsPlaying(false)}
-              onTimeUpdate={(event) => setCurrentTimeMs(Math.floor(event.currentTarget.currentTime * 1000))}
-              onLoadedMetadata={(event) => {
-                if (!pendingRestoreState || pendingRestoreState.videoId !== currentSong.videoId) {
-                  return
-                }
-
-                if (pendingRestoreState.currentTimeMs > 0) {
-                  event.currentTarget.currentTime = pendingRestoreState.currentTimeMs / 1000
-                  setCurrentTimeMs(pendingRestoreState.currentTimeMs)
-                }
-
-                if (pendingRestoreState.wasPlaying) {
-                  void event.currentTarget.play().catch(() => undefined)
-                }
-
-                setPendingRestoreState(null)
-              }}
-              onError={() =>
-                setLoadError(
-                  "No se pudo cargar el audio. Revisa que yt-dlp este instalado y que la cookie siga vigente."
-                )
-              }
-              onLoadedData={() => setLoadError(null)}
-            />
-
-            <div className="mt-4 flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => goToIndex(selectedIndex - 1)}
-                className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
-              >
-                <SkipBack className="size-4" />
-                Anterior
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (audioRef.current?.paused) {
-                    void audioRef.current.play()
-                  } else {
-                    audioRef.current?.pause()
-                  }
-                }}
-                className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
-              >
-                {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
-                Play / Pause
-              </button>
-              <button
-                type="button"
-                onClick={() => goToIndex(selectedIndex + 1)}
-                className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
-              >
-                <SkipForward className="size-4" />
-                Siguiente
-              </button>
-            </div>
-
-            {loadError ? (
-              <div className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
-                {loadError}
-              </div>
-            ) : null}
-          </div>
-        </CardContent>
-      </Card>
-
-      {manualSyncMode ? (
-        <MilkaManualSyncPanel
-          song={currentSong}
-          lyrics={currentLyrics}
-          currentTimeMs={currentTimeMs}
-          isPlaying={isPlaying}
-          onSeek={seekToTimeMs}
-          onSeekRelative={seekRelative}
-          onTogglePlayback={togglePlayback}
-          onClose={() => setManualSyncMode(false)}
-          onSaved={(lyrics) => {
-            setLyricsByVideoId((current) => ({
-              ...current,
-              [currentSong.videoId]: lyrics,
-            }))
-            setLyricsError(null)
-            refreshedLyricsRef.current[currentSong.videoId] = true
-            setManualSyncMode(false)
-          }}
-        />
-      ) : (
         <Card>
           <CardHeader>
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
-                <CardTitle>Letras</CardTitle>
-                <CardDescription>Se muestran debajo del reproductor y resaltan en tiempo real cuando hay sincronizacion.</CardDescription>
+                <CardTitle>Milka / Musica</CardTitle>
+                <CardDescription>
+                  Reproduccion local servida por tu backend, con audio cacheado en disco a partir de YouTube Music.
+                </CardDescription>
               </div>
-              <div className="flex flex-wrap items-center gap-2">
-                {currentLyrics?.hasTimestamps ? (
-                  <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                    <AudioLines className="size-3.5" />
-                    Sincronizada
-                  </Badge>
-                ) : currentLyrics?.found ? (
-                  <Badge variant="secondary">No sincronizada</Badge>
-                ) : null}
-                <Button type="button" variant="outline" onClick={() => setManualSyncMode(true)}>
-                  {currentLyrics?.hasTimestamps ? "Editar karaoke" : "Crear karaoke"}
-                </Button>
-              </div>
+              <Badge variant="secondary">{props.songs.length} canciones</Badge>
             </div>
           </CardHeader>
-          <CardContent>
-            <div className="rounded-xl border bg-muted/20 p-4">
-              {isLyricsLoading ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <LoaderCircle className="size-4 animate-spin" />
-                  Cargando letras...
-                </div>
-              ) : lyricsError ? (
-                <div className="text-sm text-destructive">{lyricsError}</div>
-              ) : !currentLyrics?.found ? (
-                <div className="space-y-3">
-                  <div className="text-sm text-muted-foreground">Esta cancion no tiene letras disponibles.</div>
-                  <Button type="button" onClick={() => setManualSyncMode(true)}>
-                    Crear karaoke manual
-                  </Button>
-                </div>
-              ) : currentLyrics.hasTimestamps && Array.isArray(currentLyrics.lyrics) ? (
-                <div className="space-y-1">
-                  {(() => {
-                    const timedLyrics = currentLyrics.lyrics
-
-                    return (
-                      <>
-                  <div className="mb-3 flex items-center justify-between gap-2">
-                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                      Letra sincronizada
-                    </Badge>
-                    {currentLyrics.source ? (
-                      <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
-                    ) : null}
-                  </div>
-                  <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
-                    {timedLyrics.map((line, index) => {
-                      const isActiveLine = activeTimedLine?.id === line.id
-                      const progress = isActiveLine
-                        ? getKaraokeLineProgress(line, timedLyrics[index + 1], currentTimeMs)
-                        : 0
-                      return (
-                        <p
-                          key={line.id}
-                          ref={isActiveLine ? activeLyricLineRef : null}
-                          className={cn(
-                            "relative overflow-hidden rounded-xl border px-4 py-3 text-center text-base leading-7 transition-all duration-300",
-                            isActiveLine
-                              ? "border-emerald-500/30 bg-emerald-500/12 font-semibold text-emerald-700 shadow-sm dark:text-emerald-300"
-                              : "border-transparent text-muted-foreground/75"
-                          )}
-                        >
-                          {isActiveLine ? (
-                            <span
-                              aria-hidden="true"
-                              className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/12 transition-[width] duration-150"
-                              style={{ width: `${Math.max(progress * 100, 8)}%` }}
-                            />
-                          ) : null}
-                          <span
-                            className={cn(
-                              "relative z-10",
-                              isActiveLine ? "underline decoration-emerald-500 decoration-2 underline-offset-4" : ""
-                            )}
-                          >
-                            {line.text || "♪"}
-                          </span>
-                        </p>
-                      )
-                    })}
-                  </div>
-                      </>
-                    )
-                  })()}
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between gap-2">
-                    <Badge variant="secondary">Letra no sincronizada</Badge>
-                    {currentLyrics.source ? (
-                      <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
-                    ) : null}
-                  </div>
-                  <pre className="max-h-[420px] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">
-                    {typeof currentLyrics.lyrics === "string" ? currentLyrics.lyrics : ""}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
-      )}
-      </div>
-
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>Cola</CardTitle>
-              <CardDescription>Filtra por canciones con letra sincronizada, letra normal o sin letra.</CardDescription>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => setQueueFilter("all")}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition",
-                  queueFilter === "all" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
-                )}
-              >
-                Todas
-              </button>
-              <button
-                type="button"
-                onClick={() => setQueueFilter("synced")}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition",
-                  queueFilter === "synced" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
-                )}
-              >
-                Sync
-              </button>
-              <button
-                type="button"
-                onClick={() => setQueueFilter("lyrics")}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition",
-                  queueFilter === "lyrics" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
-                )}
-              >
-                Con letra
-              </button>
-              <button
-                type="button"
-                onClick={() => setQueueFilter("no-lyrics")}
-                className={cn(
-                  "rounded-md border px-3 py-1.5 text-xs font-medium transition",
-                  queueFilter === "no-lyrics" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
-                )}
-              >
-                Sin letra
-              </button>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-2">
-          {!filteredSongs.length ? (
-            <div className="rounded-lg border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
-              No hay canciones que coincidan con el filtro actual.
-            </div>
-          ) : null}
-
-          {filteredSongs.map((song) => {
-            const index = props.songs.findIndex((item) => item.videoId === song.videoId)
-            const isActive = index === selectedIndex
-            const knownLyrics = lyricsByVideoId[song.videoId]
-
-            return (
-              <button
-                key={song.videoId}
-                type="button"
-                onClick={() => goToIndex(index)}
-                className={cn(
-                  "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition hover:bg-accent",
-                  isActive && "border-primary bg-primary/5"
-                )}
-              >
-                {song.thumbnailUrl ? (
+          <CardContent className="space-y-4">
+            <div className="rounded-2xl border bg-gradient-to-br from-neutral-950 via-neutral-900 to-neutral-800 p-5 text-white">
+              <div className="flex flex-wrap items-center gap-4">
+                {currentSong.thumbnailUrl ? (
                   <Image
-                    src={song.thumbnailUrl}
-                    alt={song.title}
-                    width={56}
-                    height={56}
-                    className="rounded-md border object-cover"
+                    src={currentSong.thumbnailUrl}
+                    alt={currentSong.title}
+                    width={88}
+                    height={88}
+                    className="rounded-xl border border-white/10 object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 w-14 items-center justify-center rounded-md border bg-muted">
-                    <Music4 className="size-4 text-muted-foreground" />
+                  <div className="flex h-[88px] w-[88px] items-center justify-center rounded-xl border border-white/10 bg-white/5">
+                    <Music4 className="size-6 text-white/60" />
                   </div>
                 )}
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <p className="truncate font-medium">{song.title}</p>
-                    {knownLyrics?.hasTimestamps ? (
-                      <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-lg font-semibold">{currentSong.title}</p>
+                    {currentLyrics?.found ? (
+                      currentLyrics.hasTimestamps ? (
+                        <Badge className="border-emerald-400/30 bg-emerald-400/15 text-emerald-100">
+                          <AudioLines className="size-3.5" />
+                          Letra sincronizada
+                        </Badge>
+                      ) : (
+                        <Badge variant="secondary">Con letra</Badge>
+                      )
+                    ) : null}
+                    {isLyricsLoading ? (
+                      <Badge variant="secondary">
+                        <LoaderCircle className="size-3.5 animate-spin" />
+                        Buscando letra
+                      </Badge>
                     ) : null}
                   </div>
-                  <p className="truncate text-sm text-muted-foreground">{renderArtists(song.artists)}</p>
-                  <p className="truncate text-xs uppercase tracking-[0.16em] text-muted-foreground">
-                    {song.album || "Sin album"} {song.duration ? `· ${song.duration}` : ""}
+                  <p className="truncate text-sm text-white/70">{renderArtists(currentSong.artists)}</p>
+                  <p className="truncate text-xs uppercase tracking-[0.18em] text-white/50">
+                    {currentSong.album || "Sin album"} {currentSong.duration ? `· ${currentSong.duration}` : ""}
                   </p>
                 </div>
+              </div>
 
-                <div className="shrink-0">
-                  {isActive ? (
-                    <Badge>Activa</Badge>
-                  ) : knownLyrics?.hasTimestamps ? (
-                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                      Sync
-                    </Badge>
-                  ) : knownLyrics?.found ? (
-                    <Badge variant="secondary">Letra</Badge>
-                  ) : (
-                    <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Cargar</span>
-                  )}
+              <audio
+                key={currentSong.videoId}
+                ref={audioRef}
+                className="mt-5 w-full"
+                controls
+                autoPlay={autoPlay}
+                preload="metadata"
+                src={currentAudioUrl}
+                onEnded={() => goToIndex(selectedIndex + 1)}
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onTimeUpdate={(event) => setCurrentTimeMs(Math.floor(event.currentTarget.currentTime * 1000))}
+                onLoadedMetadata={(event) => {
+                  if (!pendingRestoreState || pendingRestoreState.videoId !== currentSong.videoId) {
+                    return
+                  }
+
+                  if (pendingRestoreState.currentTimeMs > 0) {
+                    event.currentTarget.currentTime = pendingRestoreState.currentTimeMs / 1000
+                    setCurrentTimeMs(pendingRestoreState.currentTimeMs)
+                  }
+
+                  if (pendingRestoreState.wasPlaying) {
+                    void event.currentTarget.play().catch(() => undefined)
+                  }
+
+                  setPendingRestoreState(null)
+                }}
+                onError={() =>
+                  setLoadError(
+                    "No se pudo cargar el audio. Revisa que yt-dlp este instalado y que la cookie siga vigente."
+                  )
+                }
+                onLoadedData={() => setLoadError(null)}
+              />
+
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => goToIndex(selectedIndex - 1)}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
+                >
+                  <SkipBack className="size-4" />
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={togglePlayback}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
+                >
+                  {isPlaying ? <Pause className="size-4" /> : <Play className="size-4" />}
+                  Play / Pause
+                </button>
+                <button
+                  type="button"
+                  onClick={() => goToIndex(selectedIndex + 1)}
+                  className="inline-flex items-center gap-2 rounded-md border border-white/10 px-3 py-2 text-sm font-medium transition hover:bg-white/5"
+                >
+                  <SkipForward className="size-4" />
+                  Siguiente
+                </button>
+              </div>
+
+              {loadError ? (
+                <div className="mt-4 rounded-xl border border-amber-400/20 bg-amber-400/10 p-3 text-sm text-amber-100">
+                  {loadError}
                 </div>
-              </button>
-            )
-          })}
-        </CardContent>
-      </Card>
+              ) : null}
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="space-y-1">
+                <CardTitle>Cola</CardTitle>
+                <CardDescription>Filtra por canciones con letra sincronizada, letra normal o sin letra.</CardDescription>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter("all")}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium transition",
+                    queueFilter === "all" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
+                  )}
+                >
+                  Todas
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter("synced")}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium transition",
+                    queueFilter === "synced" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
+                  )}
+                >
+                  Sync
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter("lyrics")}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium transition",
+                    queueFilter === "lyrics" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
+                  )}
+                >
+                  Con letra
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setQueueFilter("no-lyrics")}
+                  className={cn(
+                    "rounded-md border px-3 py-1.5 text-xs font-medium transition",
+                    queueFilter === "no-lyrics" ? "border-primary bg-primary/5 text-primary" : "hover:bg-accent"
+                  )}
+                >
+                  Sin letra
+                </button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {!filteredSongs.length ? (
+              <div className="rounded-lg border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
+                No hay canciones que coincidan con el filtro actual.
+              </div>
+            ) : null}
+
+            {filteredSongs.map((song) => {
+              const index = props.songs.findIndex((item) => item.videoId === song.videoId)
+              const isActive = index === selectedIndex
+              const knownLyrics = lyricsByVideoId[song.videoId]
+
+              return (
+                <button
+                  key={song.videoId}
+                  type="button"
+                  onClick={() => goToIndex(index)}
+                  className={cn(
+                    "flex w-full items-center gap-3 rounded-xl border p-3 text-left transition hover:bg-accent",
+                    isActive && "border-primary bg-primary/5"
+                  )}
+                >
+                  {song.thumbnailUrl ? (
+                    <Image
+                      src={song.thumbnailUrl}
+                      alt={song.title}
+                      width={56}
+                      height={56}
+                      className="rounded-md border object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-14 w-14 items-center justify-center rounded-md border bg-muted">
+                      <Music4 className="size-4 text-muted-foreground" />
+                    </div>
+                  )}
+
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <p className="truncate font-medium">{song.title}</p>
+                      {knownLyrics?.hasTimestamps ? (
+                        <span className="inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                      ) : null}
+                    </div>
+                    <p className="truncate text-sm text-muted-foreground">{renderArtists(song.artists)}</p>
+                    <p className="truncate text-xs uppercase tracking-[0.16em] text-muted-foreground">
+                      {song.album || "Sin album"} {song.duration ? `· ${song.duration}` : ""}
+                    </p>
+                  </div>
+
+                  <div className="shrink-0">
+                    {isActive ? (
+                      <Badge>Activa</Badge>
+                    ) : knownLyrics?.hasTimestamps ? (
+                      <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                        Sync
+                      </Badge>
+                    ) : knownLyrics?.found ? (
+                      <Badge variant="secondary">Letra</Badge>
+                    ) : (
+                      <span className="text-xs uppercase tracking-[0.16em] text-muted-foreground">Cargar</span>
+                    )}
+                  </div>
+                </button>
+              )
+            })}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="space-y-4">
+        {manualSyncMode ? (
+          <MilkaManualSyncPanel
+            song={currentSong}
+            lyrics={currentLyrics}
+            currentTimeMs={currentTimeMs}
+            isPlaying={isPlaying}
+            onSeek={seekToTimeMs}
+            onSeekRelative={seekRelative}
+            onTogglePlayback={togglePlayback}
+            onClose={() => setManualSyncMode(false)}
+            onSaved={(lyrics) => {
+              setLyricsByVideoId((current) => ({
+                ...current,
+                [currentSong.videoId]: lyrics,
+              }))
+              setLyricsError(null)
+              refreshedLyricsRef.current[currentSong.videoId] = true
+              setManualSyncMode(false)
+            }}
+          />
+        ) : (
+          <Card>
+            <CardHeader>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                  <CardTitle>Letras</CardTitle>
+                  <CardDescription>Se muestran debajo del reproductor y resaltan en tiempo real cuando hay sincronizacion.</CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  {currentLyrics?.hasTimestamps ? (
+                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                      <AudioLines className="size-3.5" />
+                      Sincronizada
+                    </Badge>
+                  ) : currentLyrics?.found ? (
+                    <Badge variant="secondary">No sincronizada</Badge>
+                  ) : null}
+                  <Button type="button" variant="outline" onClick={() => setManualSyncMode(true)}>
+                    {currentLyrics?.hasTimestamps ? "Editar karaoke" : "Crear karaoke"}
+                  </Button>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="rounded-xl border bg-muted/20 p-4">
+                {isLyricsLoading ? (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <LoaderCircle className="size-4 animate-spin" />
+                    Cargando letras...
+                  </div>
+                ) : lyricsError ? (
+                  <div className="text-sm text-destructive">{lyricsError}</div>
+                ) : !currentLyrics?.found ? (
+                  <div className="space-y-3">
+                    <div className="text-sm text-muted-foreground">Esta cancion no tiene letras disponibles.</div>
+                    <Button type="button" onClick={() => setManualSyncMode(true)}>
+                      Crear karaoke manual
+                    </Button>
+                  </div>
+                ) : currentLyrics.hasTimestamps && Array.isArray(currentLyrics.lyrics) ? (
+                  <div className="space-y-1">
+                    {(() => {
+                      const timedLyrics = currentLyrics.lyrics
+
+                      return (
+                        <>
+                          <div className="mb-3 flex items-center justify-between gap-2">
+                            <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                              Letra sincronizada
+                            </Badge>
+                            {currentLyrics.source ? (
+                              <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
+                            ) : null}
+                          </div>
+                          <div className="max-h-[min(72vh,780px)] space-y-1 overflow-y-auto pr-1">
+                            {timedLyrics.map((line, index) => {
+                              const isActiveLine = activeTimedLine?.id === line.id
+                              const progress = isActiveLine
+                                ? getKaraokeLineProgress(line, timedLyrics[index + 1], currentTimeMs)
+                                : 0
+                              return (
+                                <p
+                                  key={line.id}
+                                  ref={isActiveLine ? activeLyricLineRef : null}
+                                  className={cn(
+                                    "relative overflow-hidden rounded-xl border px-4 py-3 text-center text-base leading-7 transition-all duration-300",
+                                    isActiveLine
+                                      ? "border-emerald-500/30 bg-emerald-500/12 font-semibold text-emerald-700 shadow-sm dark:text-emerald-300"
+                                      : "border-transparent text-muted-foreground/75"
+                                  )}
+                                >
+                                  {isActiveLine ? (
+                                    <span
+                                      aria-hidden="true"
+                                      className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/12 transition-[width] duration-150"
+                                      style={{ width: `${Math.max(progress * 100, 8)}%` }}
+                                    />
+                                  ) : null}
+                                  <span
+                                    className={cn(
+                                      "relative z-10",
+                                      isActiveLine ? "underline decoration-emerald-500 decoration-2 underline-offset-4" : ""
+                                    )}
+                                  >
+                                    {line.text || "♪"}
+                                  </span>
+                                </p>
+                              )
+                            })}
+                          </div>
+                        </>
+                      )
+                    })()}
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <Badge variant="secondary">Letra no sincronizada</Badge>
+                      {currentLyrics.source ? (
+                        <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
+                      ) : null}
+                    </div>
+                    <pre className="max-h-[min(72vh,780px)] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">
+                      {typeof currentLyrics.lyrics === "string" ? currentLyrics.lyrics : ""}
+                    </pre>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </div>
   )
 }
