@@ -30,6 +30,7 @@ export type CandidateLyricsInput = {
 
 type SongWithLyrics = NonNullable<Awaited<ReturnType<typeof getSongWithLyrics>>>
 type LyricsSetWithLines = SongWithLyrics["lyricsSets"][number]
+export type StoredLyricsPayload = ReturnType<typeof toApiLyricsPayload>
 
 function parseDurationToMs(value: string | null | undefined): number | null {
   if (!value) {
@@ -270,6 +271,31 @@ async function upsertSongMetadata(
   return record
 }
 
+export async function persistSongMetadata(song: SongMetadataInput) {
+  return prisma.$transaction((tx) => upsertSongMetadata(tx, song))
+}
+
+export async function persistSongsMetadata(songs: SongMetadataInput[]) {
+  const uniqueSongs = Array.from(
+    new Map(
+      songs
+        .filter((song) => song.videoId.trim())
+        .map((song) => [song.videoId, { ...song, videoId: song.videoId.trim() }])
+    ).values()
+  )
+
+  if (!uniqueSongs.length) {
+    return []
+  }
+
+  const persistedSongs = []
+  for (const song of uniqueSongs) {
+    persistedSongs.push(await persistSongMetadata(song))
+  }
+
+  return persistedSongs
+}
+
 type PersistLyricsSetInput = {
   song: SongMetadataInput
   source: LyricsSource
@@ -426,6 +452,41 @@ export async function getStoredLyricsForVideoId(videoId: string) {
   }
 }
 
+export async function getStoredLyricsIndex(videoIds: string[]): Promise<Record<string, StoredLyricsPayload>> {
+  const uniqueVideoIds = Array.from(new Set(videoIds.map((videoId) => videoId.trim()).filter(Boolean)))
+  if (!uniqueVideoIds.length) {
+    return {}
+  }
+
+  const songs = await prisma.song.findMany({
+    where: {
+      videoId: {
+        in: uniqueVideoIds,
+      },
+    },
+    include: {
+      lyricsSets: {
+        orderBy: [{ isActive: "desc" }, { creadoEn: "desc" }],
+        include: {
+          lineas: {
+            orderBy: { posicion: "asc" },
+          },
+        },
+      },
+    },
+  })
+
+  return songs.reduce<Record<string, StoredLyricsPayload>>((accumulator, song) => {
+    const lyricsSet = pickBestLyricsSet(song.lyricsSets)
+    if (!lyricsSet) {
+      return accumulator
+    }
+
+    accumulator[song.videoId] = toApiLyricsPayload(lyricsSet)
+    return accumulator
+  }, {})
+}
+
 export async function persistYouTubeLyrics(song: SongMetadataInput, lyrics: YouTubeMusicLyricsResult) {
   const source = lyrics.hasTimestamps ? LyricsSource.YOUTUBE_MUSIC_SYNCED : LyricsSource.YOUTUBE_MUSIC_PLAIN
   const lines = toLineInputsFromYouTube(lyrics)
@@ -487,9 +548,7 @@ export async function synchronizeLyrics(song: SongMetadataInput, options?: { ref
 
   if (options?.refreshOfficial !== false) {
     const officialLyrics = await getYouTubeMusicLyrics(song.videoId)
-    if (officialLyrics.found) {
-      officialSet = await persistYouTubeLyrics(song, officialLyrics)
-    }
+    officialSet = await persistYouTubeLyrics(song, officialLyrics)
 
     if (!officialLyrics.hasTimestamps) {
       const captionLyrics = await getYouTubeCaptionLyrics(song.videoId).catch(() => null)

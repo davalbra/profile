@@ -91,22 +91,25 @@ function getKaraokeLineProgress(
   return elapsed / duration
 }
 
-export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
+export function MilkaPlayer(props: {
+  songs: YouTubeMusicSong[]
+  initialLyricsByVideoId?: Record<string, LyricsPayload>
+}) {
   const [selectedIndex, setSelectedIndex] = React.useState(0)
   const [autoPlay, setAutoPlay] = React.useState(false)
   const [loadError, setLoadError] = React.useState<string | null>(null)
   const [isPlaying, setIsPlaying] = React.useState(false)
   const [currentTimeMs, setCurrentTimeMs] = React.useState(0)
-  const [lyricsByVideoId, setLyricsByVideoId] = React.useState<Record<string, LyricsPayload | undefined>>({})
+  const [lyricsByVideoId, setLyricsByVideoId] = React.useState<Record<string, LyricsPayload | undefined>>(
+    props.initialLyricsByVideoId || {}
+  )
   const [lyricsLoadingVideoId, setLyricsLoadingVideoId] = React.useState<string | null>(null)
   const [lyricsError, setLyricsError] = React.useState<string | null>(null)
   const [queueFilter, setQueueFilter] = React.useState<QueueFilter>("all")
-  const [isScanningLyrics, setIsScanningLyrics] = React.useState(false)
   const [pendingRestoreState, setPendingRestoreState] = React.useState<PersistedMilkaPlayerState | null>(null)
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const activeLyricLineRef = React.useRef<HTMLParagraphElement | null>(null)
   const refreshedLyricsRef = React.useRef<Record<string, true>>({})
-  const scannedLyricsRef = React.useRef<Record<string, true>>({})
 
   const currentSong = props.songs[selectedIndex] || null
   const currentAudioUrl = currentSong
@@ -137,6 +140,13 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
       setSelectedIndex(0)
     }
   }, [props.songs.length, selectedIndex])
+
+  React.useEffect(() => {
+    setLyricsByVideoId((current) => ({
+      ...current,
+      ...(props.initialLyricsByVideoId || {}),
+    }))
+  }, [props.initialLyricsByVideoId])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !props.songs.length) {
@@ -210,65 +220,6 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
 
     return () => controller.abort()
   }, [currentSong, lyricsByVideoId])
-
-  React.useEffect(() => {
-    let cancelled = false
-
-    async function scanLyricsAvailability() {
-      const pendingSongs = props.songs.filter((song) => !scannedLyricsRef.current[song.videoId])
-      if (!pendingSongs.length) {
-        return
-      }
-
-      setIsScanningLyrics(true)
-
-      for (const song of pendingSongs) {
-        if (cancelled) {
-          return
-        }
-
-        try {
-          scannedLyricsRef.current[song.videoId] = true
-
-          const response = await fetch(buildLyricsUrl(song, { refresh: true }), {
-            cache: "no-store",
-          })
-          const payload = (await response.json()) as { ok?: boolean; data?: LyricsPayload }
-          if (!response.ok || !payload.data) {
-            continue
-          }
-
-          if (cancelled) {
-            return
-          }
-
-          setLyricsByVideoId((current) => {
-            const existingLyrics = current[song.videoId]
-            if (existingLyrics?.hasTimestamps) {
-              return current
-            }
-
-            return {
-              ...current,
-              [song.videoId]: payload.data,
-            }
-          })
-        } catch {
-          continue
-        }
-      }
-
-      if (!cancelled) {
-        setIsScanningLyrics(false)
-      }
-    }
-
-    void scanLyricsAvailability()
-
-    return () => {
-      cancelled = true
-    }
-  }, [props.songs])
 
   React.useEffect(() => {
     if (typeof window === "undefined" || !currentSong) {
@@ -646,13 +597,6 @@ export function MilkaPlayer(props: { songs: YouTubeMusicSong[] }) {
           </div>
         </CardHeader>
         <CardContent className="space-y-2">
-          {isScanningLyrics ? (
-            <div className="flex items-center gap-2 rounded-lg border bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
-              <LoaderCircle className="size-3.5 animate-spin" />
-              Escaneando disponibilidad de letras...
-            </div>
-          ) : null}
-
           {!filteredSongs.length ? (
             <div className="rounded-lg border bg-muted/20 px-3 py-4 text-sm text-muted-foreground">
               No hay canciones que coincidan con el filtro actual.

@@ -2,14 +2,17 @@ import { AlertCircle, Cookie } from "lucide-react"
 import { getYouTubeMusicLibrarySongs, type YouTubeMusicSong, YouTubeMusicConfigError } from "@/lib/youtube-music"
 import { MilkaPlayer } from "@/components/dashboard/milka-player"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { getStoredLyricsIndex, persistSongsMetadata, type StoredLyricsPayload } from "@/lib/lyrics-sync"
 
 type LoadResult =
   | {
       songs: YouTubeMusicSong[]
+      storedLyricsByVideoId: Record<string, StoredLyricsPayload>
       error: null
     }
   | {
       songs: null
+      storedLyricsByVideoId: null
       error: {
         isConfigError: boolean
         message: string
@@ -19,10 +22,20 @@ type LoadResult =
 async function loadSongs(): Promise<LoadResult> {
   try {
     const songs = await getYouTubeMusicLibrarySongs(30)
-    return { songs, error: null }
+    let storedLyricsByVideoId: Record<string, StoredLyricsPayload> = {}
+
+    try {
+      await persistSongsMetadata(songs)
+      storedLyricsByVideoId = await getStoredLyricsIndex(songs.map((song) => song.videoId))
+    } catch (error) {
+      console.error("No se pudo sincronizar la metadata musical con la base.", error)
+    }
+
+    return { songs, storedLyricsByVideoId, error: null }
   } catch (error) {
     return {
       songs: null,
+      storedLyricsByVideoId: null,
       error: {
         isConfigError: error instanceof YouTubeMusicConfigError,
         message:
@@ -67,8 +80,11 @@ function MusicPanelError(props: { isConfigError: boolean; message: string }) {
   )
 }
 
-function MusicPanelTable(props: { songs: YouTubeMusicSong[] }) {
-  return <MilkaPlayer songs={props.songs} />
+function MusicPanelTable(props: {
+  songs: YouTubeMusicSong[]
+  storedLyricsByVideoId: Record<string, StoredLyricsPayload>
+}) {
+  return <MilkaPlayer songs={props.songs} initialLyricsByVideoId={props.storedLyricsByVideoId} />
 }
 
 export async function MilkaMusicPanel() {
@@ -78,5 +94,5 @@ export async function MilkaMusicPanel() {
     return <MusicPanelError isConfigError={result.error.isConfigError} message={result.error.message} />
   }
 
-  return <MusicPanelTable songs={result.songs} />
+  return <MusicPanelTable songs={result.songs} storedLyricsByVideoId={result.storedLyricsByVideoId} />
 }
