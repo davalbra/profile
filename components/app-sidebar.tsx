@@ -2,7 +2,7 @@
 
 import * as React from "react"
 import Link from "next/link"
-import {Bot, ChevronDown, CircleDollarSign, Cookie, Flame, Headphones, ImagePlus, Images, Music4, PanelTop, Search, Sparkles, TrendingUp, Wrench, Zap} from "lucide-react"
+import {Bot, ChevronDown, CircleDollarSign, Cookie, Flame, Headphones, ImagePlus, Images, Music4, PanelTop, Sparkles, TrendingUp, Wrench, Zap} from "lucide-react"
 import {usePathname} from "next/navigation"
 import {
     Sidebar,
@@ -72,7 +72,6 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
     const tradingFuturesActive = pathname === "/dashboard/trading" || pathname === "/dashboard/trading/futures"
     const milkaMusicaActive = pathname === "/dashboard/milka" || pathname === "/dashboard/milka/musica"
     const milkaCookiesActive = pathname === "/dashboard/milka/cookies"
-    const milkaSearchSyncActive = pathname === "/dashboard/milka/search-sync"
 
     return (
         <Sidebar collapsible="offcanvas" {...props}>
@@ -215,14 +214,6 @@ export function AppSidebar({...props}: React.ComponentProps<typeof Sidebar>) {
                                         <Link href="/dashboard/milka/cookies">
                                             <Cookie/>
                                             <span>Cookies</span>
-                                        </Link>
-                                    </SidebarMenuSubButton>
-                                </SidebarMenuSubItem>
-                                <SidebarMenuSubItem>
-                                    <SidebarMenuSubButton asChild isActive={milkaSearchSyncActive}>
-                                        <Link href="/dashboard/milka/search-sync">
-                                            <Search/>
-                                            <span>Buscar Sync</span>
                                         </Link>
                                     </SidebarMenuSubButton>
                                 </SidebarMenuSubItem>
