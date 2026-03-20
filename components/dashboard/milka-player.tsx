@@ -6,6 +6,7 @@ import { AudioLines, LoaderCircle, Music4, Pause, Play, SkipBack, SkipForward } 
 import type { YouTubeMusicSong } from "@/lib/youtube-music"
 import { MilkaManualSyncPanel } from "@/components/dashboard/milka-manual-sync-panel"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 
@@ -115,6 +116,7 @@ export function MilkaPlayer(props: {
   const [lyricsLoadingVideoId, setLyricsLoadingVideoId] = React.useState<string | null>(null)
   const [lyricsError, setLyricsError] = React.useState<string | null>(null)
   const [queueFilter, setQueueFilter] = React.useState<QueueFilter>("all")
+  const [manualSyncMode, setManualSyncMode] = React.useState(false)
   const [pendingRestoreState, setPendingRestoreState] = React.useState<PersistedMilkaPlayerState | null>(null)
   const audioRef = React.useRef<HTMLAudioElement | null>(null)
   const activeLyricLineRef = React.useRef<HTMLParagraphElement | null>(null)
@@ -149,6 +151,10 @@ export function MilkaPlayer(props: {
       setSelectedIndex(0)
     }
   }, [props.songs.length, selectedIndex])
+
+  React.useEffect(() => {
+    setManualSyncMode(false)
+  }, [currentSong?.videoId])
 
   React.useEffect(() => {
     setLyricsByVideoId((current) => ({
@@ -308,6 +314,19 @@ export function MilkaPlayer(props: {
     setCurrentTimeMs(Math.max(0, nextTimeMs))
   }
 
+  function seekRelative(deltaMs: number) {
+    seekToTimeMs(currentTimeMs + deltaMs)
+  }
+
+  function togglePlayback() {
+    if (audioRef.current?.paused) {
+      void audioRef.current.play()
+      return
+    }
+
+    audioRef.current?.pause()
+  }
+
   const filteredSongs = props.songs.filter((song) => {
     const lyricsState = lyricsByVideoId[song.videoId]
 
@@ -463,120 +482,137 @@ export function MilkaPlayer(props: {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="space-y-1">
-              <CardTitle>Letras</CardTitle>
-              <CardDescription>Se muestran debajo del reproductor y resaltan en tiempo real cuando hay sincronizacion.</CardDescription>
-            </div>
-            {currentLyrics?.hasTimestamps ? (
-              <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                <AudioLines className="size-3.5" />
-                Sincronizada
-              </Badge>
-            ) : currentLyrics?.found ? (
-              <Badge variant="secondary">No sincronizada</Badge>
-            ) : null}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-xl border bg-muted/20 p-4">
-            {isLyricsLoading ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <LoaderCircle className="size-4 animate-spin" />
-                Cargando letras...
-              </div>
-            ) : lyricsError ? (
-              <div className="text-sm text-destructive">{lyricsError}</div>
-            ) : !currentLyrics?.found ? (
-              <div className="text-sm text-muted-foreground">Esta cancion no tiene letras disponibles.</div>
-            ) : currentLyrics.hasTimestamps && Array.isArray(currentLyrics.lyrics) ? (
+      {manualSyncMode ? (
+        <MilkaManualSyncPanel
+          song={currentSong}
+          lyrics={currentLyrics}
+          currentTimeMs={currentTimeMs}
+          isPlaying={isPlaying}
+          onSeek={seekToTimeMs}
+          onSeekRelative={seekRelative}
+          onTogglePlayback={togglePlayback}
+          onClose={() => setManualSyncMode(false)}
+          onSaved={(lyrics) => {
+            setLyricsByVideoId((current) => ({
+              ...current,
+              [currentSong.videoId]: lyrics,
+            }))
+            setLyricsError(null)
+            refreshedLyricsRef.current[currentSong.videoId] = true
+            setManualSyncMode(false)
+          }}
+        />
+      ) : (
+        <Card>
+          <CardHeader>
+            <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="space-y-1">
-                {(() => {
-                  const timedLyrics = currentLyrics.lyrics
-
-                  return (
-                    <>
-                <div className="mb-3 flex items-center justify-between gap-2">
+                <CardTitle>Letras</CardTitle>
+                <CardDescription>Se muestran debajo del reproductor y resaltan en tiempo real cuando hay sincronizacion.</CardDescription>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {currentLyrics?.hasTimestamps ? (
                   <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
-                    Letra sincronizada
+                    <AudioLines className="size-3.5" />
+                    Sincronizada
                   </Badge>
-                  {currentLyrics.source ? (
-                    <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
-                  ) : null}
+                ) : currentLyrics?.found ? (
+                  <Badge variant="secondary">No sincronizada</Badge>
+                ) : null}
+                <Button type="button" variant="outline" onClick={() => setManualSyncMode(true)}>
+                  {currentLyrics?.hasTimestamps ? "Editar karaoke" : "Crear karaoke"}
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="rounded-xl border bg-muted/20 p-4">
+              {isLyricsLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <LoaderCircle className="size-4 animate-spin" />
+                  Cargando letras...
                 </div>
-                <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
-                  {timedLyrics.map((line, index) => {
-                    const isActiveLine = activeTimedLine?.id === line.id
-                    const progress = isActiveLine
-                      ? getKaraokeLineProgress(line, timedLyrics[index + 1], currentTimeMs)
-                      : 0
+              ) : lyricsError ? (
+                <div className="text-sm text-destructive">{lyricsError}</div>
+              ) : !currentLyrics?.found ? (
+                <div className="space-y-3">
+                  <div className="text-sm text-muted-foreground">Esta cancion no tiene letras disponibles.</div>
+                  <Button type="button" onClick={() => setManualSyncMode(true)}>
+                    Crear karaoke manual
+                  </Button>
+                </div>
+              ) : currentLyrics.hasTimestamps && Array.isArray(currentLyrics.lyrics) ? (
+                <div className="space-y-1">
+                  {(() => {
+                    const timedLyrics = currentLyrics.lyrics
+
                     return (
-                      <p
-                        key={line.id}
-                        ref={isActiveLine ? activeLyricLineRef : null}
-                        className={cn(
-                          "relative overflow-hidden rounded-xl border px-4 py-3 text-center text-base leading-7 transition-all duration-300",
-                          isActiveLine
-                            ? "border-emerald-500/30 bg-emerald-500/12 font-semibold text-emerald-700 shadow-sm dark:text-emerald-300"
-                            : "border-transparent text-muted-foreground/75"
-                        )}
-                      >
-                        {isActiveLine ? (
-                          <span
-                            aria-hidden="true"
-                            className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/12 transition-[width] duration-150"
-                            style={{ width: `${Math.max(progress * 100, 8)}%` }}
-                          />
-                        ) : null}
-                        <span
+                      <>
+                  <div className="mb-3 flex items-center justify-between gap-2">
+                    <Badge className="border-emerald-500/30 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300">
+                      Letra sincronizada
+                    </Badge>
+                    {currentLyrics.source ? (
+                      <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
+                    ) : null}
+                  </div>
+                  <div className="max-h-[420px] space-y-1 overflow-y-auto pr-1">
+                    {timedLyrics.map((line, index) => {
+                      const isActiveLine = activeTimedLine?.id === line.id
+                      const progress = isActiveLine
+                        ? getKaraokeLineProgress(line, timedLyrics[index + 1], currentTimeMs)
+                        : 0
+                      return (
+                        <p
+                          key={line.id}
+                          ref={isActiveLine ? activeLyricLineRef : null}
                           className={cn(
-                            "relative z-10",
-                            isActiveLine ? "underline decoration-emerald-500 decoration-2 underline-offset-4" : ""
+                            "relative overflow-hidden rounded-xl border px-4 py-3 text-center text-base leading-7 transition-all duration-300",
+                            isActiveLine
+                              ? "border-emerald-500/30 bg-emerald-500/12 font-semibold text-emerald-700 shadow-sm dark:text-emerald-300"
+                              : "border-transparent text-muted-foreground/75"
                           )}
                         >
-                          {line.text || "♪"}
-                        </span>
-                      </p>
+                          {isActiveLine ? (
+                            <span
+                              aria-hidden="true"
+                              className="absolute inset-y-0 left-0 rounded-xl bg-emerald-500/12 transition-[width] duration-150"
+                              style={{ width: `${Math.max(progress * 100, 8)}%` }}
+                            />
+                          ) : null}
+                          <span
+                            className={cn(
+                              "relative z-10",
+                              isActiveLine ? "underline decoration-emerald-500 decoration-2 underline-offset-4" : ""
+                            )}
+                          >
+                            {line.text || "♪"}
+                          </span>
+                        </p>
+                      )
+                    })}
+                  </div>
+                      </>
                     )
-                  })}
+                  })()}
                 </div>
-                    </>
-                  )
-                })()}
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between gap-2">
-                  <Badge variant="secondary">Letra no sincronizada</Badge>
-                  {currentLyrics.source ? (
-                    <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
-                  ) : null}
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <Badge variant="secondary">Letra no sincronizada</Badge>
+                    {currentLyrics.source ? (
+                      <span className="text-xs text-muted-foreground">{currentLyrics.source}</span>
+                    ) : null}
+                  </div>
+                  <pre className="max-h-[420px] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">
+                    {typeof currentLyrics.lyrics === "string" ? currentLyrics.lyrics : ""}
+                  </pre>
                 </div>
-                <pre className="max-h-[420px] overflow-y-auto whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">
-                  {typeof currentLyrics.lyrics === "string" ? currentLyrics.lyrics : ""}
-                </pre>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-
-      <MilkaManualSyncPanel
-        song={currentSong}
-        lyrics={currentLyrics}
-        currentTimeMs={currentTimeMs}
-        onSeek={seekToTimeMs}
-        onSaved={(lyrics) => {
-          setLyricsByVideoId((current) => ({
-            ...current,
-            [currentSong.videoId]: lyrics,
-          }))
-          setLyricsError(null)
-          refreshedLyricsRef.current[currentSong.videoId] = true
-        }}
-      />
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
       </div>
 
       <Card>

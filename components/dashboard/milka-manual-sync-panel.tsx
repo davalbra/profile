@@ -1,7 +1,7 @@
 "use client"
 
 import * as React from "react"
-import { Check, LoaderCircle, RotateCcw, Save } from "lucide-react"
+import { Check, FastForward, LoaderCircle, Pause, Play, RotateCcw, Rewind, Save, X } from "lucide-react"
 import type { YouTubeMusicSong } from "@/lib/youtube-music"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -99,7 +99,11 @@ export function MilkaManualSyncPanel(props: {
   song: YouTubeMusicSong
   lyrics?: LyricsPayload
   currentTimeMs: number
+  isPlaying: boolean
   onSeek: (ms: number) => void
+  onSeekRelative: (deltaMs: number) => void
+  onTogglePlayback: () => void
+  onClose: () => void
   onSaved: (lyrics: LyricsPayload) => void
 }) {
   const latestLyricsRef = React.useRef(props.lyrics)
@@ -143,8 +147,10 @@ export function MilkaManualSyncPanel(props: {
   const parsedSegments = parseSegmentsFromText(draftText)
   const nextSegmentIndex = syncedSegments.length
   const nextSegmentText = parsedSegments[nextSegmentIndex] || null
+  const nextSegmentStartMs =
+    nextSegmentIndex === 0 ? songStartMs : syncedSegments[nextSegmentIndex - 1]?.endMs ?? null
   const canMarkStart = parsedSegments.length > 0
-  const canMarkNext = songStartMs !== null && nextSegmentIndex < parsedSegments.length
+  const canMarkNext = nextSegmentStartMs !== null && nextSegmentIndex < parsedSegments.length
   const isReadyToSave = songStartMs !== null && parsedSegments.length > 0 && syncedSegments.length === parsedSegments.length
 
   async function handleSaveManualSync() {
@@ -217,6 +223,7 @@ export function MilkaManualSyncPanel(props: {
     setSaveError(null)
     setSaveSuccess(null)
     setHasLocalChanges(true)
+    props.onSeek(props.currentTimeMs)
   }
 
   function handleMarkCurrentSegmentEnd() {
@@ -225,13 +232,12 @@ export function MilkaManualSyncPanel(props: {
       return
     }
 
-    const startMs = nextSegmentIndex === 0 ? songStartMs : syncedSegments[nextSegmentIndex - 1]?.endMs ?? null
-    if (startMs === null) {
+    if (nextSegmentStartMs === null) {
       setSaveError("Marca primero el inicio de la cancion.")
       return
     }
 
-    if (props.currentTimeMs <= startMs) {
+    if (props.currentTimeMs <= nextSegmentStartMs) {
       setSaveError("El final de la estrofa debe ser mayor al inicio.")
       return
     }
@@ -240,7 +246,7 @@ export function MilkaManualSyncPanel(props: {
       ...current,
       {
         text: nextSegmentText,
-        startMs,
+        startMs: nextSegmentStartMs,
         endMs: props.currentTimeMs,
         clickMs: props.currentTimeMs,
       },
@@ -265,6 +271,22 @@ export function MilkaManualSyncPanel(props: {
     setHasLocalChanges(true)
   }
 
+  function handleJumpToMarkedStart() {
+    if (songStartMs === null) {
+      return
+    }
+
+    props.onSeek(songStartMs)
+  }
+
+  function handleJumpToPendingStart() {
+    if (nextSegmentStartMs === null) {
+      return
+    }
+
+    props.onSeek(nextSegmentStartMs)
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -272,18 +294,48 @@ export function MilkaManualSyncPanel(props: {
           <div className="space-y-1">
             <CardTitle>Karaoke Manual</CardTitle>
             <CardDescription>
-              Define el inicio de la cancion y luego marca con clic el final de cada estrofa para guardar tu propia sincronizacion.
+              Modo de edicion. Marca el inicio real de la cancion y luego cierra cada estrofa con clics sobre el tiempo del audio.
             </CardDescription>
           </div>
-          <Badge variant="secondary">{parsedSegments.length} estrofas</Badge>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">{parsedSegments.length} estrofas</Badge>
+            <Button type="button" variant="outline" onClick={props.onClose}>
+              <X />
+              Cerrar editor
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+        <div className="rounded-xl border bg-muted/20 p-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Button type="button" variant="outline" onClick={props.onTogglePlayback}>
+              {props.isPlaying ? <Pause /> : <Play />}
+              {props.isPlaying ? "Pausar" : "Reproducir"}
+            </Button>
+            <Button type="button" variant="outline" onClick={() => props.onSeekRelative(-2000)}>
+              <Rewind />
+              -2s
+            </Button>
+            <Button type="button" variant="outline" onClick={() => props.onSeekRelative(2000)}>
+              <FastForward />
+              +2s
+            </Button>
+            <Button type="button" variant="outline" onClick={handleJumpToMarkedStart} disabled={songStartMs === null}>
+              Ir al inicio
+            </Button>
+            <Button type="button" variant="outline" onClick={handleJumpToPendingStart} disabled={nextSegmentStartMs === null}>
+              Repetir tramo
+            </Button>
+          </div>
+          <div className="mt-3 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
             <span>Tiempo actual: {formatMs(props.currentTimeMs)}</span>
             {songStartMs !== null ? <span>Inicio marcado: {formatMs(songStartMs)}</span> : null}
+            {nextSegmentStartMs !== null ? <span>Proximo tramo desde: {formatMs(nextSegmentStartMs)}</span> : null}
           </div>
+        </div>
+
+        <div className="space-y-2">
           <textarea
             value={draftText}
             onChange={(event) => handleDraftChange(event.target.value)}
@@ -297,17 +349,22 @@ export function MilkaManualSyncPanel(props: {
 
         <div className="flex flex-wrap gap-2">
           <Button type="button" variant="outline" onClick={handleMarkSongStart} disabled={!canMarkStart}>
-            Marcar inicio
+            Marcar inicio y reiniciar
           </Button>
           <Button type="button" onClick={handleMarkCurrentSegmentEnd} disabled={!canMarkNext}>
-            {nextSegmentIndex + 1 >= parsedSegments.length ? "Marcar fin de cancion" : `Marcar fin estrofa ${nextSegmentIndex + 1}`}
+            {nextSegmentIndex + 1 >= parsedSegments.length ? "Cerrar cancion" : `Cerrar estrofa ${nextSegmentIndex + 1}`}
           </Button>
           <Button type="button" variant="outline" onClick={handleUndoLastMark} disabled={!syncedSegments.length}>
             Deshacer ultimo click
           </Button>
-          <Button type="button" variant="outline" onClick={handleResetTimeline} disabled={songStartMs === null && !syncedSegments.length}>
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleResetTimeline}
+            disabled={songStartMs === null && !syncedSegments.length}
+          >
             <RotateCcw />
-            Reiniciar
+            Limpiar marcas
           </Button>
           <Button type="button" onClick={handleSaveManualSync} disabled={!isReadyToSave || isSaving}>
             {isSaving ? <LoaderCircle className="animate-spin" /> : <Save />}
@@ -332,12 +389,10 @@ export function MilkaManualSyncPanel(props: {
             parsedSegments.map((segment, index) => {
               const syncedSegment = syncedSegments[index]
               const isCurrent = index === nextSegmentIndex
+              const segmentStartMs = index === 0 ? songStartMs : syncedSegments[index - 1]?.endMs ?? null
 
               return (
-                <div
-                  key={`${props.song.videoId}-${index}`}
-                  className="rounded-xl border px-3 py-3"
-                >
+                <div key={`${props.song.videoId}-${index}`} className="rounded-xl border px-3 py-3">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="min-w-0 flex-1">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
@@ -353,10 +408,16 @@ export function MilkaManualSyncPanel(props: {
                           >
                             {formatMs(syncedSegment.startMs)} a {formatMs(syncedSegment.endMs)}
                           </button>
-                        ) : isCurrent ? (
-                          <span className="text-xs text-muted-foreground">Pendiente de clic</span>
+                        ) : segmentStartMs !== null ? (
+                          <button
+                            type="button"
+                            onClick={() => props.onSeek(segmentStartMs)}
+                            className="text-xs text-muted-foreground underline underline-offset-4"
+                          >
+                            Empezar desde {formatMs(segmentStartMs)}
+                          </button>
                         ) : (
-                          <span className="text-xs text-muted-foreground">Sin marcar</span>
+                          <span className="text-xs text-muted-foreground">Esperando inicio</span>
                         )}
                       </div>
                       <pre className="whitespace-pre-wrap font-sans text-sm leading-6 text-foreground">{segment}</pre>
