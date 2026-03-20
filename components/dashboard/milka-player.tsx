@@ -4,6 +4,7 @@ import * as React from "react"
 import Image from "next/image"
 import { AudioLines, LoaderCircle, Music4, Pause, Play, SkipBack, SkipForward } from "lucide-react"
 import type { YouTubeMusicSong } from "@/lib/youtube-music"
+import { MilkaManualSyncPanel } from "@/components/dashboard/milka-manual-sync-panel"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
@@ -28,6 +29,14 @@ type LyricsPayload = {
   hasTimestamps: boolean
   lyrics: string | TimedLyricLine[] | null
   source: string | null
+  storage?: {
+    setId: string
+    source: string
+    isOfficial: boolean
+    isActive: boolean
+    status: string
+    updatedAt: string
+  }
 }
 
 type QueueFilter = "all" | "synced" | "lyrics" | "no-lyrics"
@@ -289,6 +298,16 @@ export function MilkaPlayer(props: {
     setLoadError(null)
   }
 
+  function seekToTimeMs(nextTimeMs: number) {
+    const audio = audioRef.current
+    if (!audio) {
+      return
+    }
+
+    audio.currentTime = Math.max(0, nextTimeMs) / 1000
+    setCurrentTimeMs(Math.max(0, nextTimeMs))
+  }
+
   const filteredSongs = props.songs.filter((song) => {
     const lyricsState = lyricsByVideoId[song.videoId]
 
@@ -543,6 +562,21 @@ export function MilkaPlayer(props: {
           </div>
         </CardContent>
       </Card>
+
+      <MilkaManualSyncPanel
+        song={currentSong}
+        lyrics={currentLyrics}
+        currentTimeMs={currentTimeMs}
+        onSeek={seekToTimeMs}
+        onSaved={(lyrics) => {
+          setLyricsByVideoId((current) => ({
+            ...current,
+            [currentSong.videoId]: lyrics,
+          }))
+          setLyricsError(null)
+          refreshedLyricsRef.current[currentSong.videoId] = true
+        }}
+      />
       </div>
 
       <Card>

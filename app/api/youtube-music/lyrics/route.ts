@@ -1,8 +1,45 @@
 import { NextResponse } from "next/server"
-import { getStoredLyricsForVideoId, synchronizeLyrics, type SongMetadataInput } from "@/lib/lyrics-sync"
+import { z } from "zod"
+import {
+  getStoredLyricsForVideoId,
+  persistManualKaraokeLyrics,
+  synchronizeLyrics,
+  type SongMetadataInput,
+} from "@/lib/lyrics-sync"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+const artistSchema = z.object({
+  name: z.string().trim().min(1),
+  id: z.string().trim().optional().nullable(),
+})
+
+const songSchema = z.object({
+  videoId: z.string().trim().min(1),
+  title: z.string().trim().optional().nullable(),
+  artists: z.array(artistSchema).optional(),
+  album: z.string().trim().optional().nullable(),
+  duration: z.string().trim().optional().nullable(),
+  thumbnailUrl: z.string().trim().optional().nullable(),
+})
+
+const manualSegmentSchema = z.object({
+  text: z.string().trim().min(1),
+  startMs: z.number().int().nonnegative(),
+  endMs: z.number().int().nonnegative(),
+  clickMs: z.number().int().nonnegative().optional().nullable(),
+})
+
+const manualSyncSchema = z.object({
+  song: songSchema,
+  manualSync: z.object({
+    songStartMs: z.number().int().nonnegative(),
+    songEndMs: z.number().int().nonnegative(),
+    plainText: z.string().optional().nullable(),
+    segments: z.array(manualSegmentSchema).min(1),
+  }),
+})
 
 export async function GET(request: Request) {
   try {
@@ -48,6 +85,41 @@ export async function GET(request: Request) {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron obtener las letras."
+    return NextResponse.json({ error: message }, { status: 500 })
+  }
+}
+
+export async function POST(request: Request) {
+  try {
+    const rawPayload = await request.json().catch(() => ({}))
+    const payload = manualSyncSchema.parse(rawPayload)
+    const song = payload.song as SongMetadataInput
+
+    const data = await persistManualKaraokeLyrics(song, {
+      songStartMs: payload.manualSync.songStartMs,
+      songEndMs: payload.manualSync.songEndMs,
+      plainText: payload.manualSync.plainText || null,
+      segments: payload.manualSync.segments.map((segment) => ({
+        text: segment.text,
+        startMs: segment.startMs,
+        endMs: segment.endMs,
+        clickMs: segment.clickMs ?? null,
+      })),
+    })
+
+    return NextResponse.json({ ok: true, data }, { headers: { "Cache-Control": "no-store" } })
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        {
+          error: "Payload invalido.",
+          details: error.flatten(),
+        },
+        { status: 400 }
+      )
+    }
+
+    const message = error instanceof Error ? error.message : "No se pudo guardar la sincronizacion manual."
     return NextResponse.json({ error: message }, { status: 500 })
   }
 }

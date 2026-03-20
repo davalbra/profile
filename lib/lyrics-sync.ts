@@ -28,6 +28,20 @@ export type CandidateLyricsInput = {
   analysisMetadata?: Prisma.InputJsonValue
 }
 
+export type ManualKaraokeSegmentInput = {
+  text: string
+  startMs: number
+  endMs: number
+  clickMs?: number | null
+}
+
+export type ManualKaraokeInput = {
+  songStartMs: number
+  songEndMs: number
+  plainText?: string | null
+  segments: ManualKaraokeSegmentInput[]
+}
+
 type SongWithLyrics = NonNullable<Awaited<ReturnType<typeof getSongWithLyrics>>>
 type LyricsSetWithLines = SongWithLyrics["lyricsSets"][number]
 export type StoredLyricsPayload = ReturnType<typeof toApiLyricsPayload>
@@ -311,6 +325,7 @@ type PersistLyricsSetInput = {
   comparisonCoverage?: number | null
   comparedAgainstSetId?: string | null
   analysisMetadata?: Prisma.InputJsonValue
+  forceActive?: boolean
 }
 
 async function persistLyricsSet(input: PersistLyricsSetInput) {
@@ -340,6 +355,10 @@ async function persistLyricsSet(input: PersistLyricsSetInput) {
       activateSet =
         (meetsComparisonThreshold && noExistingActive) ||
         ((noOfficialLyrics || hasOnlyUnsyncedOfficialLyrics) && noExistingActive && input.lines.length >= 3)
+    }
+
+    if (input.forceActive) {
+      activateSet = true
     }
 
     if (activateSet) {
@@ -540,6 +559,53 @@ export async function persistCandidateLyrics(song: SongMetadataInput, candidate:
     comparedAgainstSetId: officialSet?.id || null,
     analysisMetadata: candidate.analysisMetadata,
   })
+}
+
+export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual: ManualKaraokeInput) {
+  const lines = manual.segments
+    .map((segment) => ({
+      text: segment.text.trim(),
+      startMs: segment.startMs,
+      endMs: segment.endMs,
+      clickMs: segment.clickMs ?? null,
+    }))
+    .filter((segment) => segment.text && segment.endMs > segment.startMs)
+
+  if (!lines.length) {
+    throw new Error("No hay estrofas manuales para guardar.")
+  }
+
+  const lyricsSet = await persistLyricsSet({
+    song,
+    source: LyricsSource.EXTERNAL_ALIGNMENT,
+    sourceLabel: "Manual karaoke",
+    language: null,
+    isOfficial: false,
+    isSynced: true,
+    lines: lines.map((segment) => ({
+      text: segment.text,
+      startMs: segment.startMs,
+      endMs: segment.endMs,
+    })),
+    plainText: manual.plainText || lines.map((segment) => segment.text).join("\n\n"),
+    status: LyricsSetStatus.READY,
+    analysisMetadata: {
+      kind: "manual_karaoke",
+      songStartMs: manual.songStartMs,
+      songEndMs: manual.songEndMs,
+      clickCount: lines.length + 1,
+      segments: lines.map((segment, index) => ({
+        index,
+        text: segment.text,
+        startMs: segment.startMs,
+        endMs: segment.endMs,
+        clickMs: segment.clickMs,
+      })),
+    },
+    forceActive: true,
+  })
+
+  return toApiLyricsPayload(lyricsSet)
 }
 
 export async function synchronizeLyrics(song: SongMetadataInput, options?: { refreshOfficial?: boolean }) {
