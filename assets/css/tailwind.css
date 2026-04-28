@@ -18,6 +18,7 @@
   --color-muted-foreground: var(--muted-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
@@ -44,6 +45,7 @@
   --muted-foreground: oklch(0.52 0.03 252);
   --accent: oklch(0.91 0.03 220);
   --accent-foreground: oklch(0.18 0.02 255);
+  --destructive: oklch(0.58 0.22 28);
   --border: oklch(0.9 0.015 246);
   --input: oklch(0.9 0.015 246);
   --ring: oklch(0.56 0.21 255);
@@ -64,6 +66,7 @@
   --muted-foreground: oklch(0.73 0.02 245);
   --accent: oklch(0.23 0.03 238);
   --accent-foreground: oklch(0.97 0.006 240);
+  --destructive: oklch(0.68 0.2 28);
   --border: oklch(0.26 0.02 255);
   --input: oklch(0.26 0.02 255);
   --ring: oklch(0.63 0.2 256);
@@ -77,14 +80,23 @@
   html {
     scroll-behavior: smooth;
     scrollbar-width: thin;
-    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 35%, transparent) transparent;
+    scrollbar-color: color-mix(
+        in oklch,
+        var(--muted-foreground) 35%,
+        transparent
+      )
+      transparent;
   }
 
   body {
     @apply bg-background text-foreground antialiased;
     font-family: "Sora", "Avenir Next", "Segoe UI", sans-serif;
     background-image:
-      radial-gradient(circle at top right, rgba(19, 127, 236, 0.16), transparent 34%),
+      radial-gradient(
+        circle at top right,
+        rgba(19, 127, 236, 0.16),
+        transparent 34%
+      ),
       linear-gradient(180deg, rgba(8, 15, 23, 0.98), rgba(16, 25, 34, 1));
   }
 
@@ -123,6 +135,34 @@
 
   .panel-shell {
     @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur;
+  }
+
+  .dashboard-aurora {
+    background:
+      radial-gradient(
+        circle at 18% 14%,
+        rgba(34, 211, 238, 0.22),
+        transparent 28%
+      ),
+      radial-gradient(
+        circle at 78% 8%,
+        rgba(16, 185, 129, 0.2),
+        transparent 24%
+      ),
+      radial-gradient(
+        circle at 54% 82%,
+        rgba(245, 158, 11, 0.12),
+        transparent 32%
+      ),
+      linear-gradient(135deg, rgba(2, 6, 23, 0.98), rgba(8, 22, 34, 0.96));
+  }
+
+  .dashboard-grid {
+    background-image:
+      linear-gradient(rgba(255, 255, 255, 0.045) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255, 255, 255, 0.045) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: linear-gradient(to bottom, black, transparent 82%);
   }
 
   .text-glow {
