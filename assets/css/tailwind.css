@@ -1,0 +1,175 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 10px);
+}
+
+:root {
+  --radius: 0.875rem;
+  --background: oklch(0.98 0.005 248);
+  --foreground: oklch(0.17 0.02 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.17 0.02 255);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.17 0.02 255);
+  --primary: oklch(0.56 0.21 255);
+  --primary-foreground: oklch(0.98 0.005 248);
+  --secondary: oklch(0.94 0.012 238);
+  --secondary-foreground: oklch(0.21 0.02 255);
+  --muted: oklch(0.95 0.015 238);
+  --muted-foreground: oklch(0.52 0.03 252);
+  --accent: oklch(0.91 0.03 220);
+  --accent-foreground: oklch(0.18 0.02 255);
+  --border: oklch(0.9 0.015 246);
+  --input: oklch(0.9 0.015 246);
+  --ring: oklch(0.56 0.21 255);
+}
+
+.dark {
+  --background: oklch(0.11 0.02 255);
+  --foreground: oklch(0.97 0.006 240);
+  --card: oklch(0.15 0.02 255);
+  --card-foreground: oklch(0.97 0.006 240);
+  --popover: oklch(0.15 0.02 255);
+  --popover-foreground: oklch(0.97 0.006 240);
+  --primary: oklch(0.63 0.2 256);
+  --primary-foreground: oklch(0.97 0.006 240);
+  --secondary: oklch(0.21 0.015 255);
+  --secondary-foreground: oklch(0.97 0.006 240);
+  --muted: oklch(0.21 0.015 255);
+  --muted-foreground: oklch(0.73 0.02 245);
+  --accent: oklch(0.23 0.03 238);
+  --accent-foreground: oklch(0.97 0.006 240);
+  --border: oklch(0.26 0.02 255);
+  --input: oklch(0.26 0.02 255);
+  --ring: oklch(0.63 0.2 256);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklch, var(--muted-foreground) 35%, transparent) transparent;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: "Sora", "Avenir Next", "Segoe UI", sans-serif;
+    background-image:
+      radial-gradient(circle at top right, rgba(19, 127, 236, 0.16), transparent 34%),
+      linear-gradient(180deg, rgba(8, 15, 23, 0.98), rgba(16, 25, 34, 1));
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: "IBM Plex Mono", "JetBrains Mono", monospace;
+  }
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 20px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@layer utilities {
+  .glass-nav {
+    background: rgba(7, 15, 24, 0.75);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  }
+
+  .panel-shell {
+    @apply rounded-2xl border border-white/10 bg-white/5 backdrop-blur;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px rgba(19, 127, 236, 0.35);
+  }
+
+  .code-glow {
+    box-shadow: 0 0 40px -12px rgba(19, 127, 236, 0.24);
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 500ms ease-out both;
+  }
+
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      rgba(255, 255, 255, 0) 0%,
+      rgba(255, 255, 255, 0.12) 50%,
+      rgba(255, 255, 255, 0) 100%
+    );
+    transform: translateX(-100%);
+    animation: shimmer 1.8s infinite;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: color-mix(in oklch, var(--muted-foreground) 30%, transparent);
+  border-radius: 999px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-in-up,
+  .shimmer {
+    animation: none !important;
+  }
+
+  html {
+    scroll-behavior: auto;
+  }
+}

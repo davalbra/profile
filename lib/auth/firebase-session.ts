@@ -1,0 +1,278 @@
+import {prisma} from "@/lib/prisma";
+import {getFirebaseAdminAuth} from "@/lib/firebase/admin";
+import type {RolUsuario} from "@prisma/client";
+
+type SesionFirebaseValidada = {
+    uid: string;
+    email: string;
+    nombre: string;
+    avatarUrl: string;
+    rol: RolUsuario;
+};
+
+type RequerirSesionOpciones = {
+    rolMinimo?: RolUsuario;
+};
+
+const SESSION_MAX_AGE_MS = 3 * 24 * 60 * 60 * 1000;
+
+const JERARQUIA_ROL: Record<RolUsuario, number> = {
+    LECTOR: 1,
+    COLABORADOR: 2,
+    ADMIN: 3,
+};
+
+export class AccesoDenegadoError extends Error {
+    constructor(message = "Tu correo no está autorizado para usar esta aplicación.") {
+        super(message);
+        this.name = "AccesoDenegadoError";
+    }
+}
+
+export class RolInsuficienteError extends Error {
+    constructor(rolActual: RolUsuario, rolMinimo: RolUsuario) {
+        super(`Se requiere rol ${rolMinimo} para acceder. Tu rol actual es ${rolActual}.`);
+        this.name = "RolInsuficienteError";
+    }
+}
+
+function tieneRolMinimo(rolActual: RolUsuario, rolMinimo: RolUsuario): boolean {
+    return JERARQUIA_ROL[rolActual] >= JERARQUIA_ROL[rolMinimo];
+}
+
+function getBearerToken(authorizationHeader: string | null): string | null {
+    if (!authorizationHeader) {
+        return null;
+    }
+
+    const [schema, token] = authorizationHeader.split(" ");
+    if (schema?.toLowerCase() !== "bearer" || !token) {
+        return null;
+    }
+
+    return token;
+}
+
+function getCookieToken(cookieHeader: string | null, cookieName: string): string | null {
+    if (!cookieHeader) {
+        return null;
+    }
+
+    const cookies = cookieHeader.split(";");
+    for (const cookie of cookies) {
+        const [name, ...parts] = cookie.trim().split("=");
+        if (name === cookieName) {
+            return parts.join("=") || null;
+        }
+    }
+
+    return null;
+}
+
+function normalizarEmail(email: string): string {
+    return email.trim().toLowerCase();
+}
+
+async function validarCorreoAutorizado(email: string, emailVerificado: boolean): Promise<void> {
+    const config = await prisma.configuracionAcceso.upsert({
+        where: {id: "default"},
+        update: {},
+        create: {id: "default"},
+        select: {
+            requerirListaCorreos: true,
+            permitirCorreosNoVerificados: true,
+        },
+    });
+
+    if (!emailVerificado && !config.permitirCorreosNoVerificados) {
+        throw new AccesoDenegadoError("Tu correo de Firebase no está verificado.");
+    }
+
+    if (!config.requerirListaCorreos) {
+        return;
+    }
+
+    const emailNormalizado = normalizarEmail(email);
+    const autorizado = await prisma.correoAutorizado.findFirst({
+        where: {
+            email: emailNormalizado,
+            activo: true,
+        },
+        select: {
+            id: true,
+        },
+    });
+
+    if (!autorizado) {
+        throw new AccesoDenegadoError();
+    }
+}
+
+export async function registrarSesionFirebase(idToken: string, request: Request) {
+    const auth = getFirebaseAdminAuth();
+    const decoded = await auth.verifyIdToken(idToken);
+    const expiraEn = new Date(Date.now() + SESSION_MAX_AGE_MS);
+    const sessionCookie = await auth.createSessionCookie(idToken, {
+        expiresIn: SESSION_MAX_AGE_MS,
+    });
+
+    const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
+    const emailVerificado = decoded.email_verified ?? false;
+    const nombre = decoded.name || "Usuario";
+    const avatarUrl = decoded.picture || null;
+
+    const forwardedFor = request.headers.get("x-forwarded-for") || "";
+    const ip = forwardedFor.split(",")[0]?.trim() || null;
+    const userAgent = request.headers.get("user-agent");
+
+    await validarCorreoAutorizado(email, emailVerificado);
+
+    await prisma.usuario.upsert({
+        where: {id: decoded.uid},
+        update: {
+            email,
+            nombre,
+            avatarUrl,
+        },
+        create: {
+            id: decoded.uid,
+            email,
+            nombre,
+            avatarUrl,
+        },
+    });
+
+    await prisma.sesionFirebase.upsert({
+        where: {token: sessionCookie},
+        update: {
+            usuarioId: decoded.uid,
+            expiraEn,
+            revocadoEn: null,
+            ip,
+            userAgent,
+            proveedor: decoded.firebase?.sign_in_provider || "google.com",
+        },
+        create: {
+            usuarioId: decoded.uid,
+            token: sessionCookie,
+            expiraEn,
+            ip,
+            userAgent,
+            proveedor: decoded.firebase?.sign_in_provider || "google.com",
+        },
+    });
+
+    return {
+        uid: decoded.uid,
+        email,
+        nombre,
+        avatarUrl,
+        expiraEn,
+        sessionCookie,
+    };
+}
+
+export async function revocarSesionFirebase(token: string): Promise<void> {
+    const auth = getFirebaseAdminAuth();
+    let uid: string | null = null;
+
+    try {
+        const decodedIdToken = await auth.verifyIdToken(token);
+        uid = decodedIdToken.uid;
+    } catch {
+        try {
+            const decodedSessionCookie = await auth.verifySessionCookie(token, false);
+            uid = decodedSessionCookie.uid;
+        } catch {
+            uid = null;
+        }
+    }
+
+    await prisma.sesionFirebase.updateMany({
+        where: {
+            revocadoEn: null,
+            OR: [
+                {token},
+                ...(uid ? [{usuarioId: uid}] : []),
+            ],
+        },
+        data: {
+            revocadoEn: new Date(),
+        },
+    });
+
+    if (uid) {
+        try {
+            await auth.revokeRefreshTokens(uid);
+        } catch {
+            // Evitamos bloquear el logout si falla la revocación remota.
+        }
+    }
+}
+
+export async function validarSesionFirebase(token: string): Promise<SesionFirebaseValidada> {
+    const auth = getFirebaseAdminAuth();
+    let decoded: { uid: string; email?: string; email_verified?: boolean };
+
+    try {
+        decoded = await auth.verifySessionCookie(token, false);
+    } catch {
+        decoded = await auth.verifyIdToken(token);
+    }
+
+    const email = normalizarEmail(decoded.email || `${decoded.uid}@firebase.local`);
+    const emailVerificado = decoded.email_verified ?? false;
+
+    try {
+        await validarCorreoAutorizado(email, emailVerificado);
+    } catch (error) {
+        await revocarSesionFirebase(token);
+        throw error;
+    }
+
+    const sesion = await prisma.sesionFirebase.findFirst({
+        where: {
+            token,
+            usuarioId: decoded.uid,
+            revocadoEn: null,
+            expiraEn: {gt: new Date()},
+        },
+        include: {
+            usuario: true,
+        },
+    });
+
+    if (!sesion) {
+        throw new Error("La sesión no está registrada o ya expiró.");
+    }
+
+    return {
+        uid: decoded.uid,
+        email,
+        nombre: sesion.usuario.nombre || "Usuario",
+        avatarUrl: sesion.usuario.avatarUrl || "",
+        rol: sesion.usuario.rol,
+    };
+}
+
+export async function requerirSesionFirebase(
+    request: Request,
+    opciones: RequerirSesionOpciones = {},
+): Promise<SesionFirebaseValidada> {
+    const token =
+        getBearerToken(request.headers.get("authorization")) ||
+        getCookieToken(request.headers.get("cookie"), "firebase_session") ||
+        getCookieToken(request.headers.get("cookie"), "firebase_id_token");
+
+    if (!token) {
+        throw new Error("Falta el token de sesión.");
+    }
+
+    const sesion = await validarSesionFirebase(token);
+
+    if (opciones.rolMinimo && !tieneRolMinimo(sesion.rol, opciones.rolMinimo)) {
+        throw new RolInsuficienteError(sesion.rol, opciones.rolMinimo);
+    }
+
+    return sesion;
+}

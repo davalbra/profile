@@ -1,0 +1,281 @@
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum RolUsuario {
+  ADMIN
+  COLABORADOR
+  LECTOR
+}
+
+enum EstadoProyecto {
+  BORRADOR
+  PUBLICADO
+  ARCHIVADO
+}
+
+enum EstadoLead {
+  NUEVO
+  EN_PROCESO
+  CERRADO
+}
+
+enum TipoRelacionImagen {
+  N8N_COMPATIBLE
+  N8N_RESPUESTA
+}
+
+enum LyricsSource {
+  YOUTUBE_MUSIC_SYNCED
+  YOUTUBE_MUSIC_PLAIN
+  AUTO_ALIGNED
+  EXTERNAL_ALIGNMENT
+}
+
+enum LyricsSetStatus {
+  PENDING
+  READY
+  REJECTED
+}
+
+model Usuario {
+  id            String     @id // UID de Firebase/Auth provider
+  email         String     @unique
+  nombre        String?
+  avatarUrl     String?
+  rol           RolUsuario @default(LECTOR)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+
+  leadsAsignados     ContactoLead[]
+  sesionesFirebase   SesionFirebase[]
+  imagenes           Imagen[]
+  imagenesRelaciones ImagenRelacion[]
+
+  @@index([rol, creadoEn(sort: Desc)])
+  @@map("usuarios")
+}
+
+model Imagen {
+  id                       String                          @id @default(cuid())
+  usuarioId                String
+  usuario                  Usuario                         @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  nombreOriginal           String
+  nombreOptimizado         String
+  pathOriginal             String                          @unique @db.Text
+  pathOptimizada           String                          @unique @db.Text
+  tokenOriginal            String                          @db.Text
+  tokenOptimizado          String                          @db.Text
+  mimeOriginal             String
+  mimeOptimizado           String                          @default("image/avif")
+  bytesOriginal            Int
+  bytesOptimizado          Int
+  creadoEn                 DateTime                        @default(now())
+  actualizadoEn            DateTime                        @updatedAt
+  eliminadoEn              DateTime?
+  estadisticasOptimizacion ImagenOptimizacionEstadistica[]
+
+  @@index([usuarioId, creadoEn(sort: Desc)])
+  @@index([usuarioId, eliminadoEn])
+  @@index([eliminadoEn])
+  @@map("imagenes")
+}
+
+model ImagenOptimizacionEstadistica {
+  id                String   @id @default(cuid())
+  imagenId          String
+  imagen            Imagen   @relation(fields: [imagenId], references: [id], onDelete: Cascade)
+  bytesOriginal     Int
+  bytesOptimizado   Int
+  bytesAhorrados    Int
+  porcentajeAhorro  Float
+  formatoOriginal   String?
+  formatoOptimizado String?
+  motor             String   @default("sharp-avif")
+  calidad           Int?
+  esfuerzo          Int?
+  creadoEn          DateTime @default(now())
+
+  @@index([imagenId, creadoEn(sort: Desc)])
+  @@map("imagenes_optimizacion_estadisticas")
+}
+
+model ImagenRelacion {
+  id            String             @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario            @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  tipo          TipoRelacionImagen @default(N8N_COMPATIBLE)
+  origenPath    String             @db.Text
+  destinoPath   String             @db.Text
+  origenMime    String?
+  destinoMime   String?
+  origenNombre  String?
+  destinoNombre String?
+  creadoEn      DateTime           @default(now())
+  actualizadoEn DateTime           @updatedAt
+
+  @@unique([usuarioId, tipo, origenPath])
+  @@index([usuarioId, tipo, creadoEn(sort: Desc)])
+  @@index([usuarioId, destinoPath])
+  @@map("imagenes_relaciones")
+}
+
+model Proyecto {
+  id             String         @id @default(cuid())
+  slug           String         @unique
+  titulo         String
+  descripcion    String?
+  repositorioUrl String?
+  demoUrl        String?
+  stack          String[]
+  destacado      Boolean        @default(false)
+  estado         EstadoProyecto @default(BORRADOR)
+  creadoEn       DateTime       @default(now())
+  actualizadoEn  DateTime       @updatedAt
+
+  @@index([destacado, actualizadoEn(sort: Desc)])
+  @@index([estado, creadoEn(sort: Desc)])
+  @@map("proyectos")
+}
+
+model ContactoLead {
+  id            String     @id @default(cuid())
+  nombre        String
+  email         String
+  empresa       String?
+  mensaje       String     @db.Text
+  origen        String?    @default("landing")
+  estado        EstadoLead @default(NUEVO)
+  asignadoAId   String?
+  asignadoA     Usuario?   @relation(fields: [asignadoAId], references: [id], onDelete: SetNull)
+  creadoEn      DateTime   @default(now())
+  actualizadoEn DateTime   @updatedAt
+
+  @@index([estado, creadoEn(sort: Desc)])
+  @@index([email])
+  @@index([asignadoAId])
+  @@map("contacto_leads")
+}
+
+model SesionFirebase {
+  id            String    @id @default(cuid())
+  usuarioId     String
+  usuario       Usuario   @relation(fields: [usuarioId], references: [id], onDelete: Cascade)
+  token         String    @unique @db.Text
+  proveedor     String    @default("google.com")
+  ip            String?
+  userAgent     String?
+  expiraEn      DateTime
+  creadoEn      DateTime  @default(now())
+  actualizadoEn DateTime  @updatedAt
+  revocadoEn    DateTime?
+
+  @@index([usuarioId, creadoEn(sort: Desc)])
+  @@index([expiraEn])
+  @@index([revocadoEn])
+  @@map("sesiones_firebase")
+}
+
+model ConfiguracionAcceso {
+  id                           String   @id @default("default")
+  requerirListaCorreos         Boolean  @default(false)
+  permitirCorreosNoVerificados Boolean  @default(false)
+  creadoEn                     DateTime @default(now())
+  actualizadoEn                DateTime @updatedAt
+
+  @@map("configuracion_acceso")
+}
+
+model CorreoAutorizado {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  activo        Boolean  @default(true)
+  observaciones String?
+  creadoEn      DateTime @default(now())
+  actualizadoEn DateTime @updatedAt
+
+  @@index([activo, email])
+  @@map("correos_autorizados")
+}
+
+model Song {
+  id             String      @id @default(cuid())
+  videoId        String      @unique
+  titulo         String
+  album          String?
+  duracionTexto  String?
+  duracionMs     Int?
+  thumbnailUrl   String?     @db.Text
+  creadoEn       DateTime    @default(now())
+  actualizadoEn  DateTime    @updatedAt
+  artistas       SongArtist[]
+  lyricsSets     LyricsSet[]
+
+  @@index([creadoEn(sort: Desc)])
+  @@map("songs")
+}
+
+model SongArtist {
+  id        String   @id @default(cuid())
+  songId     String
+  song       Song     @relation(fields: [songId], references: [id], onDelete: Cascade)
+  nombre     String
+  browseId   String?
+  posicion   Int
+  creadoEn   DateTime @default(now())
+
+  @@unique([songId, posicion])
+  @@index([songId, nombre])
+  @@map("song_artists")
+}
+
+model LyricsSet {
+  id                   String          @id @default(cuid())
+  songId               String
+  song                 Song            @relation(fields: [songId], references: [id], onDelete: Cascade)
+  source               LyricsSource
+  status               LyricsSetStatus @default(READY)
+  sourceLabel          String?
+  browseId             String?
+  language             String?
+  isOfficial           Boolean         @default(false)
+  isSynced             Boolean         @default(false)
+  isActive             Boolean         @default(false)
+  plainText            String?         @db.Text
+  normalizedPlainText  String?         @db.Text
+  comparisonScore      Float?
+  comparisonCoverage   Float?
+  comparedAgainstSetId String?
+  comparedAgainstSet   LyricsSet?      @relation("LyricsSetComparison", fields: [comparedAgainstSetId], references: [id], onDelete: SetNull)
+  comparedBySets       LyricsSet[]     @relation("LyricsSetComparison")
+  analysisMetadata     Json?
+  creadoEn             DateTime        @default(now())
+  actualizadoEn        DateTime        @updatedAt
+  lineas               LyricsLine[]
+
+  @@index([songId, isActive, creadoEn(sort: Desc)])
+  @@index([songId, source, creadoEn(sort: Desc)])
+  @@index([comparedAgainstSetId])
+  @@map("lyrics_sets")
+}
+
+model LyricsLine {
+  id              String    @id @default(cuid())
+  lyricsSetId     String
+  lyricsSet       LyricsSet @relation(fields: [lyricsSetId], references: [id], onDelete: Cascade)
+  posicion        Int
+  text            String    @db.Text
+  normalizedText  String    @db.Text
+  startMs         Int?
+  endMs           Int?
+  creadoEn        DateTime  @default(now())
+
+  @@unique([lyricsSetId, posicion])
+  @@index([lyricsSetId, startMs])
+  @@map("lyrics_lines")
+}
