@@ -1,0 +1,4 @@
+interface:
+  display_name: "LavePresto Nuxt"
+  short_description: "Architecture and UI rules for LavePresto"
+  default_prompt: "Use $lavepresto-nuxt-standards to implement changes following stores, Form/Field with rules, and Prisma typing."
