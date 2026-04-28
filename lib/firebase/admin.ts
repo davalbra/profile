@@ -68,17 +68,12 @@ function normalizePrivateKey(value: string | undefined): string | undefined {
 
 function getFirebaseAdminConfig() {
   const projectId = normalizeProjectId(
-    pickEnv("FIREBASE_PROJECT_ID", "NEXT_FIREBASE_PROJECT_ID", "NEXT_PUBLIC_FIREBASE_PROJECT_ID"),
+    pickEnv("FIREBASE_PROJECT_ID"),
   );
-  const clientEmail = normalizeClientEmail(
-    pickEnv("FIREBASE_CLIENT_EMAIL", "NEXT_FIREBASE_CLIENT_EMAIL"),
-  );
-  const privateKey = normalizePrivateKey(
-    pickEnv("FIREBASE_PRIVATE_KEY", "NEXT_FIREBASE_PRIVATE_KEY"),
-  );
+  const clientEmail = normalizeClientEmail(pickEnv("FIREBASE_CLIENT_EMAIL"));
+  const privateKey = normalizePrivateKey(pickEnv("FIREBASE_PRIVATE_KEY"));
   const storageBucket = normalizeScalarEnv(
-    pickEnv("FIREBASE_STORAGE_BUCKET", "NEXT_FIREBASE_STORAGE_BUCKET", "NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET") ||
-      "",
+    pickEnv("FIREBASE_STORAGE_BUCKET", "NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET") || "",
   );
 
   const missing: string[] = [];

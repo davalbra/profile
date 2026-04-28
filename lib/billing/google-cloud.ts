@@ -99,8 +99,7 @@ function getBillingConfig(): BillingConfig {
 
     const queryProjectId =
         normalizeEnv(process.env.GOOGLE_BILLING_QUERY_PROJECT_ID) ||
-        normalizeEnv(process.env.FIREBASE_PROJECT_ID) ||
-        normalizeEnv(process.env.NEXT_FIREBASE_PROJECT_ID);
+        normalizeEnv(process.env.FIREBASE_PROJECT_ID);
 
     if (!queryProjectId) {
         throw new BillingConfigurationError(
@@ -236,7 +235,7 @@ async function queryBigQuery(input: {
     }
 
     if (payload.errors?.length) {
-        throw new Error(payload.errors[0].message || "No se pudo consultar billing en BigQuery.");
+        throw new Error(payload.errors[0]?.message || "No se pudo consultar billing en BigQuery.");
     }
 
     return payload.rows || [];
