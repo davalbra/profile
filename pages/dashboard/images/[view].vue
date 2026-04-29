@@ -1,15 +1,7 @@
 <script setup lang="ts">
-import { ArrowRight, ImageIcon } from "lucide-vue-next";
+import { ImageIcon } from "lucide-vue-next";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardFooter,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 definePageMeta({
   layout: "dashboard",
@@ -21,17 +13,17 @@ const copyByView = {
   gallery: {
     title: "Galería de imágenes",
     description:
-      "La base Nuxt ya está lista para portar la subida, rename y administración visual de la galería.",
+      "Sube, previsualiza, renombra y administra imágenes guardadas en Firebase Storage.",
   },
   copies: {
     title: "Copias con n8n",
     description:
-      "Esta vista quedó preparada para reconectar el flujo de copias y la respuesta visual del webhook.",
+      "Selecciona imágenes compatibles, prepara JPG cuando haga falta y envía al webhook de n8n.",
   },
   optimize: {
     title: "Optimización AVIF",
     description:
-      "La lógica backend de optimización puede migrarse encima de esta base sin mantener Next como runtime.",
+      "Optimiza imágenes desde galería, n8n u optimizadas y consulta el histórico de ahorro.",
   },
 } as const;
 
@@ -52,26 +44,7 @@ const activeView = computed(() => {
   return "gallery";
 });
 
-const viewLinks = [
-  {
-    key: "gallery",
-    label: "Galería",
-    to: "/dashboard/images/gallery",
-    description: "Administración visual y futuras acciones de storage.",
-  },
-  {
-    key: "copies",
-    label: "Copias n8n",
-    to: "/dashboard/images/copies",
-    description: "Reconexión del webhook de copias y respuesta operativa.",
-  },
-  {
-    key: "optimize",
-    label: "Optimización",
-    to: "/dashboard/images/optimize",
-    description: "Pipeline AVIF preparado para continuar el porting.",
-  },
-] as const;
+const isKnownView = computed(() => ["gallery", "copies", "optimize"].includes(activeView.value));
 </script>
 
 <template>
@@ -96,38 +69,14 @@ const viewLinks = [
       </CardHeader>
     </Card>
 
-    <div class="grid gap-4 md:grid-cols-3">
-      <Card
-        v-for="item in viewLinks"
-        :key="item.key"
-        class="border-white/10 bg-card/80 backdrop-blur-xl transition hover:border-cyan-300/35"
-        :class="activeView === item.key ? 'ring-2 ring-primary/40' : ''"
-      >
-        <CardHeader>
-          <CardTitle class="text-xl">{{ item.label }}</CardTitle>
-          <CardDescription>{{ item.description }}</CardDescription>
-        </CardHeader>
-        <CardFooter>
-          <Button
-            as-child
-            :variant="activeView === item.key ? 'default' : 'outline'"
-            class="w-full rounded-xl"
-          >
-            <NuxtLink :to="item.to">
-              Abrir
-              <ArrowRight class="size-4" />
-            </NuxtLink>
-          </Button>
-        </CardFooter>
-      </Card>
-    </div>
-
-    <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
-      <CardContent class="pt-6 text-sm leading-relaxed text-muted-foreground">
-        Esta familia de pantallas fue reubicada dentro del runtime Nuxt para
-        continuar el porting sin dependencias React. La lógica existente del
-        repositorio puede migrarse aquí progresivamente.
-      </CardContent>
+    <DashboardImageGalleryManager v-if="activeView === 'gallery'" />
+    <DashboardImageCopiesManager v-else-if="activeView === 'copies'" />
+    <DashboardImagesManager v-else-if="activeView === 'optimize'" />
+    <Card v-else-if="!isKnownView" class="border-white/10 bg-card/80 backdrop-blur-xl">
+      <CardHeader>
+        <CardTitle>Vista no disponible</CardTitle>
+        <CardDescription>Usa galería, copias u optimización.</CardDescription>
+      </CardHeader>
     </Card>
   </section>
 </template>
