@@ -11,7 +11,6 @@ import {
   Music4,
   ShieldCheck,
   Sparkles,
-  TrendingUp,
   Wallet,
   Workflow,
   Wrench,
@@ -101,18 +100,6 @@ export const navegacionDashboard: NavegacionDashboard[] = [
         etiqueta: "Cookies",
         ruta: "/dashboard/milka/cookies",
         icono: Cookie,
-      },
-    ],
-  },
-  {
-    etiqueta: "Trading",
-    ruta: "/dashboard/trading/futures",
-    icono: TrendingUp,
-    subsecciones: [
-      {
-        etiqueta: "Futuros Binance",
-        ruta: "/dashboard/trading/futures",
-        icono: TrendingUp,
       },
     ],
   },
