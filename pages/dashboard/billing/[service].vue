@@ -1,4 +1,30 @@
 <script setup lang="ts">
+import {
+  AlertCircle,
+  BarChart3,
+  CheckCircle2,
+  RefreshCw,
+} from "lucide-vue-next";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableEmpty,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
 definePageMeta({
   layout: "dashboard",
 });
@@ -31,7 +57,9 @@ const service = computed(() => {
 });
 
 const title = computed(() =>
-  service.value === "firebase" ? "Costos por uso: Firebase" : "Costos por uso: Google Gemini API",
+  service.value === "firebase"
+    ? "Costos por uso: Firebase"
+    : "Costos por uso: Google Gemini API",
 );
 
 const description = computed(() =>
@@ -41,6 +69,7 @@ const description = computed(() =>
 );
 
 const period = ref<BillingPeriodKey>("30d");
+const periodOptions = ["7d", "30d", "90d"] as const;
 const loading = ref(false);
 const error = ref<string | null>(null);
 const data = ref<BillingUsageData | null>(null);
@@ -71,138 +100,206 @@ const loadData = async () => {
   error.value = null;
 
   try {
-    const response = await $fetch<{ ok: true; data: BillingUsageData }>("/api/billing/usage", {
-      query: {
-        service: service.value as BillingServiceKey,
-        period: period.value,
+    const response = await $fetch<{ ok: true; data: BillingUsageData }>(
+      "/api/billing/usage",
+      {
+        query: {
+          service: service.value as BillingServiceKey,
+          period: period.value,
+        },
       },
-    });
+    );
 
     data.value = response.data;
   } catch (reason) {
-    error.value = reason instanceof Error ? reason.message : "No se pudo obtener el billing.";
+    error.value =
+      reason instanceof Error
+        ? reason.message
+        : "No se pudo obtener el billing.";
   } finally {
     loading.value = false;
   }
 };
 
-watch([service, period, isAuthenticated], () => {
-  void loadData();
-}, { immediate: true });
+watch(
+  [service, period, isAuthenticated],
+  () => {
+    void loadData();
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
   <section class="space-y-6">
-    <header class="panel-shell p-6">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p class="text-sm uppercase tracking-[0.2em] text-[#5faaf3]">Billing</p>
-          <h1 class="mt-2 text-3xl font-bold text-white">{{ title }}</h1>
-          <p class="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">{{ description }}</p>
-        </div>
+    <Card
+      class="border-white/10 bg-card/80 shadow-xl shadow-cyan-950/10 backdrop-blur-xl"
+    >
+      <CardHeader class="gap-4">
+        <div class="flex flex-wrap items-start justify-between gap-4">
+          <div>
+            <Badge
+              variant="outline"
+              class="border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+            >
+              <BarChart3 class="size-3" />
+              Billing
+            </Badge>
+            <CardTitle
+              class="mt-3 text-3xl font-bold tracking-tight lg:text-4xl"
+            >
+              {{ title }}
+            </CardTitle>
+            <CardDescription class="mt-2 max-w-3xl text-sm leading-relaxed">
+              {{ description }}
+            </CardDescription>
+          </div>
 
-        <div class="flex flex-wrap gap-2">
-          <NuxtLink
-            to="/dashboard/billing/firebase"
-            class="rounded-2xl border px-3 py-2 text-sm transition"
-            :class="service === 'firebase' ? 'border-[#137fec]/50 bg-[#137fec]/10 text-white' : 'border-white/10 text-slate-300'"
-          >
-            Firebase
-          </NuxtLink>
-          <NuxtLink
-            to="/dashboard/billing/gemini"
-            class="rounded-2xl border px-3 py-2 text-sm transition"
-            :class="service === 'gemini' ? 'border-[#137fec]/50 bg-[#137fec]/10 text-white' : 'border-white/10 text-slate-300'"
-          >
-            Gemini
-          </NuxtLink>
+          <div class="flex flex-wrap gap-2">
+            <Button
+              as-child
+              :variant="service === 'firebase' ? 'default' : 'outline'"
+              class="rounded-xl"
+            >
+              <NuxtLink to="/dashboard/billing/firebase">Firebase</NuxtLink>
+            </Button>
+            <Button
+              as-child
+              :variant="service === 'gemini' ? 'default' : 'outline'"
+              class="rounded-xl"
+            >
+              <NuxtLink to="/dashboard/billing/gemini">Gemini</NuxtLink>
+            </Button>
+          </div>
         </div>
-      </div>
-    </header>
+      </CardHeader>
+    </Card>
 
     <div class="flex flex-wrap gap-2">
-      <button
-        v-for="option in ['7d', '30d', '90d']"
+      <Button
+        v-for="option in periodOptions"
         :key="option"
         type="button"
-        class="rounded-2xl border px-3 py-2 text-sm transition"
-        :class="period === option ? 'border-[#137fec]/50 bg-[#137fec]/10 text-white' : 'border-white/10 text-slate-300'"
-        @click="period = option as BillingPeriodKey"
+        :variant="period === option ? 'default' : 'outline'"
+        class="rounded-xl"
+        @click="period = option"
       >
         {{ option }}
-      </button>
+      </Button>
     </div>
 
-    <p v-if="!isAuthenticated" class="panel-shell p-4 text-sm text-slate-300">
-      Inicia sesión con un usuario autorizado para consultar costos.
-    </p>
-    <p v-else-if="error" class="panel-shell border-rose-400/20 bg-rose-500/10 p-4 text-sm text-rose-200">
-      {{ error }}
-    </p>
+    <Alert v-if="!isAuthenticated" class="border-amber-300/20 bg-amber-300/10">
+      <AlertCircle class="size-4" />
+      <AlertTitle>Sesión requerida</AlertTitle>
+      <AlertDescription>
+        Inicia sesión con un usuario autorizado para consultar costos.
+      </AlertDescription>
+    </Alert>
+    <Alert v-else-if="error" variant="destructive">
+      <AlertCircle class="size-4" />
+      <AlertTitle>No se pudo cargar billing</AlertTitle>
+      <AlertDescription>{{ error }}</AlertDescription>
+    </Alert>
 
     <div class="grid gap-4 md:grid-cols-3">
-      <article class="panel-shell p-5">
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Costo total</p>
-        <p class="mt-2 text-2xl font-semibold text-white">
-          {{ formatCurrency(data?.totalCost || 0, data?.currency || 'USD') }}
-        </p>
-      </article>
-      <article class="panel-shell p-5">
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Promedio diario</p>
-        <p class="mt-2 text-2xl font-semibold text-white">
-          {{ formatCurrency(data?.averageDailyCost || 0, data?.currency || 'USD') }}
-        </p>
-      </article>
-      <article class="panel-shell p-5">
-        <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Estado</p>
-        <p class="mt-2 text-2xl font-semibold text-white">
-          {{ loading ? 'Cargando...' : data?.warning || 'OK' }}
-        </p>
-      </article>
+      <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardDescription>Costo total</CardDescription>
+          <CardTitle class="text-2xl">
+            {{ formatCurrency(data?.totalCost || 0, data?.currency || "USD") }}
+          </CardTitle>
+        </CardHeader>
+      </Card>
+      <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardDescription>Promedio diario</CardDescription>
+          <CardTitle class="text-2xl">
+            {{
+              formatCurrency(
+                data?.averageDailyCost || 0,
+                data?.currency || "USD",
+              )
+            }}
+          </CardTitle>
+        </CardHeader>
+      </Card>
+      <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+        <CardHeader>
+          <CardDescription>Estado</CardDescription>
+          <CardTitle class="flex items-center gap-2 text-2xl">
+            <RefreshCw
+              v-if="loading"
+              class="size-5 animate-spin text-cyan-300"
+            />
+            <CheckCircle2 v-else class="size-5 text-emerald-300" />
+            {{ loading ? "Cargando..." : data?.warning || "OK" }}
+          </CardTitle>
+        </CardHeader>
+      </Card>
     </div>
 
-    <section class="panel-shell p-6">
-      <h2 class="text-lg font-semibold text-white">Top SKUs por costo</h2>
-      <div class="mt-4 overflow-x-auto">
-        <table class="min-w-full text-sm">
-          <thead class="text-left text-slate-400">
-            <tr class="border-b border-white/10">
-              <th class="px-3 py-2">SKU</th>
-              <th class="px-3 py-2">Servicio</th>
-              <th class="px-3 py-2 text-right">Uso</th>
-              <th class="px-3 py-2 text-right">Costo</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr
+    <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+      <CardHeader>
+        <CardTitle>Top SKUs por costo</CardTitle>
+        <CardDescription
+          >Detalle del consumo del periodo seleccionado.</CardDescription
+        >
+      </CardHeader>
+      <CardContent>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>SKU</TableHead>
+              <TableHead>Servicio</TableHead>
+              <TableHead class="text-right">Uso</TableHead>
+              <TableHead class="text-right">Costo</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow
               v-for="item in data?.skuBreakdown || []"
               :key="`${item.serviceName}-${item.skuName}-${item.usageUnit || '-'}`"
-              class="border-b border-white/5 text-slate-200"
             >
-              <td class="px-3 py-2">{{ item.skuName }}</td>
-              <td class="px-3 py-2">{{ item.serviceName }}</td>
-              <td class="px-3 py-2 text-right">{{ formatNumber(item.usageAmount) }} {{ item.usageUnit || '' }}</td>
-              <td class="px-3 py-2 text-right">{{ formatCurrency(item.cost, data?.currency || 'USD') }}</td>
-            </tr>
-            <tr v-if="!loading && !(data?.skuBreakdown || []).length">
-              <td colspan="4" class="px-3 py-6 text-center text-slate-400">Sin registros para este periodo.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
+              <TableCell class="max-w-[360px] whitespace-normal font-medium">{{
+                item.skuName
+              }}</TableCell>
+              <TableCell>{{ item.serviceName }}</TableCell>
+              <TableCell class="text-right"
+                >{{ formatNumber(item.usageAmount) }}
+                {{ item.usageUnit || "" }}</TableCell
+              >
+              <TableCell class="text-right font-medium">{{
+                formatCurrency(item.cost, data?.currency || "USD")
+              }}</TableCell>
+            </TableRow>
+            <TableEmpty
+              v-if="!loading && !(data?.skuBreakdown || []).length"
+              :colspan="4"
+            >
+              Sin registros para este periodo.
+            </TableEmpty>
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
 
-    <section v-if="data?.usageTotals?.length" class="panel-shell p-6">
-      <h2 class="text-lg font-semibold text-white">Totales por unidad</h2>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <span
+    <Card
+      v-if="data?.usageTotals?.length"
+      class="border-white/10 bg-card/80 backdrop-blur-xl"
+    >
+      <CardHeader>
+        <CardTitle>Totales por unidad</CardTitle>
+      </CardHeader>
+      <CardContent class="flex flex-wrap gap-2">
+        <Badge
           v-for="item in data.usageTotals"
           :key="item.unit"
-          class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-slate-200"
+          variant="secondary"
+          class="px-3 py-1 text-sm"
         >
           {{ item.unit }}: {{ formatNumber(item.amount) }}
-        </span>
-      </div>
-    </section>
+        </Badge>
+      </CardContent>
+    </Card>
   </section>
 </template>

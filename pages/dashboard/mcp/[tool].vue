@@ -1,4 +1,16 @@
 <script setup lang="ts">
+import { KeyRound, ServerCog, TerminalSquare } from "lucide-vue-next";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+
 definePageMeta({
   layout: "dashboard",
 });
@@ -9,7 +21,8 @@ const docsByTool = {
   optimize: {
     label: "optimize_image",
     title: "MCP: Optimizar imágenes",
-    description: "Expone la optimización AVIF de imágenes por URL como herramienta MCP.",
+    description:
+      "Expone la optimización AVIF de imágenes por URL como herramienta MCP.",
     payloadExample: {
       imageUrl: "https://example.com/foto.jpg",
       fileName: "foto.jpg",
@@ -22,7 +35,8 @@ const docsByTool = {
   billing: {
     label: "billing_usage",
     title: "MCP: Billing usage",
-    description: "Expone la consulta de costos Firebase/Gemini como herramienta MCP.",
+    description:
+      "Expone la consulta de costos Firebase/Gemini como herramienta MCP.",
     payloadExample: {
       service: "firebase",
       period: "30d",
@@ -31,7 +45,9 @@ const docsByTool = {
 } as const;
 
 const currentTool = computed(() => {
-  const raw = Array.isArray(route.params.tool) ? route.params.tool[0] : route.params.tool;
+  const raw = Array.isArray(route.params.tool)
+    ? route.params.tool[0]
+    : route.params.tool;
   return raw === "billing" ? docsByTool.billing : docsByTool.optimize;
 });
 
@@ -54,47 +70,82 @@ const example = computed(() =>
 
 <template>
   <section class="space-y-6">
-    <header class="panel-shell p-6">
-      <div class="flex flex-wrap items-center gap-3">
-        <p class="text-sm uppercase tracking-[0.2em] text-[#5faaf3]">MCP</p>
-        <span class="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-slate-200">
-          {{ currentTool.label }}
-        </span>
-      </div>
-      <h1 class="mt-2 text-3xl font-bold text-white">{{ currentTool.title }}</h1>
-      <p class="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">{{ currentTool.description }}</p>
-    </header>
+    <Card
+      class="border-white/10 bg-card/80 shadow-xl shadow-cyan-950/10 backdrop-blur-xl"
+    >
+      <CardHeader>
+        <div class="flex flex-wrap items-center gap-3">
+          <Badge
+            variant="outline"
+            class="border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+          >
+            <ServerCog class="size-3" />
+            MCP
+          </Badge>
+          <Badge variant="secondary">
+            {{ currentTool.label }}
+          </Badge>
+        </div>
+        <CardTitle class="text-3xl font-bold tracking-tight lg:text-4xl">
+          {{ currentTool.title }}
+        </CardTitle>
+        <CardDescription class="max-w-3xl text-sm leading-relaxed">
+          {{ currentTool.description }}
+        </CardDescription>
+      </CardHeader>
+    </Card>
 
     <div class="flex flex-wrap gap-2">
-      <NuxtLink
-        to="/dashboard/mcp/optimize"
-        class="rounded-2xl border px-3 py-2 text-sm transition"
-        :class="route.params.tool === 'optimize' || !route.params.tool ? 'border-[#137fec]/50 bg-[#137fec]/10 text-white' : 'border-white/10 text-slate-300'"
+      <Button
+        as-child
+        :variant="
+          route.params.tool === 'optimize' || !route.params.tool
+            ? 'default'
+            : 'outline'
+        "
+        class="rounded-xl"
       >
-        optimize_image
-      </NuxtLink>
-      <NuxtLink
-        to="/dashboard/mcp/billing"
-        class="rounded-2xl border px-3 py-2 text-sm transition"
-        :class="route.params.tool === 'billing' ? 'border-[#137fec]/50 bg-[#137fec]/10 text-white' : 'border-white/10 text-slate-300'"
+        <NuxtLink to="/dashboard/mcp/optimize">optimize_image</NuxtLink>
+      </Button>
+      <Button
+        as-child
+        :variant="route.params.tool === 'billing' ? 'default' : 'outline'"
+        class="rounded-xl"
       >
-        billing_usage
-      </NuxtLink>
+        <NuxtLink to="/dashboard/mcp/billing">billing_usage</NuxtLink>
+      </Button>
     </div>
 
-    <section class="panel-shell p-6">
-      <p class="text-xs uppercase tracking-[0.2em] text-slate-400">Endpoint MCP</p>
-      <p class="mt-2 font-mono text-sm text-white">/api/mcp</p>
-    </section>
+    <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+      <CardHeader>
+        <CardDescription>Endpoint MCP</CardDescription>
+        <CardTitle class="font-mono text-base">/api/mcp</CardTitle>
+      </CardHeader>
+    </Card>
 
-    <section class="panel-shell p-6">
-      <p class="mb-2 text-xs uppercase tracking-[0.2em] text-slate-400">Ejemplo JSON-RPC</p>
-      <pre class="overflow-x-auto rounded-2xl bg-black/25 p-4 text-xs text-slate-200">{{ example }}</pre>
-    </section>
+    <Card class="border-white/10 bg-card/80 backdrop-blur-xl">
+      <CardHeader>
+        <CardTitle class="flex items-center gap-2">
+          <TerminalSquare class="size-5 text-cyan-300" />
+          Ejemplo JSON-RPC
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <pre
+          class="overflow-x-auto rounded-2xl border border-white/10 bg-black/35 p-4 text-xs text-slate-100"
+          >{{ example }}</pre
+        >
+      </CardContent>
+    </Card>
 
-    <p class="panel-shell p-4 text-sm text-slate-300">
-      Si defines <code>MCP_SERVER_TOKEN</code>, envía <code>Authorization: Bearer &lt;token&gt;</code> o
-      <code> X-MCP-Token</code> en cada request.
-    </p>
+    <Alert class="border-cyan-300/20 bg-cyan-300/10">
+      <KeyRound class="size-4" />
+      <AlertTitle>Autenticación opcional</AlertTitle>
+      <AlertDescription>
+        Si defines <code>MCP_SERVER_TOKEN</code>, envía
+        <code> Authorization: Bearer &lt;token&gt;</code> o
+        <code> X-MCP-Token</code> en cada request.
+      </AlertDescription>
+    </Alert>
   </section>
 </template>
