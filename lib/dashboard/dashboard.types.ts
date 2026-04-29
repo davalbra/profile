@@ -5,6 +5,7 @@ export interface NavegacionDashboard {
   etiqueta: string;
   ruta: string;
   icono: Component;
+  subsecciones?: NavegacionDashboard[];
 }
 
 export interface ModuloDashboard {

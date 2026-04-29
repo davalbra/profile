@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { BillingServiceKey } from "@/lib/billing/types";
-import { Button } from "@/components/ui/button";
 
 definePageMeta({
   layout: "dashboard",
@@ -28,23 +27,6 @@ const description = computed(() =>
 
 <template>
   <section class="space-y-6">
-    <div class="flex flex-wrap justify-end gap-2">
-      <Button
-        as-child
-        :variant="service === 'firebase' ? 'default' : 'outline'"
-        class="rounded-xl"
-      >
-        <NuxtLink to="/dashboard/billing/firebase">Firebase</NuxtLink>
-      </Button>
-      <Button
-        as-child
-        :variant="service === 'gemini' ? 'default' : 'outline'"
-        class="rounded-xl"
-      >
-        <NuxtLink to="/dashboard/billing/gemini">Gemini</NuxtLink>
-      </Button>
-    </div>
-
     <DashboardBillingUsagePanel
       :service="service"
       :title="title"

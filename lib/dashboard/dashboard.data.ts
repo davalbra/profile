@@ -1,12 +1,21 @@
 import {
+  Bot,
   Boxes,
   ChartColumn,
+  CircleDollarSign,
+  Cookie,
+  Flame,
+  Headphones,
   ImageIcon,
+  Images,
   Music4,
   ShieldCheck,
   Sparkles,
+  TrendingUp,
   Wallet,
   Workflow,
+  Wrench,
+  Zap,
 } from "lucide-vue-next";
 import type {
   MetricaDashboard,
@@ -26,21 +35,86 @@ export const navegacionDashboard: NavegacionDashboard[] = [
     etiqueta: "Billing",
     ruta: "/dashboard/billing/firebase",
     icono: ChartColumn,
+    subsecciones: [
+      {
+        etiqueta: "Firebase",
+        ruta: "/dashboard/billing/firebase",
+        icono: Flame,
+      },
+      {
+        etiqueta: "Google Gemini API",
+        ruta: "/dashboard/billing/gemini",
+        icono: Bot,
+      },
+    ],
   },
   {
     etiqueta: "MCP",
     ruta: "/dashboard/mcp/optimize",
-    icono: Sparkles,
+    icono: Wrench,
+    subsecciones: [
+      {
+        etiqueta: "Optimizar",
+        ruta: "/dashboard/mcp/optimize",
+        icono: Zap,
+      },
+      {
+        etiqueta: "Billing",
+        ruta: "/dashboard/mcp/billing",
+        icono: CircleDollarSign,
+      },
+    ],
   },
   {
     etiqueta: "Imágenes",
-    ruta: "/dashboard/images/gallery",
+    ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
+    subsecciones: [
+      {
+        etiqueta: "Optimizar",
+        ruta: "/dashboard/images/optimize",
+        icono: Zap,
+      },
+      {
+        etiqueta: "n8n",
+        ruta: "/dashboard/images/copies",
+        icono: Sparkles,
+      },
+      {
+        etiqueta: "Galería",
+        ruta: "/dashboard/images/gallery",
+        icono: Images,
+      },
+    ],
   },
   {
     etiqueta: "Milka",
     ruta: "/dashboard/milka/musica",
-    icono: Music4,
+    icono: Headphones,
+    subsecciones: [
+      {
+        etiqueta: "Musica",
+        ruta: "/dashboard/milka/musica",
+        icono: Music4,
+      },
+      {
+        etiqueta: "Cookies",
+        ruta: "/dashboard/milka/cookies",
+        icono: Cookie,
+      },
+    ],
+  },
+  {
+    etiqueta: "Trading",
+    ruta: "/dashboard/trading/futures",
+    icono: TrendingUp,
+    subsecciones: [
+      {
+        etiqueta: "Futuros Binance",
+        ruta: "/dashboard/trading/futures",
+        icono: TrendingUp,
+      },
+    ],
   },
 ];
 
@@ -73,7 +147,7 @@ export const modulosDashboard: ModuloDashboard[] = [
     titulo: "Imágenes",
     descripcion:
       "Galería, optimización y flujo de copias listos para continuar la migración visual.",
-    ruta: "/dashboard/images/gallery",
+    ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
     estado: EstadoPanelDashboard.EN_PROGRESO,
     progreso: 76,

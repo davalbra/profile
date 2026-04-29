@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { ArrowRight, Home, Moon, Sun } from "lucide-vue-next";
-import { computed } from "vue";
+import { ArrowRight, ChevronDown, Home, Moon, Sun } from "lucide-vue-next";
+import { computed, ref, watch } from "vue";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -25,6 +25,9 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  SidebarMenuSub,
+  SidebarMenuSubButton,
+  SidebarMenuSubItem,
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
@@ -33,23 +36,58 @@ import {
   credencialesDashboard,
   navegacionDashboard,
 } from "@/lib/dashboard/dashboard.data";
+import { cn } from "@/lib/utils";
 
 const ruta = useRoute();
 const autenticacion = useAuth();
 const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode();
+const seccionesAbiertas = ref<Record<string, boolean>>({});
 
 const correoUsuario = computed(
   () => autenticacion.user.value?.email || "Sesión no activa",
 );
+
+const obtenerPrefijoSeccion = (rutaNavegacion: string) => {
+  const segmentos = rutaNavegacion.split("/").filter(Boolean);
+  if (segmentos.length < 2) {
+    return rutaNavegacion;
+  }
+
+  return `/${segmentos[0]}/${segmentos[1]}`;
+};
 
 const estaRutaActiva = (rutaNavegacion: string) => {
   if (rutaNavegacion === "/dashboard") {
     return ruta.path === "/dashboard";
   }
 
-  const [, base, seccion] = rutaNavegacion.split("/");
-  return ruta.path.startsWith(`/${base}/${seccion}`);
+  return ruta.path.startsWith(obtenerPrefijoSeccion(rutaNavegacion));
 };
+
+const estaSubRutaActiva = (rutaNavegacion: string) => {
+  return ruta.path === rutaNavegacion;
+};
+
+const alternarSeccion = (clave: string) => {
+  seccionesAbiertas.value = {
+    ...seccionesAbiertas.value,
+    [clave]: !seccionesAbiertas.value[clave],
+  };
+};
+
+watch(
+  () => ruta.path,
+  () => {
+    const siguientes = { ...seccionesAbiertas.value };
+    for (const item of navegacionDashboard) {
+      if (item.subsecciones?.length && estaRutaActiva(item.ruta)) {
+        siguientes[item.ruta] = true;
+      }
+    }
+    seccionesAbiertas.value = siguientes;
+  },
+  { immediate: true },
+);
 </script>
 
 <template>
@@ -95,11 +133,9 @@ const estaRutaActiva = (rutaNavegacion: string) => {
           <SidebarGroupLabel>Panel</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem
-                v-for="item in navegacionDashboard"
-                :key="item.ruta"
-              >
+              <SidebarMenuItem v-for="item in navegacionDashboard" :key="item.ruta">
                 <SidebarMenuButton
+                  v-if="!item.subsecciones?.length"
                   as-child
                   :is-active="estaRutaActiva(item.ruta)"
                   :tooltip="item.etiqueta"
@@ -109,6 +145,43 @@ const estaRutaActiva = (rutaNavegacion: string) => {
                     <span>{{ item.etiqueta }}</span>
                   </NuxtLink>
                 </SidebarMenuButton>
+
+                <template v-else>
+                  <SidebarMenuButton
+                    type="button"
+                    :is-active="estaRutaActiva(item.ruta)"
+                    :tooltip="item.etiqueta"
+                    @click="alternarSeccion(item.ruta)"
+                  >
+                    <component :is="item.icono" />
+                    <span>{{ item.etiqueta }}</span>
+                    <ChevronDown
+                      :class="
+                        cn(
+                          'ml-auto size-4 transition-transform',
+                          seccionesAbiertas[item.ruta] && 'rotate-180',
+                        )
+                      "
+                    />
+                  </SidebarMenuButton>
+
+                  <SidebarMenuSub v-if="seccionesAbiertas[item.ruta]">
+                    <SidebarMenuSubItem
+                      v-for="subseccion in item.subsecciones"
+                      :key="subseccion.ruta"
+                    >
+                      <SidebarMenuSubButton
+                        as-child
+                        :is-active="estaSubRutaActiva(subseccion.ruta)"
+                      >
+                        <NuxtLink :to="subseccion.ruta">
+                          <component :is="subseccion.icono" />
+                          <span>{{ subseccion.etiqueta }}</span>
+                        </NuxtLink>
+                      </SidebarMenuSubButton>
+                    </SidebarMenuSubItem>
+                  </SidebarMenuSub>
+                </template>
               </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
