@@ -39,13 +39,13 @@ definePageMeta({
             class="border-transparent bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/15"
           >
             <Sparkles class="size-3" />
-            Dashboard shadcn
+            MCP e imágenes
           </Badge>
           <Badge
             variant="outline"
             class="border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
           >
-            Nuxt 4 activo
+            Billing conectado
           </Badge>
         </div>
 
@@ -57,13 +57,14 @@ definePageMeta({
             <CardTitle
               class="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white lg:text-6xl"
             >
-              Control center para módulos, costos y automatización.
+              Centro operativo para MCP, imágenes y billing.
             </CardTitle>
             <CardDescription
               class="mt-4 max-w-2xl text-base leading-8 text-slate-300"
             >
-              Supervisa los endpoints MCP, el pipeline de imágenes con n8n y
-              el consumo de billing desde un solo punto operativo.
+              Ejecuta y documenta herramientas MCP, procesa imágenes para
+              optimización o n8n y revisa el consumo de Firebase y Gemini desde
+              un solo panel.
             </CardDescription>
           </div>
 
@@ -74,14 +75,14 @@ definePageMeta({
               >
               <CardTitle class="flex items-center gap-2 text-3xl">
                 <Rocket class="size-7 text-cyan-100" />
-                81%
+                3 flujos
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Progress :model-value="81" class="h-3 bg-white/10" />
+              <Progress :model-value="91" class="h-3 bg-white/10" />
               <p class="mt-3 text-sm leading-relaxed text-slate-300">
-                MCP, optimización de imágenes, generación de copias y costos
-                se mantienen bajo control por módulo.
+                MCP, tratamiento de imágenes y billing quedan agrupados por
+                función para operar y diagnosticar rápido.
               </p>
             </CardContent>
           </Card>

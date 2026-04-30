@@ -109,7 +109,7 @@ export const modulosDashboard: ModuloDashboard[] = [
   {
     titulo: "Billing",
     descripcion:
-      "Costos reales de Firebase y Gemini desde Cloud Billing exportado a BigQuery.",
+      "Lectura de costos de Firebase y Gemini desde Cloud Billing exportado a BigQuery.",
     ruta: "/dashboard/billing/firebase",
     icono: Wallet,
     estado: EstadoPanelDashboard.ACTIVO,
@@ -121,7 +121,7 @@ export const modulosDashboard: ModuloDashboard[] = [
   {
     titulo: "MCP",
     descripcion:
-      "Documentación operativa del endpoint `/api/mcp` y herramientas disponibles.",
+      "Herramientas `optimize_image` y `billing_usage` disponibles desde `/api/mcp`.",
     ruta: "/dashboard/mcp/optimize",
     icono: Workflow,
     estado: EstadoPanelDashboard.ACTIVO,
@@ -133,12 +133,12 @@ export const modulosDashboard: ModuloDashboard[] = [
   {
     titulo: "Imágenes",
     descripcion:
-      "Galería, optimización AVIF y copias preparadas para flujos n8n.",
+      "Galería, optimización AVIF, conversión JPG y copias listas para flujos n8n.",
     ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
-    estado: EstadoPanelDashboard.EN_PROGRESO,
-    progreso: 76,
-    detalle: "Assets y storage",
+    estado: EstadoPanelDashboard.ACTIVO,
+    progreso: 90,
+    detalle: "Tratamiento de assets",
     claseIcono: "bg-amber-300/15 text-amber-100 ring-amber-200/20",
     claseTarjeta: "from-amber-500/20 via-orange-500/10 to-transparent",
   },
@@ -158,22 +158,22 @@ export const modulosDashboard: ModuloDashboard[] = [
 
 export const metricasDashboard: MetricaDashboard[] = [
   {
-    etiqueta: "Módulos",
-    valor: "4",
-    detalle: "Vistas principales conectadas",
-    tendencia: "+2 activas",
+    etiqueta: "MCP",
+    valor: "2",
+    detalle: "Herramientas expuestas",
+    tendencia: "operativo",
   },
   {
-    etiqueta: "Runtime",
-    valor: "Nuxt 4",
-    detalle: "Base SSR con Tailwind 4",
-    tendencia: "estable",
+    etiqueta: "Imágenes",
+    valor: "AVIF/JPG",
+    detalle: "Optimización y copias n8n",
+    tendencia: "activo",
   },
   {
-    etiqueta: "Sesión",
-    valor: "Firebase",
-    detalle: "Autenticación centralizada",
-    tendencia: "segura",
+    etiqueta: "Billing",
+    valor: "BigQuery",
+    detalle: "Costos Firebase y Gemini",
+    tendencia: "conectado",
   },
 ];
 
@@ -187,8 +187,8 @@ export const procesosDashboard: ProcesoDashboard[] = [
   {
     titulo: "Tratamiento de imágenes",
     descripcion:
-      "Galería, storage, compresión y copias n8n conectadas al dashboard.",
-    progreso: 82,
+      "Galería, storage, compresión AVIF, conversión JPG y copias n8n conectadas al dashboard.",
+    progreso: 90,
   },
   {
     titulo: "Control de billing",
@@ -202,10 +202,10 @@ export const credencialesDashboard = {
   titulo: "davalbra",
   subtitulo: "Control center",
   descripcion:
-    "Dashboard privado para operar módulos, costos y herramientas internas.",
+    "Dashboard privado para operar MCP, tratamiento de imágenes y billing.",
   iniciales: "DA",
   sello: "Nuxt + shadcn",
-  accionPrimaria: "Abrir Billing",
+  accionPrimaria: "Ver billing",
   accionSecundaria: "Storage test",
   rutaPrimaria: "/dashboard/billing/firebase",
   rutaSecundaria: "/storage-test",

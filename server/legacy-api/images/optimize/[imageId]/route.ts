@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {
     AccesoDenegadoError,
     requerirSesionFirebase,
@@ -70,12 +70,12 @@ function asNumber(value: unknown): number | null {
 
 function parseAuthError(error: unknown) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-        return NextResponse.json({error: error.message}, {status: 403});
+        return jsonResponse({error: error.message}, {status: 403});
     }
 
     const message = error instanceof Error ? error.message : "No autorizado.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-        return NextResponse.json({error: message}, {status: 401});
+        return jsonResponse({error: message}, {status: 401});
     }
 
     return null;
@@ -197,7 +197,7 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
         const params = await context.params;
         const imageId = decodeURIComponent(params.imageId || "").trim();
         if (!imageId) {
-            return NextResponse.json({error: "Falta imageId."}, {status: 400});
+            return jsonResponse({error: "Falta imageId."}, {status: 400});
         }
 
         const sesion = await requerirSesionFirebase(_request, {rolMinimo: "COLABORADOR"});
@@ -239,7 +239,7 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
         });
 
         if (!image) {
-            return NextResponse.json({error: "No se encontró la imagen optimizada."}, {status: 404});
+            return jsonResponse({error: "No se encontró la imagen optimizada."}, {status: 404});
         }
 
         const optimizedSnapshot = await readStorageSnapshot(image.pathOptimizada);
@@ -370,7 +370,7 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
             latestStats?.porcentajeAhorro ??
             (image.bytesOriginal > 0 ? Number(((savedBytes / image.bytesOriginal) * 100).toFixed(1)) : 0);
 
-        return NextResponse.json(
+        return jsonResponse(
             {
                 ok: true,
                 image: {
@@ -414,6 +414,6 @@ export async function GET(_request: Request, context: { params: Promise<{ imageI
         }
 
         const message = error instanceof Error ? error.message : "No se pudo cargar el detalle de la imagen optimizada.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }

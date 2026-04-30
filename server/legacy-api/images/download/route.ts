@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {
     AccesoDenegadoError,
     requerirSesionFirebase,
@@ -39,12 +39,12 @@ function sanitizeDownloadName(value: string | null, fallback: string): string {
 
 function parseAuthError(error: unknown) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-        return NextResponse.json({error: error.message}, {status: 403});
+        return jsonResponse({error: error.message}, {status: 403});
     }
 
     const message = error instanceof Error ? error.message : "No autorizado.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-        return NextResponse.json({error: message}, {status: 401});
+        return jsonResponse({error: message}, {status: 401});
     }
 
     return null;
@@ -60,20 +60,20 @@ export async function GET(request: Request) {
         const requestedName = decodeURIComponent(searchParams.get("name") || "").trim();
 
         if (!path) {
-            return NextResponse.json({error: "Falta path del archivo."}, {status: 400});
+            return jsonResponse({error: "Falta path del archivo."}, {status: 400});
         }
 
         const allowedPrefixes = buildAllowedPrefixes(sesion.uid);
         const isAllowed = allowedPrefixes.some((prefix) => path.startsWith(prefix));
         if (!isAllowed) {
-            return NextResponse.json({error: "No tienes permisos para descargar este archivo."}, {status: 403});
+            return jsonResponse({error: "No tienes permisos para descargar este archivo."}, {status: 403});
         }
 
         const bucket = getFirebaseAdminStorage().bucket();
         const file = bucket.file(path);
         const [exists] = await file.exists();
         if (!exists) {
-            return NextResponse.json({error: "El archivo no existe."}, {status: 404});
+            return jsonResponse({error: "El archivo no existe."}, {status: 404});
         }
 
         const [buffer] = await file.download();
@@ -97,6 +97,6 @@ export async function GET(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo descargar la imagen.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }

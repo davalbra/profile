@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {Prisma} from "@prisma/client";
 import sharp from "sharp";
 import {
@@ -217,12 +217,12 @@ async function getLatestOptimizationStats(imageIds: string[]): Promise<Map<strin
 
 function parseAuthError(error: unknown) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-        return NextResponse.json({error: error.message}, {status: 403});
+        return jsonResponse({error: error.message}, {status: 403});
     }
 
     const message = error instanceof Error ? error.message : "No autorizado.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-        return NextResponse.json({error: message}, {status: 401});
+        return jsonResponse({error: message}, {status: 401});
     }
 
     return null;
@@ -258,7 +258,7 @@ export async function GET(request: Request) {
         const statsByImageId = await getLatestOptimizationStats(images.map((image) => image.id));
         const items = images.map((image) => toImageResponse(image, statsByImageId, bucketName));
 
-        return NextResponse.json({ok: true, images: items}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true, images: items}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -266,7 +266,7 @@ export async function GET(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudieron listar las imágenes.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -291,15 +291,15 @@ export async function POST(request: Request) {
 
         if (fileValue instanceof File) {
             if (fileValue.type && !fileValue.type.startsWith("image/")) {
-                return NextResponse.json({error: "El archivo debe ser una imagen."}, {status: 415});
+                return jsonResponse({error: "El archivo debe ser una imagen."}, {status: 415});
             }
 
             if (fileValue.size <= 0) {
-                return NextResponse.json({error: "La imagen está vacía."}, {status: 400});
+                return jsonResponse({error: "La imagen está vacía."}, {status: 400});
             }
 
             if (fileValue.size > MAX_UPLOAD_BYTES) {
-                return NextResponse.json(
+                return jsonResponse(
                     {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
                     {status: 413},
                 );
@@ -318,7 +318,7 @@ export async function POST(request: Request) {
                 galleryPath.startsWith(allowedOptimizedPrefix);
 
             if (!isAllowedGalleryPath) {
-                return NextResponse.json({error: "No tienes permisos para usar esta imagen de galería/n8n/optimizadas."}, {status: 403});
+                return jsonResponse({error: "No tienes permisos para usar esta imagen de galería/n8n/optimizadas."}, {status: 403});
             }
 
             sourcePath = galleryPath;
@@ -334,13 +334,13 @@ export async function POST(request: Request) {
             const galleryFile = bucket.file(galleryPath);
             const [exists] = await galleryFile.exists();
             if (!exists) {
-                return NextResponse.json({error: "La imagen seleccionada no existe."}, {status: 404});
+                return jsonResponse({error: "La imagen seleccionada no existe."}, {status: 404});
             }
 
             const [downloaded] = await galleryFile.download();
             const [metadata] = await galleryFile.getMetadata();
             if (downloaded.length > MAX_UPLOAD_BYTES) {
-                return NextResponse.json(
+                return jsonResponse(
                     {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
                     {status: 413},
                 );
@@ -354,7 +354,7 @@ export async function POST(request: Request) {
                 sourceWasN8n = asBoolean(metadata.metadata?.sourceWasN8n) || asString(metadata.metadata?.sourceCollection) === "n8n";
             }
         } else {
-            return NextResponse.json(
+            return jsonResponse(
                 {error: "Debes enviar un archivo en el campo image/file o indicar galleryPath."},
                 {status: 400},
             );
@@ -470,7 +470,7 @@ export async function POST(request: Request) {
 
         const statsByImageId = await getLatestOptimizationStats([image.id]);
 
-        return NextResponse.json(
+        return jsonResponse(
             {
                 ok: true,
                 image: toImageResponse(image, statsByImageId, bucket.name),
@@ -491,7 +491,7 @@ export async function POST(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo optimizar y subir la imagen.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -502,12 +502,12 @@ export async function DELETE(request: Request) {
         const path = payload?.path?.trim();
 
         if (!path) {
-            return NextResponse.json({error: "Falta path del archivo a eliminar."}, {status: 400});
+            return jsonResponse({error: "Falta path del archivo a eliminar."}, {status: 400});
         }
 
         const prefix = `users/${sesion.uid}/${IMAGE_ROOT_FOLDER}/`;
         if (!path.startsWith(prefix)) {
-            return NextResponse.json({error: "No tienes permisos para eliminar este archivo."}, {status: 403});
+            return jsonResponse({error: "No tienes permisos para eliminar este archivo."}, {status: 403});
         }
 
         const bucket = getFirebaseAdminStorage().bucket();
@@ -538,7 +538,7 @@ export async function DELETE(request: Request) {
             await bucket.file(path).delete({ignoreNotFound: true});
         }
 
-        return NextResponse.json({ok: true}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -546,7 +546,7 @@ export async function DELETE(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo eliminar la imagen.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -558,7 +558,7 @@ export async function PATCH(request: Request) {
         const rawName = payload?.name ?? "";
 
         if (!path) {
-            return NextResponse.json({error: "Falta path de la imagen."}, {status: 400});
+            return jsonResponse({error: "Falta path de la imagen."}, {status: 400});
         }
 
         let normalizedName: string;
@@ -566,7 +566,7 @@ export async function PATCH(request: Request) {
             normalizedName = normalizeStoredImageName(rawName);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Nombre inválido.";
-            return NextResponse.json({error: message}, {status: 400});
+            return jsonResponse({error: message}, {status: 400});
         }
 
         const image = await prisma.imagen.findFirst({
@@ -581,7 +581,7 @@ export async function PATCH(request: Request) {
         });
 
         if (!image) {
-            return NextResponse.json({error: "Imagen no encontrada."}, {status: 404});
+            return jsonResponse({error: "Imagen no encontrada."}, {status: 404});
         }
 
         const updated = await prisma.imagen.update({
@@ -605,7 +605,7 @@ export async function PATCH(request: Request) {
         const statsByImageId = await getLatestOptimizationStats([updated.id]);
         const bucketName = getFirebaseAdminStorage().bucket().name;
 
-        return NextResponse.json(
+        return jsonResponse(
             {
                 ok: true,
                 image: toImageResponse(updated, statsByImageId, bucketName),
@@ -619,6 +619,6 @@ export async function PATCH(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }

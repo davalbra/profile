@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import { z } from "zod"
 import {
   getStoredLyricsForVideoId,
@@ -46,14 +46,14 @@ export async function GET(request: Request) {
     const url = new URL(request.url)
     const videoId = url.searchParams.get("videoId")?.trim() || ""
     if (!videoId) {
-      return NextResponse.json({ error: "Falta videoId." }, { status: 400 })
+      return jsonResponse({ error: "Falta videoId." }, { status: 400 })
     }
 
     const refresh = ["1", "true", "yes"].includes((url.searchParams.get("refresh") || "").toLowerCase())
     if (!refresh) {
       const stored = await getStoredLyricsForVideoId(videoId)
       if (stored?.lyrics) {
-        return NextResponse.json({ ok: true, data: stored.lyrics }, { headers: { "Cache-Control": "no-store" } })
+        return jsonResponse({ ok: true, data: stored.lyrics }, { headers: { "Cache-Control": "no-store" } })
       }
     }
 
@@ -68,10 +68,10 @@ export async function GET(request: Request) {
     const syncResult = await synchronizeLyrics(song)
     const syncedLyrics = syncResult.summary?.activeLyrics || syncResult.summary?.officialLyrics || null
     if (syncedLyrics) {
-      return NextResponse.json({ ok: true, data: syncedLyrics }, { headers: { "Cache-Control": "no-store" } })
+      return jsonResponse({ ok: true, data: syncedLyrics }, { headers: { "Cache-Control": "no-store" } })
     }
 
-    return NextResponse.json(
+    return jsonResponse(
       {
         ok: true,
         data: {
@@ -85,7 +85,7 @@ export async function GET(request: Request) {
     )
   } catch (error) {
     const message = error instanceof Error ? error.message : "No se pudieron obtener las letras."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return jsonResponse({ error: message }, { status: 500 })
   }
 }
 
@@ -107,10 +107,10 @@ export async function POST(request: Request) {
       })),
     })
 
-    return NextResponse.json({ ok: true, data }, { headers: { "Cache-Control": "no-store" } })
+    return jsonResponse({ ok: true, data }, { headers: { "Cache-Control": "no-store" } })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
+      return jsonResponse(
         {
           error: "Payload invalido.",
           details: error.flatten(),
@@ -120,6 +120,6 @@ export async function POST(request: Request) {
     }
 
     const message = error instanceof Error ? error.message : "No se pudo guardar la sincronizacion manual."
-    return NextResponse.json({ error: message }, { status: 500 })
+    return jsonResponse({ error: message }, { status: 500 })
   }
 }

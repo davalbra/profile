@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {TipoRelacionImagen} from "@prisma/client";
 import sharp from "sharp";
 import {
@@ -53,12 +53,12 @@ function getDownloadUrl(bucketName: string, path: string, token: string): string
 
 function parseAuthError(error: unknown) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-        return NextResponse.json({error: error.message}, {status: 403});
+        return jsonResponse({error: error.message}, {status: 403});
     }
 
     const message = error instanceof Error ? error.message : "No autorizado.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-        return NextResponse.json({error: message}, {status: 401});
+        return jsonResponse({error: message}, {status: 401});
     }
 
     return null;
@@ -657,7 +657,7 @@ export async function POST(request: Request) {
         }
 
         if (prepareOnly) {
-            return NextResponse.json(
+            return jsonResponse(
                 {
                     ok: true,
                     prepareOnly: true,
@@ -679,7 +679,7 @@ export async function POST(request: Request) {
 
         const n8nCopyWebhookUrl = getN8nCopyWebhookUrl();
         if (!n8nCopyWebhookUrl) {
-            return NextResponse.json(
+            return jsonResponse(
                 {error: "Falta configurar N8N_COPY_WEBHOOK_URL en variables de entorno."},
                 {status: 500},
             );
@@ -773,7 +773,7 @@ export async function POST(request: Request) {
         }
 
         if (!response.ok) {
-            return NextResponse.json(
+            return jsonResponse(
                 {
                     error: "n8n respondió con error.",
                     status: response.status,
@@ -786,7 +786,7 @@ export async function POST(request: Request) {
             );
         }
 
-        return NextResponse.json(
+        return jsonResponse(
             {
                 ok: true,
                 source: preparedImage.source,
@@ -810,6 +810,6 @@ export async function POST(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo enviar la imagen a n8n.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }

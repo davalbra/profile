@@ -77,7 +77,7 @@ const stackGroups = [
     border: "hover:border-cyan-400/45",
     glow: "from-cyan-400/20",
     dot: "bg-cyan-300",
-    items: ["Nuxt", "Vue", "React", "TypeScript"],
+    items: ["Nuxt", "Vue", "TypeScript", "Tailwind CSS"],
   },
   {
     name: "Backend y Datos",

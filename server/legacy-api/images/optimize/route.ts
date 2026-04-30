@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {
   AccesoDenegadoError,
   requerirSesionFirebase,
@@ -18,19 +18,19 @@ export async function POST(request: Request) {
     const fileValue = formData.get("image") ?? formData.get("file");
 
     if (!(fileValue instanceof File)) {
-      return NextResponse.json({ error: "Debes enviar un archivo en el campo image o file." }, { status: 400 });
+      return jsonResponse({ error: "Debes enviar un archivo en el campo image o file." }, { status: 400 });
     }
 
     if (fileValue.type && !fileValue.type.startsWith("image/")) {
-      return NextResponse.json({ error: "El archivo debe ser una imagen." }, { status: 415 });
+      return jsonResponse({ error: "El archivo debe ser una imagen." }, { status: 415 });
     }
 
     if (fileValue.size <= 0) {
-      return NextResponse.json({ error: "La imagen está vacía." }, { status: 400 });
+      return jsonResponse({ error: "La imagen está vacía." }, { status: 400 });
     }
 
     if (fileValue.size > MAX_UPLOAD_BYTES) {
-      return NextResponse.json(
+      return jsonResponse(
         { error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.` },
         { status: 413 },
       );
@@ -62,14 +62,14 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-      return NextResponse.json({ error: error.message }, { status: 403 });
+      return jsonResponse({ error: error.message }, { status: 403 });
     }
 
     const message = error instanceof Error ? error.message : "No se pudo optimizar la imagen.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-      return NextResponse.json({ error: message }, { status: 401 });
+      return jsonResponse({ error: message }, { status: 401 });
     }
 
-    return NextResponse.json({ error: message }, { status: 500 });
+    return jsonResponse({ error: message }, { status: 500 });
   }
 }

@@ -1,4 +1,4 @@
-import { NextResponse } from "@/server/compat/next-response";
+import { jsonResponse } from "@/server/compat/json-response";
 import {TipoRelacionImagen} from "@prisma/client";
 import {
     AccesoDenegadoError,
@@ -78,12 +78,12 @@ function parseGalleryScope(request: Request): GalleryScope {
 
 function parseAuthError(error: unknown) {
     if (error instanceof AccesoDenegadoError || error instanceof RolInsuficienteError) {
-        return NextResponse.json({error: error.message}, {status: 403});
+        return jsonResponse({error: error.message}, {status: 403});
     }
 
     const message = error instanceof Error ? error.message : "No autorizado.";
     if (/token|sesi[oó]n|autoriz/i.test(message)) {
-        return NextResponse.json({error: message}, {status: 401});
+        return jsonResponse({error: message}, {status: 401});
     }
 
     return null;
@@ -393,7 +393,7 @@ export async function GET(request: Request) {
                 uid: sesion.uid,
                 bucketName: bucket.name,
             });
-            return NextResponse.json({ok: true, scope, images: optimizedItems}, {headers: {"Cache-Control": "no-store"}});
+            return jsonResponse({ok: true, scope, images: optimizedItems}, {headers: {"Cache-Control": "no-store"}});
         }
 
         const prefix = buildGalleryPrefix(sesion.uid);
@@ -426,7 +426,7 @@ export async function GET(request: Request) {
                 })
                 : baseItems;
 
-        return NextResponse.json({ok: true, scope, images: items}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true, scope, images: items}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -434,7 +434,7 @@ export async function GET(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo cargar la galería.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -445,19 +445,19 @@ export async function POST(request: Request) {
         const fileValue = formData.get("image") ?? formData.get("file");
 
         if (!(fileValue instanceof File)) {
-            return NextResponse.json({error: "Debes enviar un archivo en el campo image o file."}, {status: 400});
+            return jsonResponse({error: "Debes enviar un archivo en el campo image o file."}, {status: 400});
         }
 
         if (fileValue.type && !fileValue.type.startsWith("image/")) {
-            return NextResponse.json({error: "El archivo debe ser una imagen."}, {status: 415});
+            return jsonResponse({error: "El archivo debe ser una imagen."}, {status: 415});
         }
 
         if (fileValue.size <= 0) {
-            return NextResponse.json({error: "La imagen está vacía."}, {status: 400});
+            return jsonResponse({error: "La imagen está vacía."}, {status: 400});
         }
 
         if (fileValue.size > MAX_UPLOAD_BYTES) {
-            return NextResponse.json(
+            return jsonResponse(
                 {error: `La imagen supera el límite de ${Math.round(MAX_UPLOAD_BYTES / (1024 * 1024))}MB.`},
                 {status: 413},
             );
@@ -496,10 +496,10 @@ export async function POST(request: Request) {
         );
 
         if (!item) {
-            return NextResponse.json({error: "No se pudo construir la respuesta de la imagen."}, {status: 500});
+            return jsonResponse({error: "No se pudo construir la respuesta de la imagen."}, {status: 500});
         }
 
-        return NextResponse.json({ok: true, image: item}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true, image: item}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -507,7 +507,7 @@ export async function POST(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo subir la imagen a galería.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -518,12 +518,12 @@ export async function DELETE(request: Request) {
         const path = payload?.path?.trim();
 
         if (!path) {
-            return NextResponse.json({error: "Falta path del archivo a eliminar."}, {status: 400});
+            return jsonResponse({error: "Falta path del archivo a eliminar."}, {status: 400});
         }
 
         const prefix = buildGalleryPrefix(sesion.uid);
         if (!path.startsWith(prefix)) {
-            return NextResponse.json({error: "No tienes permisos para eliminar este archivo."}, {status: 403});
+            return jsonResponse({error: "No tienes permisos para eliminar este archivo."}, {status: 403});
         }
 
         const bucket = getFirebaseAdminStorage().bucket();
@@ -569,7 +569,7 @@ export async function DELETE(request: Request) {
         }
         await bucket.file(path).delete({ignoreNotFound: true});
 
-        return NextResponse.json({ok: true}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -577,7 +577,7 @@ export async function DELETE(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo eliminar la imagen de galería.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
 
@@ -589,7 +589,7 @@ export async function PATCH(request: Request) {
         const rawName = typeof payload?.name === "string" ? payload.name : "";
 
         if (!path) {
-            return NextResponse.json({error: "Falta path de la imagen."}, {status: 400});
+            return jsonResponse({error: "Falta path de la imagen."}, {status: 400});
         }
 
         let normalizedName = "";
@@ -597,19 +597,19 @@ export async function PATCH(request: Request) {
             normalizedName = normalizeEditableName(rawName);
         } catch (error) {
             const message = error instanceof Error ? error.message : "Nombre inválido.";
-            return NextResponse.json({error: message}, {status: 400});
+            return jsonResponse({error: message}, {status: 400});
         }
 
         const prefix = buildGalleryPrefix(sesion.uid);
         if (!path.startsWith(prefix)) {
-            return NextResponse.json({error: "No tienes permisos para renombrar este archivo."}, {status: 403});
+            return jsonResponse({error: "No tienes permisos para renombrar este archivo."}, {status: 403});
         }
 
         const bucket = getFirebaseAdminStorage().bucket();
         const file = bucket.file(path);
         const [exists] = await file.exists();
         if (!exists) {
-            return NextResponse.json({error: "La imagen no existe."}, {status: 404});
+            return jsonResponse({error: "La imagen no existe."}, {status: 404});
         }
 
         const [metadata] = await file.getMetadata();
@@ -633,10 +633,10 @@ export async function PATCH(request: Request) {
         );
 
         if (!item) {
-            return NextResponse.json({error: "No se pudo construir la imagen actualizada."}, {status: 500});
+            return jsonResponse({error: "No se pudo construir la imagen actualizada."}, {status: 500});
         }
 
-        return NextResponse.json({ok: true, image: item}, {headers: {"Cache-Control": "no-store"}});
+        return jsonResponse({ok: true, image: item}, {headers: {"Cache-Control": "no-store"}});
     } catch (error) {
         const authError = parseAuthError(error);
         if (authError) {
@@ -644,6 +644,6 @@ export async function PATCH(request: Request) {
         }
 
         const message = error instanceof Error ? error.message : "No se pudo renombrar la imagen de galería.";
-        return NextResponse.json({error: message}, {status: 500});
+        return jsonResponse({error: message}, {status: 500});
     }
 }
