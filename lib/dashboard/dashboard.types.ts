@@ -10,12 +10,17 @@ export interface NavegacionDashboard {
 
 export interface ModuloDashboard {
   titulo: string;
+  etiqueta: string;
   descripcion: string;
+  resumen: string;
   ruta: string;
   icono: Component;
   estado: EstadoPanelDashboard;
   progreso: number;
   detalle: string;
+  funciones: string[];
+  integraciones: string[];
+  accion: string;
   claseIcono: string;
   claseTarjeta: string;
 }
@@ -25,10 +30,12 @@ export interface MetricaDashboard {
   valor: string;
   detalle: string;
   tendencia: string;
+  tono: string;
 }
 
 export interface ProcesoDashboard {
   titulo: string;
   descripcion: string;
   progreso: number;
+  resultado: string;
 }

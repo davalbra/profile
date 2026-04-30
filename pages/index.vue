@@ -2,34 +2,35 @@
 import {
   ArrowRight,
   ArrowUpRight,
+  Bot,
   BrainCircuit,
   Clock3,
-  Code,
   Database,
   GitFork,
   Github,
   Globe,
+  ImageIcon,
   Layers3,
   Linkedin,
-  Mail,
   MonitorSmartphone,
   Moon,
-  Network,
+  Music4,
   ServerCog,
-  Smartphone,
+  ShieldCheck,
   Sparkles,
   Star,
   Sun,
+  Wallet,
   Workflow,
 } from "lucide-vue-next";
 
 useHead({
-  title: "davalbra | Desarrollador de Software · Integraciones de IA · Datos y RAG",
+  title: "davalbra | Control center Nuxt para MCP, billing e imágenes",
   meta: [
     {
       name: "description",
       content:
-        "Portafolio de davalbra: desarrollo full stack, integraciones de IA, automatizaciones con n8n y soluciones de datos y RAG.",
+        "Proyecto Nuxt de davalbra: dashboard privado para MCP, billing Firebase/Gemini, optimización de imágenes, flujos n8n y utilidades Milka.",
     },
   ],
 });
@@ -39,34 +40,58 @@ const authModalOpen = ref(false);
 
 const services = [
   {
-    title: "Integraciones de IA",
-    description: "OpenAI, Claude y Gemini con herramientas, flujos y automatizaciones orientadas a negocio.",
-    icon: BrainCircuit,
+    title: "Billing Firebase y Gemini",
+    eyebrow: "FinOps",
+    description:
+      "Consulta costos desde Cloud Billing exportado a BigQuery para revisar consumo por servicio sin salir del panel.",
+    route: "/dashboard/billing/firebase",
+    features: ["Firebase", "Gemini API", "BigQuery"],
+    icon: Wallet,
   },
   {
-    title: "Datos y RAG",
-    description: "Vectorización, búsqueda semántica y arquitecturas sobre Postgres, Neon y pipelines de contexto.",
-    icon: Database,
+    title: "Herramientas MCP",
+    eyebrow: "Agentes",
+    description:
+      "Endpoint JSON-RPC que expone `optimize_image` y `billing_usage` para automatizaciones o clientes MCP.",
+    route: "/dashboard/mcp/optimize",
+    features: ["/api/mcp", "JSON-RPC", "Token opcional"],
+    icon: Bot,
   },
   {
-    title: "Automatización",
-    description: "Flujos con n8n, webhooks e integración entre sistemas empresariales sin fricción operativa.",
+    title: "Imágenes y galería",
+    eyebrow: "Assets",
+    description:
+      "Sube, renombra, optimiza en AVIF, descarga con permisos y prepara copias JPG para flujos n8n.",
+    route: "/dashboard/images/optimize",
+    features: ["Firebase Storage", "AVIF/JPG", "n8n"],
+    icon: ImageIcon,
+  },
+  {
+    title: "Milka audio y lyrics",
+    eyebrow: "Experimental",
+    description:
+      "Zona privada para música, letras sincronizadas, audio y utilidades de cookies que se pueden reconectar.",
+    route: "/dashboard/milka/musica",
+    features: ["YouTube Music", "Lyrics", "Cookies"],
+    icon: Music4,
+  },
+  {
+    title: "Autenticación privada",
+    eyebrow: "Acceso",
+    description:
+      "Sesión Firebase, roles y validaciones server-side para proteger operaciones sensibles del dashboard.",
+    route: "/dashboard",
+    features: ["Firebase Auth", "Roles", "Storage seguro"],
+    icon: ShieldCheck,
+  },
+  {
+    title: "Base Nuxt operativa",
+    eyebrow: "Arquitectura",
+    description:
+      "Aplicación Nuxt con rutas server, Prisma, componentes shadcn-vue y módulos separados por operación.",
+    route: "/dashboard",
+    features: ["Nuxt", "Prisma", "shadcn-vue"],
     icon: Workflow,
-  },
-  {
-    title: "Aplicaciones Integrales",
-    description: "Nuxt, Vue, Node y Prisma para productos completos, desde landing hasta panel interno.",
-    icon: Code,
-  },
-  {
-    title: "Móvil",
-    description: "Kotlin y Jetpack Compose para apps nativas con experiencia fluida y mantenible.",
-    icon: Smartphone,
-  },
-  {
-    title: "Sistemas de Conectividad",
-    description: "Backends con APIs robustas, MCP, procesos batch y herramientas de soporte operativo.",
-    icon: Network,
   },
 ];
 
@@ -77,7 +102,7 @@ const stackGroups = [
     border: "hover:border-cyan-400/45",
     glow: "from-cyan-400/20",
     dot: "bg-cyan-300",
-    items: ["Nuxt", "Vue", "TypeScript", "Tailwind CSS"],
+    items: ["Nuxt 4", "Vue", "TypeScript", "shadcn-vue"],
   },
   {
     name: "Backend y Datos",
@@ -85,15 +110,15 @@ const stackGroups = [
     border: "hover:border-emerald-400/45",
     glow: "from-emerald-400/20",
     dot: "bg-emerald-300",
-    items: ["Node.js", "PostgreSQL", "Neon", "Prisma"],
+    items: ["Nitro API", "Prisma", "PostgreSQL", "Firebase Admin"],
   },
   {
-    name: "IA y Automatización",
+    name: "Operación",
     icon: BrainCircuit,
     border: "hover:border-violet-400/45",
     glow: "from-violet-400/20",
     dot: "bg-violet-300",
-    items: ["OpenAI", "Claude", "Gemini", "n8n"],
+    items: ["MCP", "Gemini Billing", "Sharp", "n8n"],
   },
 ];
 
@@ -187,36 +212,37 @@ const pinnedRepositories = computed(() =>
           <div class="space-y-4">
             <div class="inline-flex items-center rounded-full border border-[#137fec]/25 bg-[#137fec]/10 px-3 py-1 font-mono text-xs font-medium tracking-wide text-[#5faaf3]">
               <span class="mr-2 h-2 w-2 animate-pulse rounded-full bg-[#137fec]" />
-              DISPONIBLE PARA NUEVOS PROYECTOS
+              DASHBOARD PRIVADO · NUXT + MCP + BILLING
             </div>
 
             <h1 class="text-balance text-5xl font-extrabold leading-[1.07] tracking-tight text-white sm:text-6xl lg:text-7xl">
-              Hola, soy <br />
+              Control center para <br>
               <span class="text-glow bg-gradient-to-r from-[#137fec] via-[#5faaf3] to-white bg-clip-text text-transparent">
-                davalbra
+                módulos reales
               </span>
             </h1>
 
             <div class="space-y-3">
               <h2 class="font-mono text-lg text-slate-300 sm:text-xl">
-                Desarrollador de Software <span class="mx-2 text-[#137fec]">|</span>
-                <span class="text-slate-400"> Integraciones de IA y RAG</span>
+                MCP <span class="mx-2 text-[#137fec]">|</span>
+                <span class="text-slate-400"> Billing · imágenes · n8n · Milka</span>
               </h2>
               <p class="max-w-xl text-base leading-relaxed text-slate-400 sm:text-lg">
-                Arquitecto soluciones web y móviles con IA aplicada, automatización de procesos y sistemas de datos escalables para negocio real.
+                Esta app no es solo una landing: agrupa herramientas operativas para consultar costos,
+                optimizar assets, exponer capacidades MCP y administrar flujos privados desde un solo panel.
               </p>
             </div>
           </div>
 
           <div class="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <a
-              href="mailto:alvrobravo@gmail.com"
+            <NuxtLink
+              to="/dashboard"
               class="group relative inline-flex min-h-11 items-center justify-center gap-2 overflow-hidden rounded-2xl bg-[#137fec] px-8 py-3.5 text-sm font-semibold text-white shadow-[0_0_24px_rgba(19,127,236,0.3)] transition hover:bg-[#0e64bd]"
             >
-              Contrátame
+              Entrar al dashboard
               <ArrowRight class="h-4 w-4 transition group-hover:translate-x-1" />
               <span class="shimmer absolute inset-0 h-full w-full" />
-            </a>
+            </NuxtLink>
 
             <div class="flex items-center gap-3">
               <a
@@ -260,37 +286,36 @@ const pinnedRepositories = computed(() =>
                 <div class="h-3 w-3 rounded-full bg-yellow-500/80" />
                 <div class="h-3 w-3 rounded-full bg-green-500/80" />
               </div>
-              <div class="font-mono text-xs text-slate-500">rag_pipeline.ts</div>
+              <div class="font-mono text-xs text-slate-500">server/api/mcp.ts</div>
             </div>
 
             <div class="relative overflow-hidden rounded-b-2xl border-x border-b border-slate-700/60 bg-[#0b1219] p-6 font-mono text-sm">
               <div class="absolute bottom-0 left-0 top-0 w-10 select-none border-r border-slate-800 bg-[#16222e]/45 pr-2 pt-6 text-right leading-6 text-slate-600">
-                1<br />2<br />3<br />4<br />5<br />6<br />7<br />8<br />9<br />10<br />11
+                1<br>2<br>3<br>4<br>5<br>6<br>7<br>8<br>9<br>10<br>11
               </div>
               <div class="pl-8 leading-6 text-slate-200">
-                <span class="text-violet-400">import</span> openai<br />
-                <span class="text-violet-400">from</span> langchain <span class="text-violet-400">import</span> <span class="text-yellow-300">VectorStore</span><br /><br />
-                <span class="text-violet-400">class</span> <span class="text-yellow-300">RAGAgent</span>:<br />
-                <span class="text-violet-400">  def</span> <span class="text-blue-400">query</span>(<span class="text-red-300">prompt</span>):<br />
-                <span class="text-slate-500">    # recuperar contexto y generar</span><br />
-                <span class="text-violet-400">    return await</span> <span class="text-cyan-300">llm.predict</span>(<span class="text-orange-300">prompt</span>)<br /><br />
-                <span class="text-violet-400">pipeline</span> = <span class="text-cyan-300">vector.search</span>()<br />
-                <span class="text-violet-400">if</span> pipeline.<span class="text-cyan-300">score</span> &gt; <span class="text-green-300">0.92</span>:<br />
-                <span class="text-violet-400">  return</span> <span class="text-cyan-300">response</span>
+                <span class="text-violet-400">const</span> tools = [<span class="text-orange-300">"optimize_image"</span>, <span class="text-orange-300">"billing_usage"</span>]<br><br>
+                <span class="text-violet-400">export async function</span> <span class="text-blue-400">POST</span>(request) {<br>
+                <span class="text-slate-500">  // valida token MCP opcional</span><br>
+                <span class="text-violet-400">  const</span> call = <span class="text-cyan-300">await</span> request.json()<br>
+                <span class="text-violet-400">  if</span> (call.params.name === <span class="text-orange-300">"billing_usage"</span>)<br>
+                <span class="text-violet-400">    return</span> <span class="text-cyan-300">getBillingUsage</span>()<br><br>
+                <span class="text-violet-400">  return</span> <span class="text-cyan-300">optimizeImage</span>(call.params.arguments)<br>
+                }
               </div>
             </div>
 
             <div class="absolute -bottom-8 -right-12 z-10 w-32 rounded-2xl border border-slate-700/50 bg-[#16222e] p-3 shadow-xl">
               <div class="mb-2 flex items-center justify-between">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Precisión</span>
-                <span class="font-mono text-[10px] text-green-400">98.4%</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Módulos</span>
+                <span class="font-mono text-[10px] text-green-400">4</span>
               </div>
               <div class="mb-3 h-1.5 w-full rounded-full bg-slate-800">
                 <div class="h-1.5 w-[98%] rounded-full bg-green-500" />
               </div>
               <div class="mb-1 flex items-center justify-between">
-                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Latencia</span>
-                <span class="font-mono text-[10px] text-[#5faaf3]">24ms</span>
+                <span class="text-[10px] font-bold uppercase tracking-wider text-slate-400">Tools</span>
+                <span class="font-mono text-[10px] text-[#5faaf3]">2 MCP</span>
               </div>
               <div class="mt-2 flex h-8 items-end justify-between gap-1">
                 <div class="h-3 w-1 rounded-sm bg-[#137fec]/30" />
@@ -304,25 +329,68 @@ const pinnedRepositories = computed(() =>
 
             <div class="absolute -left-6 top-20 flex items-center gap-2 rounded-2xl border border-[#137fec]/20 bg-[#137fec]/10 px-3 py-1.5 text-xs text-white shadow-lg">
               <Database class="h-4 w-4 text-[#5faaf3]" />
-              <span>Base de Datos Vectorial</span>
+              <span>Cloud Billing + Storage</span>
             </div>
           </div>
         </div>
       </section>
 
       <section id="projects" class="mx-auto w-full max-w-7xl px-4 pb-8 sm:px-6 lg:px-8">
+        <div class="mb-5 flex flex-wrap items-end justify-between gap-4">
+          <div>
+            <div class="inline-flex items-center gap-2 rounded-full border border-[#137fec]/30 bg-[#137fec]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#5faaf3]">
+              <Sparkles class="h-3.5 w-3.5" />
+              Módulos del proyecto
+            </div>
+            <h2 class="mt-3 text-2xl font-bold text-white sm:text-3xl">
+              Qué hace cada sección
+            </h2>
+            <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
+              La página principal ahora resume la app real: operación privada,
+              APIs server-side, assets, costos y automatizaciones conectadas.
+            </p>
+          </div>
+          <NuxtLink
+            to="/dashboard"
+            class="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-600/70 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-[#137fec]/50 hover:bg-[#137fec]/10"
+          >
+            Ver resumen operativo
+            <ArrowRight class="h-4 w-4" />
+          </NuxtLink>
+        </div>
         <div class="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-          <article
+          <NuxtLink
             v-for="service in services"
             :key="service.title"
+            :to="service.route"
             class="group rounded-[28px] border border-slate-700/70 bg-[#16222e]/70 p-5 backdrop-blur-sm transition duration-300 hover:-translate-y-1 hover:border-[#137fec]/40"
           >
-            <span class="mb-4 inline-flex rounded-2xl border border-[#137fec]/20 bg-[#137fec]/10 p-2 text-[#5faaf3]">
-              <component :is="service.icon" class="h-4 w-4" />
-            </span>
+            <div class="mb-4 flex items-start justify-between gap-4">
+              <span class="inline-flex rounded-2xl border border-[#137fec]/20 bg-[#137fec]/10 p-2 text-[#5faaf3]">
+                <component :is="service.icon" class="h-4 w-4" />
+              </span>
+              <span class="rounded-full border border-slate-600/70 bg-[#0b1219]/70 px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                {{ service.eyebrow }}
+              </span>
+            </div>
             <h3 class="text-lg font-semibold text-white">{{ service.title }}</h3>
-            <p class="mt-2 text-sm leading-relaxed text-slate-400">{{ service.description }}</p>
-          </article>
+            <p class="mt-2 min-h-20 text-sm leading-relaxed text-slate-400">
+              {{ service.description }}
+            </p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <span
+                v-for="feature in service.features"
+                :key="feature"
+                class="rounded-xl border border-slate-700 bg-[#0b1219]/75 px-2.5 py-1 text-xs text-slate-300"
+              >
+                {{ feature }}
+              </span>
+            </div>
+            <span class="mt-5 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-[#5faaf3] transition group-hover:text-white">
+              Abrir módulo
+              <ArrowRight class="h-4 w-4 transition group-hover:translate-x-1" />
+            </span>
+          </NuxtLink>
         </div>
       </section>
 
@@ -336,20 +404,20 @@ const pinnedRepositories = computed(() =>
               <div>
                 <div class="inline-flex items-center gap-2 rounded-full border border-[#137fec]/30 bg-[#137fec]/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-[#5faaf3]">
                   <Layers3 class="h-3.5 w-3.5" />
-                  Arquitectura técnica
+                  Arquitectura del proyecto
                 </div>
-                <h2 class="mt-3 text-2xl font-bold text-white sm:text-3xl">Tecnologías</h2>
+                <h2 class="mt-3 text-2xl font-bold text-white sm:text-3xl">Capas técnicas</h2>
                 <p class="mt-2 max-w-2xl text-sm leading-relaxed text-slate-400 sm:text-base">
-                  Herramientas que uso para diseñar, construir y desplegar productos digitales en producción.
+                  El proyecto separa UI, rutas server, datos, automatización y procesamiento de archivos para mantener cada módulo aislado.
                 </p>
               </div>
 
               <div class="flex flex-wrap gap-2 text-xs text-slate-300">
                 <span class="rounded-2xl border border-slate-600/70 bg-[#0f1a26]/80 px-3 py-1.5">
-                  12 tecnologías
+                  12 piezas clave
                 </span>
                 <span class="rounded-2xl border border-slate-600/70 bg-[#0f1a26]/80 px-3 py-1.5">
-                  3 capas de especialidad
+                  3 capas operativas
                 </span>
               </div>
             </div>
@@ -470,24 +538,24 @@ const pinnedRepositories = computed(() =>
 
       <section id="contact" class="mx-auto w-full max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
         <div class="rounded-[30px] border border-[#137fec]/30 bg-gradient-to-r from-[#0b1219] to-[#16222e] p-6">
-          <h2 class="text-2xl font-bold text-white">Construyamos algo útil</h2>
+          <h2 class="text-2xl font-bold text-white">Operar el proyecto</h2>
           <p class="mt-2 max-w-2xl text-sm text-slate-300">
-            Si quieres integrar IA, automatizar procesos o lanzar un producto digital completo, conversemos.
+            Usa el dashboard para revisar costos, ejecutar herramientas MCP, administrar imágenes o entrar a las utilidades Milka.
           </p>
           <div class="mt-5 flex flex-wrap gap-3">
-            <a
-              href="mailto:alvrobravo@gmail.com"
-              class="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#137fec] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0e64bd]"
-            >
-              <Mail class="h-4 w-4" />
-              Escribirme
-            </a>
             <NuxtLink
               to="/dashboard"
+              class="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#137fec] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#0e64bd]"
+            >
+              <Sparkles class="h-4 w-4" />
+              Abrir dashboard
+            </NuxtLink>
+            <NuxtLink
+              to="/storage-test"
               class="inline-flex min-h-11 items-center gap-2 rounded-2xl border border-slate-500 px-4 py-2 text-sm font-semibold text-slate-200 transition hover:border-[#137fec]/55 hover:bg-[#137fec]/10"
             >
-              Dashboard Nuxt
-              <Sparkles class="h-4 w-4" />
+              Storage test
+              <ArrowRight class="h-4 w-4" />
             </NuxtLink>
           </div>
         </div>
