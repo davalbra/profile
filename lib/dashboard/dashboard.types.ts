@@ -16,7 +16,6 @@ export interface ModuloDashboard {
   ruta: string;
   icono: Component;
   estado: EstadoPanelDashboard;
-  progreso: number;
   detalle: string;
   funciones: string[];
   integraciones: string[];
@@ -36,6 +35,5 @@ export interface MetricaDashboard {
 export interface ProcesoDashboard {
   titulo: string;
   descripcion: string;
-  progreso: number;
   resultado: string;
 }

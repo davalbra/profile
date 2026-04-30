@@ -116,7 +116,6 @@ export const modulosDashboard: ModuloDashboard[] = [
     ruta: "/dashboard/billing/firebase",
     icono: Wallet,
     estado: EstadoPanelDashboard.ACTIVO,
-    progreso: 92,
     detalle: "Firebase + Gemini",
     funciones: [
       "Lectura de costos por periodo",
@@ -138,7 +137,6 @@ export const modulosDashboard: ModuloDashboard[] = [
     ruta: "/dashboard/mcp/optimize",
     icono: Workflow,
     estado: EstadoPanelDashboard.ACTIVO,
-    progreso: 88,
     detalle: "/api/mcp",
     funciones: [
       "Tool `optimize_image` por URL",
@@ -160,7 +158,6 @@ export const modulosDashboard: ModuloDashboard[] = [
     ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
     estado: EstadoPanelDashboard.ACTIVO,
-    progreso: 90,
     detalle: "Storage + AVIF + n8n",
     funciones: [
       "Subida, renombrado y eliminación",
@@ -182,7 +179,6 @@ export const modulosDashboard: ModuloDashboard[] = [
     ruta: "/dashboard/milka/musica",
     icono: Music4,
     estado: EstadoPanelDashboard.BASE,
-    progreso: 61,
     detalle: "Música + lyrics",
     funciones: [
       "Consulta de audio por video",
@@ -225,21 +221,18 @@ export const procesosDashboard: ProcesoDashboard[] = [
     titulo: "MCP operativo",
     descripcion:
       "El endpoint `/api/mcp` documenta y ejecuta herramientas que reutilizan la lógica real del proyecto.",
-    progreso: 88,
     resultado: "Automatización lista para agentes",
   },
   {
     titulo: "Tratamiento de imágenes",
     descripcion:
       "Firebase Storage, compresión AVIF, conversión JPG y copias n8n quedan conectadas al dashboard.",
-    progreso: 90,
     resultado: "Assets preparados para publicación o flujos",
   },
   {
     titulo: "Control de billing",
     descripcion:
       "Las vistas de Firebase y Gemini reducen la fricción para revisar consumo por servicio.",
-    progreso: 92,
     resultado: "Costos visibles sin salir del panel",
   },
 ];

@@ -10,7 +10,6 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Separator } from "@/components/ui/separator";
 import {
   credencialesDashboard,
@@ -79,8 +78,21 @@ definePageMeta({
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Progress :model-value="91" class="h-3 bg-white/10" />
-              <p class="mt-3 text-sm leading-relaxed text-slate-300">
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                  Billing
+                </span>
+                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                  MCP
+                </span>
+                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                  Imágenes
+                </span>
+                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                  Milka
+                </span>
+              </div>
+              <p class="mt-4 text-sm leading-relaxed text-slate-300">
                 Cada sección tiene una función clara, una integración principal
                 y una ruta directa para operar sin buscar entre archivos.
               </p>
@@ -172,16 +184,20 @@ definePageMeta({
               </CardDescription>
             </CardHeader>
             <CardContent class="relative space-y-5">
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-slate-400">{{ modulo.detalle }}</span>
-                <span class="font-semibold text-white"
-                  >{{ modulo.progreso }}%</span
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <Badge
+                  variant="outline"
+                  class="border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
                 >
+                  {{ modulo.detalle }}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  class="border-white/10 bg-white/[0.06] text-slate-200"
+                >
+                  Ruta {{ modulo.ruta }}
+                </Badge>
               </div>
-              <Progress
-                :model-value="modulo.progreso"
-                class="h-2.5 bg-white/10"
-              />
               <div class="space-y-2">
                 <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
                   Qué resuelve
@@ -241,7 +257,7 @@ definePageMeta({
             :key="proceso.titulo"
             class="space-y-3"
           >
-            <div class="flex items-start justify-between gap-4">
+            <div class="space-y-2">
               <div>
                 <p class="flex items-center gap-2 font-semibold text-white">
                   <Network class="size-4 text-emerald-200" />
@@ -254,11 +270,7 @@ definePageMeta({
                   {{ proceso.resultado }}
                 </p>
               </div>
-              <span class="text-sm font-semibold text-cyan-100"
-                >{{ proceso.progreso }}%</span
-              >
             </div>
-            <Progress :model-value="proceso.progreso" class="h-2 bg-white/10" />
             <Separator class="bg-white/10 last:hidden" />
           </div>
         </CardContent>
