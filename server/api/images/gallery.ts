@@ -1,4 +1,4 @@
-import * as route from "@/server/legacy-api/images/gallery/route";
-import { dispatchLegacyRoute } from "@/server/utils/legacy-route";
+import * as route from "@/server/handlers/images/gallery";
+import { dispatchWebRoute } from "@/server/utils/web-route";
 
-export default defineEventHandler((event) => dispatchLegacyRoute(event, route));
+export default defineEventHandler((event) => dispatchWebRoute(event, route));

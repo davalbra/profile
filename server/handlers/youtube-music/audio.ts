@@ -1,4 +1,4 @@
-import { jsonResponse } from "@/server/compat/json-response";
+import { jsonResponse } from "@/server/utils/json-response";
 import { createAudioStreamResponse, ensureCachedYouTubeMusicAudio } from "@/lib/youtube-music-audio"
 
 export const runtime = "nodejs"

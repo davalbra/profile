@@ -1,17 +1,17 @@
 import { getMethod, getRouterParam, toWebRequest } from "h3";
 import type { H3Event } from "h3";
 
-type LegacyRouteParams = Record<string, string> & { imageId: string };
-type LegacyHandler = (request: Request, context: { params: Promise<LegacyRouteParams> }) => Promise<Response>;
+type WebRouteParams = Record<string, string> & { imageId: string };
+type WebRouteHandler = (request: Request, context: { params: Promise<WebRouteParams> }) => Promise<Response>;
 
-type LegacyRoute = Partial<Record<"GET" | "POST" | "PUT" | "PATCH" | "DELETE", LegacyHandler>>;
+type WebRoute = Partial<Record<"GET" | "POST" | "PUT" | "PATCH" | "DELETE", WebRouteHandler>>;
 
-export async function dispatchLegacyRoute(
+export async function dispatchWebRoute(
   event: H3Event,
-  route: LegacyRoute,
+  route: WebRoute,
   params: Record<string, string> = {},
 ) {
-  const method = getMethod(event).toUpperCase() as keyof LegacyRoute;
+  const method = getMethod(event).toUpperCase() as keyof WebRoute;
   const handler = route[method];
 
   if (!handler) {
@@ -22,7 +22,7 @@ export async function dispatchLegacyRoute(
   }
 
   return await handler(toWebRequest(event), {
-    params: Promise.resolve(params as LegacyRouteParams),
+    params: Promise.resolve(params as WebRouteParams),
   });
 }
 

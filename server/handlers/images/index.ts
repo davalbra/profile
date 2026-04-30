@@ -1,4 +1,4 @@
-import { jsonResponse } from "@/server/compat/json-response";
+import { jsonResponse } from "@/server/utils/json-response";
 import {Prisma} from "@prisma/client";
 import sharp from "sharp";
 import {

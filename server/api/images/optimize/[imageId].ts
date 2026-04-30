@@ -1,8 +1,8 @@
-import * as route from "@/server/legacy-api/images/optimize/[imageId]/route";
-import { dispatchLegacyRoute, getRequiredRouteParam } from "@/server/utils/legacy-route";
+import * as route from "@/server/handlers/images/optimize/[imageId]";
+import { dispatchWebRoute, getRequiredRouteParam } from "@/server/utils/web-route";
 
 export default defineEventHandler((event) =>
-  dispatchLegacyRoute(event, route, {
+  dispatchWebRoute(event, route, {
     imageId: getRequiredRouteParam(event, "imageId"),
   }),
 );

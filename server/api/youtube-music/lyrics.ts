@@ -1,4 +1,4 @@
-import * as route from "@/server/legacy-api/youtube-music/lyrics/route";
-import { dispatchLegacyRoute } from "@/server/utils/legacy-route";
+import * as route from "@/server/handlers/youtube-music/lyrics";
+import { dispatchWebRoute } from "@/server/utils/web-route";
 
-export default defineEventHandler((event) => dispatchLegacyRoute(event, route));
+export default defineEventHandler((event) => dispatchWebRoute(event, route));
