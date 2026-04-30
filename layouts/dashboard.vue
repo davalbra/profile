@@ -99,7 +99,7 @@ watch(
 
     <Sidebar
       collapsible="icon"
-      variant="inset"
+      variant="sidebar"
       class="border-white/10 bg-sidebar/90 text-sidebar-foreground backdrop-blur-xl"
     >
       <SidebarHeader class="border-b border-sidebar-border/70 p-3">

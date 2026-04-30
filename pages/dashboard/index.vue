@@ -62,9 +62,8 @@ definePageMeta({
             <CardDescription
               class="mt-4 max-w-2xl text-base leading-8 text-slate-300"
             >
-              Base visual reconstruida con componentes shadcn reales:
-              navegación, cards, acciones, métricas y progreso quedan listos
-              para extender cada módulo sin romper el runtime.
+              Supervisa los endpoints MCP, el pipeline de imágenes con n8n y
+              el consumo de billing desde un solo punto operativo.
             </CardDescription>
           </div>
 
@@ -81,8 +80,8 @@ definePageMeta({
             <CardContent>
               <Progress :model-value="81" class="h-3 bg-white/10" />
               <p class="mt-3 text-sm leading-relaxed text-slate-300">
-                Migración visual consistente sobre shadcn, Tailwind 4 y layout
-                responsive.
+                MCP, optimización de imágenes, generación de copias y costos
+                se mantienen bajo control por módulo.
               </p>
             </CardContent>
           </Card>
@@ -202,12 +201,12 @@ definePageMeta({
           <Badge
             class="w-fit border-transparent bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/15"
           >
-            Roadmap
+            Operación
           </Badge>
-          <CardTitle class="text-2xl">Estado de migración</CardTitle>
+          <CardTitle class="text-2xl">Flujos activos</CardTitle>
           <CardDescription class="text-slate-400">
-            Prioridades inmediatas para mantener el dashboard limpio y
-            extensible.
+            Lectura rápida de los servicios que hoy sostienen automatización,
+            assets y control de costos.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-5">

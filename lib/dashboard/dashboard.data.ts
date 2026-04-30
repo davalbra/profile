@@ -133,7 +133,7 @@ export const modulosDashboard: ModuloDashboard[] = [
   {
     titulo: "Imágenes",
     descripcion:
-      "Galería, optimización y flujo de copias listos para continuar la migración visual.",
+      "Galería, optimización AVIF y copias preparadas para flujos n8n.",
     ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
     estado: EstadoPanelDashboard.EN_PROGRESO,
@@ -145,7 +145,7 @@ export const modulosDashboard: ModuloDashboard[] = [
   {
     titulo: "Milka",
     descripcion:
-      "Suite de audio y lyrics preparada para portar sobre la nueva base Nuxt.",
+      "Suite de audio y lyrics integrada para pruebas internas y consumo rápido.",
     ruta: "/dashboard/milka/musica",
     icono: Music4,
     estado: EstadoPanelDashboard.BASE,
@@ -179,21 +179,22 @@ export const metricasDashboard: MetricaDashboard[] = [
 
 export const procesosDashboard: ProcesoDashboard[] = [
   {
-    titulo: "Porting visual",
-    descripcion: "Capas de dashboard, navegación y tarjetas migradas a shadcn.",
-    progreso: 84,
+    titulo: "MCP operativo",
+    descripcion:
+      "Herramientas de optimización y billing expuestas desde `/api/mcp`.",
+    progreso: 88,
   },
   {
-    titulo: "Servicios internos",
+    titulo: "Tratamiento de imágenes",
     descripcion:
-      "APIs heredadas expuestas con handlers Nuxt y compatibilidad incremental.",
-    progreso: 72,
+      "Galería, storage, compresión y copias n8n conectadas al dashboard.",
+    progreso: 82,
   },
   {
-    titulo: "Operación segura",
+    titulo: "Control de billing",
     descripcion:
-      "Firebase, storage, MCP y billing mantienen límites claros por módulo.",
-    progreso: 79,
+      "Firebase y Gemini consultan costos desde Cloud Billing exportado.",
+    progreso: 92,
   },
 ];
 

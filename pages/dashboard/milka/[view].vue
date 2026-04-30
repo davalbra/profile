@@ -29,7 +29,7 @@ const currentView = computed(() => {
     : {
         title: "Milka: música y lyrics",
         description:
-          "Base Nuxt lista para portar paneles de audio, letras y sincronización.",
+          "Paneles de audio, letras y sincronización listos para operación interna.",
       };
 });
 
@@ -46,7 +46,7 @@ const viewLinks = [
     label: "Música y lyrics",
     to: "/dashboard/milka/musica",
     description:
-      "Audio, letras y sincronización para reconstruir la suite privada.",
+      "Audio, letras y sincronización para operar la suite privada.",
   },
   {
     key: "cookies",
