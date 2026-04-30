@@ -5,8 +5,10 @@ import { fileURLToPath } from "node:url";
 const ignoredWatchPaths = [
   "**/.git/**",
   "**/.idea/**",
+  "**/.junie/**",
   "**/.nuxt/**",
   "**/.output/**",
+  "**/.vscode/**",
   "**/node_modules/**",
 ];
 
@@ -28,6 +30,17 @@ const allowPublicRegistration = parseBooleanEnv(
   process.env.NODE_ENV !== "production",
 );
 
+const pickEnv = (...keys: string[]) => {
+  for (const key of keys) {
+    const value = process.env[key]?.trim();
+    if (value) {
+      return value;
+    }
+  }
+
+  return "";
+};
+
 export default defineNuxtConfig({
   compatibilityDate: "2025-05-15",
   devtools: { enabled: process.env.NODE_ENV === "development" },
@@ -42,6 +55,7 @@ export default defineNuxtConfig({
   vite: {
     plugins: [tailwindcss()],
     server: {
+      allowedHosts: ["davalbra.xyz"],
       watch: {
         ignored: ignoredWatchPaths,
       },
@@ -70,6 +84,13 @@ export default defineNuxtConfig({
     },
   },
   modules: [
+    [
+      "shadcn-nuxt",
+      {
+        prefix: "",
+        componentDir: "./components/ui",
+      },
+    ],
     "@nuxt/eslint",
     "@nuxt/fonts",
     "@nuxt/icon",
@@ -78,6 +99,9 @@ export default defineNuxtConfig({
     "@nuxt/ui",
     "@pinia/nuxt",
   ],
+  imports: {
+    dirs: ["store/repository"],
+  },
   alias: {
     "@": fileURLToPath(new URL("./", import.meta.url)),
     "~": fileURLToPath(new URL("./", import.meta.url)),
@@ -90,23 +114,39 @@ export default defineNuxtConfig({
       allowPublicRegistration,
     },
     firebaseAdmin: {
-      projectId: process.env.FIREBASE_PROJECT_ID || "",
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL || "",
-      privateKey: process.env.FIREBASE_PRIVATE_KEY || "",
-      storageBucket: process.env.FIREBASE_STORAGE_BUCKET || process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
+      projectId: pickEnv("FIREBASE_PROJECT_ID", "NUXT_PUBLIC_FIREBASE_PROJECT_ID", "NEXT_FIREBASE_PROJECT_ID"),
+      clientEmail: pickEnv("FIREBASE_CLIENT_EMAIL"),
+      privateKey: pickEnv("FIREBASE_PRIVATE_KEY"),
+      storageBucket: pickEnv(
+        "FIREBASE_STORAGE_BUCKET",
+        "NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+        "NEXT_FIREBASE_STORAGE_BUCKET",
+      ),
     },
     public: {
       auth: {
         allowPublicRegistration,
       },
       firebase: {
-        apiKey: process.env.NUXT_PUBLIC_FIREBASE_API_KEY || "",
-        authDomain: process.env.NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-        projectId: process.env.NUXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-        storageBucket: process.env.NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-        messagingSenderId: process.env.NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-        appId: process.env.NUXT_PUBLIC_FIREBASE_APP_ID || "",
-        measurementId: process.env.NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID || "",
+        apiKey: pickEnv("NUXT_PUBLIC_FIREBASE_API_KEY", "FIREBASE_API_KEY", "NEXT_FIREBASE_API_KEY"),
+        authDomain: pickEnv("NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN", "FIREBASE_AUTH_DOMAIN", "NEXT_FIREBASE_AUTH_DOMAIN"),
+        projectId: pickEnv("NUXT_PUBLIC_FIREBASE_PROJECT_ID", "FIREBASE_PROJECT_ID", "NEXT_FIREBASE_PROJECT_ID"),
+        storageBucket: pickEnv(
+          "NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET",
+          "FIREBASE_STORAGE_BUCKET",
+          "NEXT_FIREBASE_STORAGE_BUCKET",
+        ),
+        messagingSenderId: pickEnv(
+          "NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID",
+          "FIREBASE_MESSAGING_SENDER_ID",
+          "NEXT_FIREBASE_MESSAGING_SENDER_ID",
+        ),
+        appId: pickEnv("NUXT_PUBLIC_FIREBASE_APP_ID", "FIREBASE_APP_ID", "NEXT_FIREBASE_APP_ID"),
+        measurementId: pickEnv(
+          "NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID",
+          "FIREBASE_MEASUREMENT_ID",
+          "NEXT_FIREBASE_MEASUREMENT_ID",
+        ),
       },
     },
   },

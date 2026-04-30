@@ -20,7 +20,7 @@ let firebaseConfig: FirebaseOptions | null = null;
 function ensureConfig(): FirebaseOptions {
   if (!firebaseConfig) {
     throw new Error(
-      "Firebase no está configurado. Define NEXT_FIREBASE_* en .env.local y reinicia el servidor.",
+      "Firebase no está configurado. Define FIREBASE_* o NUXT_PUBLIC_FIREBASE_* en .env y reinicia el servidor.",
     );
   }
 
@@ -35,7 +35,7 @@ function ensureConfig(): FirebaseOptions {
 
   for (const key of required) {
     if (!firebaseConfig[key]) {
-      throw new Error(`Falta el valor de Firebase para ${key}. Revisa tus variables NEXT_FIREBASE_*.`);
+      throw new Error(`Falta el valor de Firebase para ${key}. Revisa tus variables FIREBASE_* o NUXT_PUBLIC_FIREBASE_*.`);
     }
   }
 

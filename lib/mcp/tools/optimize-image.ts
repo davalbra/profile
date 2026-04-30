@@ -1,4 +1,4 @@
-import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import {getFirebaseAdminStorage} from "@/lib/firebase/admin";
 import {IMAGE_OPTIMIZATION_DEFAULTS, optimizeImageToAvif} from "@/lib/images/optimize-image";

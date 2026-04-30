@@ -9,37 +9,34 @@ const prismaClientSingleton = () => {
     return new PrismaClient({adapter});
 };
 
-function hasTradingModels(client: PrismaClient): boolean {
+function hasExpectedModels(client: PrismaClient): boolean {
     const maybeClient = client as unknown as Record<string, unknown>;
     return (
-        typeof maybeClient.tradingFuturesSchedulerConfig === "object" &&
-        typeof maybeClient.tradingFuturesRunHistory === "object" &&
-        typeof maybeClient.tradingFuturesBacktestHistory === "object" &&
         typeof maybeClient.song === "object" &&
         typeof maybeClient.lyricsSet === "object" &&
         typeof maybeClient.lyricsLine === "object"
     );
 }
 
-declare const globalThis: {
+const globalPrismaState = globalThis as {
     prismaGlobal: ReturnType<typeof prismaClientSingleton> | undefined;
     prismaGlobalSchemaTag: string | undefined;
 } & typeof global;
 const PRISMA_SCHEMA_TAG = "2026-03-lyrics-sync-v1";
 
 const shouldReuseGlobal =
-    globalThis.prismaGlobal &&
-    globalThis.prismaGlobalSchemaTag === PRISMA_SCHEMA_TAG &&
-    hasTradingModels(globalThis.prismaGlobal);
+    globalPrismaState.prismaGlobal &&
+    globalPrismaState.prismaGlobalSchemaTag === PRISMA_SCHEMA_TAG &&
+    hasExpectedModels(globalPrismaState.prismaGlobal);
 
 const prisma: ReturnType<typeof prismaClientSingleton> = shouldReuseGlobal
-    ? (globalThis.prismaGlobal as ReturnType<typeof prismaClientSingleton>)
+    ? (globalPrismaState.prismaGlobal as ReturnType<typeof prismaClientSingleton>)
     : prismaClientSingleton();
 
 export {prisma};
 export default prisma as ReturnType<typeof prismaClientSingleton>;
 
 if (process.env.NODE_ENV !== "production") {
-    globalThis.prismaGlobal = prisma;
-    globalThis.prismaGlobalSchemaTag = PRISMA_SCHEMA_TAG;
+    globalPrismaState.prismaGlobal = prisma;
+    globalPrismaState.prismaGlobalSchemaTag = PRISMA_SCHEMA_TAG;
 }

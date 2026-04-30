@@ -26,6 +26,9 @@
 # misc
 .DS_Store
 *.pem
+.codex
+.idea/
+.junie/
 .cache/
 .venv-ytdlp/
 __pycache__/

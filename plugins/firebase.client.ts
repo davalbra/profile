@@ -25,7 +25,7 @@ export default defineNuxtPlugin(() => {
     auth = getAuth(app);
     storage = getStorage(app);
   } else {
-    console.warn("Firebase client no está configurado. Define NUXT_PUBLIC_FIREBASE_*.");
+    console.warn("Firebase client no está configurado. Define FIREBASE_* o NUXT_PUBLIC_FIREBASE_* en .env.");
   }
 
   return {

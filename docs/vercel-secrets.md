@@ -2,38 +2,36 @@
 
 Este proyecto quedó preparado para trabajar con:
 
-- `development`: valores locales descargados a `.env.local`
+- `development`: valores locales en `.env`
 - `production`: variables del proyecto en Vercel
 
-No se usa `.env` global.
+No se usa `.env.local` para el runtime local actual.
 
 ## 1. Rotar primero
 
-Tu `.env.local` actual contiene secretos reales expuestos. Antes de subir nada, rota al menos:
+Tu `.env` actual contiene secretos reales. Antes de subir nada, rota al menos:
 
 - `FIREBASE_PRIVATE_KEY`
 - `GITHUB_TOKEN`
 - `DATABASE_URL` / password de Neon
-- `BINANCE_API_KEY`
-- `BINANCE_API_SECRET`
-- `CRON_SECRET`
-- `TRADING_SCHEDULER_TOKEN`
 - `YTMUSIC_COOKIE`
 - `N8N_COPY_WEBHOOK_URL`
 
-`VERCEL_OIDC_TOKEN` no debe permanecer en `.env.local`.
+`VERCEL_OIDC_TOKEN` no debe permanecer en `.env`.
 
 ## 2. Variables que sí siguen activas
 
 ### Públicas
 
-- `NUXT_PUBLIC_FIREBASE_API_KEY`
-- `NUXT_PUBLIC_FIREBASE_AUTH_DOMAIN`
-- `NUXT_PUBLIC_FIREBASE_PROJECT_ID`
-- `NUXT_PUBLIC_FIREBASE_STORAGE_BUCKET`
-- `NUXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID`
-- `NUXT_PUBLIC_FIREBASE_APP_ID`
-- `NUXT_PUBLIC_FIREBASE_MEASUREMENT_ID`
+- `FIREBASE_API_KEY`
+- `FIREBASE_AUTH_DOMAIN`
+- `FIREBASE_PROJECT_ID`
+- `FIREBASE_STORAGE_BUCKET`
+- `FIREBASE_MESSAGING_SENDER_ID`
+- `FIREBASE_APP_ID`
+- `FIREBASE_MEASUREMENT_ID`
+
+El runtime también acepta los aliases `NUXT_PUBLIC_FIREBASE_*` y `NEXT_FIREBASE_*` por compatibilidad, pero los nombres locales actuales son `FIREBASE_*`.
 
 ### Secretos / servidor
 
@@ -45,10 +43,6 @@ Tu `.env.local` actual contiene secretos reales expuestos. Antes de subir nada, 
 - `GITHUB_TOKEN`
 - `N8N_COPY_WEBHOOK_URL`
 - `MCP_SERVER_TOKEN`
-- `BINANCE_API_KEY`
-- `BINANCE_API_SECRET`
-- `CRON_SECRET`
-- `TRADING_SCHEDULER_TOKEN`
 - `YTMUSIC_COOKIE`
 - `YTMUSIC_USER_AGENT`
 - `YTMUSIC_ACCOUNT_ID`
@@ -59,12 +53,11 @@ Tu `.env.local` actual contiene secretos reales expuestos. Antes de subir nada, 
 - `GOOGLE_BILLING_QUERY_PROJECT_ID`
 - `GOOGLE_BILLING_BQ_LOCATION`
 
-## 3. Lo que debes borrar de `.env.local`
+## 3. Lo que debes borrar de `.env`
 
 No son necesarios para el runtime Nuxt actual:
 
 - `VERCEL_OIDC_TOKEN`
-- todos los `NEXT_FIREBASE_*`
 - `FIREBASE_TYPE`
 - `FIREBASE_PRIVATE_KEY_ID`
 - `FIREBASE_CLIENT_ID`
@@ -89,35 +82,13 @@ No son necesarios para el runtime Nuxt actual:
 pnpm dlx vercel link
 ```
 
-## 5. Sincronizar solo secretos
-
-El script local usa `--sensitive` solo en `production`. Vercel no permite variables sensitive en `development`.
-
-Development:
+## 5. Descargar development a local
 
 ```bash
-node scripts/vercel-sync-secrets.mjs development .env.local
+pnpm dlx vercel env pull .env --environment=development --yes
 ```
 
-Production:
-
-```bash
-node scripts/vercel-sync-secrets.mjs production .env.local
-```
-
-Ambos:
-
-```bash
-node scripts/vercel-sync-secrets.mjs both .env.local
-```
-
-## 6. Descargar development a local
-
-```bash
-pnpm dlx vercel env pull .env.local --environment=development --yes
-```
-
-## 7. Preview
+## 6. Preview
 
 Vercel mantiene el entorno `preview` como concepto de plataforma. Si no quieres secretos ahí, no los definas para `preview`.
 

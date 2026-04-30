@@ -1,4 +1,4 @@
-import {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
+import type {McpServer} from "@modelcontextprotocol/sdk/server/mcp.js";
 import * as z from "zod/v4";
 import {getBillingUsage, parseBillingPeriod} from "@/lib/billing/google-cloud";
 import type {BillingServiceKey} from "@/lib/billing/types";

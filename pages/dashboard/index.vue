@@ -1,66 +1,237 @@
 <script setup lang="ts">
-import { BarChart3, ImageIcon, Music4, Sparkles, Wallet } from "lucide-vue-next";
+import { ArrowRight, Rocket, Sparkles } from "lucide-vue-next";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import {
+  credencialesDashboard,
+  metricasDashboard,
+  modulosDashboard,
+  procesosDashboard,
+} from "@/lib/dashboard/dashboard.data";
+import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario";
 
 definePageMeta({
   layout: "dashboard",
 });
-
-const modules = [
-  {
-    title: "Billing",
-    description: "Consulta costos reales de Firebase y Gemini desde Cloud Billing exportado a BigQuery.",
-    to: "/dashboard/billing/firebase",
-    icon: Wallet,
-  },
-  {
-    title: "MCP",
-    description: "Documentación operativa del endpoint `/api/mcp` y herramientas disponibles.",
-    to: "/dashboard/mcp/optimize",
-    icon: Sparkles,
-  },
-  {
-    title: "Imágenes",
-    description: "Base de migración creada para portar galería, optimización y flujo de copias.",
-    to: "/dashboard/images/gallery",
-    icon: ImageIcon,
-  },
-  {
-    title: "Milka",
-    description: "Suite de audio/lyrics pendiente de portar visualmente sobre la nueva base Nuxt.",
-    to: "/dashboard/milka/musica",
-    icon: Music4,
-  },
-  {
-    title: "Trading",
-    description: "Panel de futuros pendiente de migración visual; scripts y modelos backend se conservan.",
-    to: "/dashboard/trading/futures",
-    icon: BarChart3,
-  },
-];
 </script>
 
 <template>
   <section class="space-y-6">
-    <header class="panel-shell p-6">
-      <p class="text-sm uppercase tracking-[0.2em] text-[#5faaf3]">Dashboard</p>
-      <h1 class="mt-2 text-3xl font-bold text-white">Base Nuxt activa</h1>
-      <p class="mt-2 max-w-3xl text-sm leading-relaxed text-slate-400">
-        El proyecto ya corre sobre Nuxt 4, Vue 3, Tailwind 4 y la configuración de runtime alineada con
-        `lavepresto-nuxt`. Desde aquí continúas el porting visual módulo por módulo sin tocar la base.
-      </p>
-    </header>
+    <Card
+      class="relative overflow-hidden border-white/10 bg-black/35 shadow-2xl shadow-cyan-950/20 backdrop-blur-xl"
+    >
+      <div
+        class="absolute inset-0 bg-[radial-gradient(circle_at_18%_12%,rgba(34,211,238,0.24),transparent_28%),radial-gradient(circle_at_80%_20%,rgba(16,185,129,0.16),transparent_30%)]"
+      />
+      <CardHeader class="relative gap-5 p-6 lg:p-8">
+        <div class="flex flex-wrap items-center gap-3">
+          <Badge
+            class="border-transparent bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/15"
+          >
+            <Sparkles class="size-3" />
+            Dashboard shadcn
+          </Badge>
+          <Badge
+            variant="outline"
+            class="border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+          >
+            Nuxt 4 activo
+          </Badge>
+        </div>
 
-    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-      <NuxtLink
-        v-for="module in modules"
-        :key="module.to"
-        :to="module.to"
-        class="panel-shell group p-5 transition hover:-translate-y-1 hover:border-[#137fec]/35"
+        <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_280px] lg:items-end">
+          <div>
+            <p class="text-sm uppercase tracking-[0.28em] text-cyan-100/75">
+              Panel operativo
+            </p>
+            <CardTitle
+              class="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white lg:text-6xl"
+            >
+              Control center para módulos, costos y automatización.
+            </CardTitle>
+            <CardDescription
+              class="mt-4 max-w-2xl text-base leading-8 text-slate-300"
+            >
+              Base visual reconstruida con componentes shadcn reales:
+              navegación, cards, acciones, métricas y progreso quedan listos
+              para extender cada módulo sin romper el runtime.
+            </CardDescription>
+          </div>
+
+          <Card class="border-white/10 bg-white/[0.06] text-white shadow-xl">
+            <CardHeader class="pb-2">
+              <CardDescription class="text-slate-400"
+                >Pulso general</CardDescription
+              >
+              <CardTitle class="flex items-center gap-2 text-3xl">
+                <Rocket class="size-7 text-cyan-100" />
+                81%
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Progress :model-value="81" class="h-3 bg-white/10" />
+              <p class="mt-3 text-sm leading-relaxed text-slate-300">
+                Migración visual consistente sobre shadcn, Tailwind 4 y layout
+                responsive.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      </CardHeader>
+
+      <CardFooter
+        class="relative flex flex-col gap-3 border-t border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:justify-between lg:p-6"
       >
-        <component :is="module.icon" class="h-5 w-5 text-[#5faaf3]" />
-        <h2 class="mt-4 text-lg font-semibold text-white">{{ module.title }}</h2>
-        <p class="mt-2 text-sm leading-relaxed text-slate-400">{{ module.description }}</p>
-      </NuxtLink>
+        <p class="text-sm text-slate-400">
+          {{ credencialesDashboard.descripcion }}
+        </p>
+        <Button as-child class="w-full rounded-2xl sm:w-auto">
+          <NuxtLink :to="credencialesDashboard.rutaPrimaria">
+            {{ credencialesDashboard.accionPrimaria }}
+            <ArrowRight class="size-4" />
+          </NuxtLink>
+        </Button>
+      </CardFooter>
+    </Card>
+
+    <div class="grid gap-4 md:grid-cols-3">
+      <Card
+        v-for="metrica in metricasDashboard"
+        :key="metrica.etiqueta"
+        class="border-white/10 bg-black/25 text-white shadow-xl shadow-cyan-950/10 backdrop-blur-xl"
+      >
+        <CardHeader>
+          <div class="flex items-center justify-between gap-3">
+            <CardDescription class="text-slate-400">{{
+              metrica.etiqueta
+            }}</CardDescription>
+            <Badge
+              variant="outline"
+              class="border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
+            >
+              {{ metrica.tendencia }}
+            </Badge>
+          </div>
+          <CardTitle class="text-3xl">{{ metrica.valor }}</CardTitle>
+        </CardHeader>
+        <CardContent class="text-sm text-slate-400">{{
+          metrica.detalle
+        }}</CardContent>
+      </Card>
+    </div>
+
+    <div class="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <div class="grid gap-4 md:grid-cols-2">
+        <NuxtLink
+          v-for="modulo in modulosDashboard"
+          :key="modulo.ruta"
+          :to="modulo.ruta"
+          class="group block"
+        >
+          <Card
+            class="relative h-full overflow-hidden border-white/10 bg-black/30 text-white shadow-xl shadow-cyan-950/10 backdrop-blur-xl transition duration-300 hover:-translate-y-1 hover:border-cyan-300/30"
+          >
+            <div
+              :class="[
+                'absolute inset-0 bg-gradient-to-br opacity-80 transition group-hover:opacity-100',
+                modulo.claseTarjeta,
+              ]"
+            />
+            <CardHeader class="relative">
+              <div class="flex items-start justify-between gap-4">
+                <span
+                  :class="[
+                    'grid size-12 place-items-center rounded-2xl ring-1',
+                    modulo.claseIcono,
+                  ]"
+                >
+                  <component :is="modulo.icono" class="size-5" />
+                </span>
+                <Badge
+                  variant="outline"
+                  class="border-white/15 bg-white/10 text-white"
+                >
+                  {{ etiquetaEstadoPanelDashboard[modulo.estado] }}
+                </Badge>
+              </div>
+              <CardTitle class="mt-5 text-2xl">{{ modulo.titulo }}</CardTitle>
+              <CardDescription
+                class="min-h-16 text-sm leading-7 text-slate-300"
+              >
+                {{ modulo.descripcion }}
+              </CardDescription>
+            </CardHeader>
+            <CardContent class="relative space-y-3">
+              <div class="flex items-center justify-between text-sm">
+                <span class="text-slate-400">{{ modulo.detalle }}</span>
+                <span class="font-semibold text-white"
+                  >{{ modulo.progreso }}%</span
+                >
+              </div>
+              <Progress
+                :model-value="modulo.progreso"
+                class="h-2.5 bg-white/10"
+              />
+            </CardContent>
+            <CardFooter
+              class="relative justify-between border-t border-white/10 bg-black/10"
+            >
+              <span class="text-sm text-slate-400">Abrir módulo</span>
+              <ArrowRight
+                class="size-4 text-cyan-100 transition group-hover:translate-x-1"
+              />
+            </CardFooter>
+          </Card>
+        </NuxtLink>
+      </div>
+
+      <Card
+        class="border-white/10 bg-black/30 text-white shadow-xl shadow-cyan-950/10 backdrop-blur-xl"
+      >
+        <CardHeader>
+          <Badge
+            class="w-fit border-transparent bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/15"
+          >
+            Roadmap
+          </Badge>
+          <CardTitle class="text-2xl">Estado de migración</CardTitle>
+          <CardDescription class="text-slate-400">
+            Prioridades inmediatas para mantener el dashboard limpio y
+            extensible.
+          </CardDescription>
+        </CardHeader>
+        <CardContent class="space-y-5">
+          <div
+            v-for="proceso in procesosDashboard"
+            :key="proceso.titulo"
+            class="space-y-3"
+          >
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <p class="font-semibold text-white">{{ proceso.titulo }}</p>
+                <p class="mt-1 text-sm leading-6 text-slate-400">
+                  {{ proceso.descripcion }}
+                </p>
+              </div>
+              <span class="text-sm font-semibold text-cyan-100"
+                >{{ proceso.progreso }}%</span
+              >
+            </div>
+            <Progress :model-value="proceso.progreso" class="h-2 bg-white/10" />
+            <Separator class="bg-white/10 last:hidden" />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   </section>
 </template>
