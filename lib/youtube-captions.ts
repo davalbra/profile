@@ -165,9 +165,7 @@ function dedupeCaptionLines(lines: CaptionLyricLine[]) {
   return result
 }
 
-function pickTrack(
-  groups: Record<string, unknown> | null | undefined,
-): {
+function pickTrack(groups: Record<string, unknown> | null | undefined): {
   language: string
   track: YtDlpTrack
   trackKind: "subtitles" | "automatic_captions"

@@ -9,11 +9,13 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
+/** Services, Components */
+const ruta = useRoute()
+
+/** Vue */
 definePageMeta({
   layout: "dashboard",
 })
-
-const ruta = useRoute()
 
 if (import.meta.server) {
   setResponseStatus(404)

@@ -7,8 +7,8 @@ import {
   Star,
   Zap,
 } from "lucide-vue-next"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
+import {Badge} from "@/components/ui/badge"
+import {Button} from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -16,18 +16,29 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { getImageFormatLabel } from "@/lib/images/image-format-label"
-import { parseOptimizedImageIdFromSlug } from "@/lib/images/optimized-slug"
-import { useImagenesRepositorio } from "@/store/repository/imagenes"
-import type { DetalleImagenOptimizada } from "@/types/imagenes"
-import { formatearBytes } from "@/utils/formatters/archivos"
-import { formatearFechaMediaConHora } from "@/utils/formatters/fechas"
-import { formatearPorcentaje } from "@/utils/formatters/numeros"
+import {getImageFormatLabel} from "@/lib/images/image-format-label"
+import {parseOptimizedImageIdFromSlug} from "@/lib/images/optimized-slug"
+import {useImagenesRepositorio} from "@/store/repository/imagenes"
+import type {DetalleImagenOptimizada} from "@/types/imagenes"
+import {formatearBytes} from "@/utils/formatters/archivos"
+import {formatearFechaMediaConHora} from "@/utils/formatters/fechas"
+import {formatearPorcentaje} from "@/utils/formatters/numeros"
 
+/** Props */
 const props = defineProps<{
   slug: string
 }>()
 
+/** Services, Components */
+const imagenesRepositorio = useImagenesRepositorio()
+
+/** DefineModel, Ref, Computed */
+const imageId = computed(() => parseOptimizedImageIdFromSlug(props.slug))
+const data = ref<DetalleImagenOptimizada | null>(null)
+const loading = ref(true)
+const error = ref<string | null>(null)
+
+/** Functions */
 function getTransitionSummary(input: {
   fromStep: string
   toStep: string
@@ -36,12 +47,6 @@ function getTransitionSummary(input: {
   const toStep = input.toStep.trim() || "siguiente paso"
   return `${fromStep} -> ${toStep}`
 }
-
-const imagenesRepositorio = useImagenesRepositorio()
-const imageId = computed(() => parseOptimizedImageIdFromSlug(props.slug))
-const data = ref<DetalleImagenOptimizada | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
 
 async function loadDetail() {
   if (!imageId.value) {
@@ -55,28 +60,29 @@ async function loadDetail() {
 
   try {
     const respuesta = await imagenesRepositorio.obtenerDetalleOptimizacion(
-      imageId.value,
+        imageId.value,
     )
     data.value = respuesta.data
   } catch (reason) {
     error.value =
-      reason instanceof Error ? reason.message : "No se pudo cargar el detalle."
+        reason instanceof Error ? reason.message : "No se pudo cargar el detalle."
   } finally {
     loading.value = false
   }
 }
 
+/** Vue */
 if (import.meta.client) {
-  watch(imageId, () => void loadDetail(), { immediate: true })
+  watch(imageId, () => void loadDetail(), {immediate: true})
 }
 </script>
 
 <template>
   <Card v-if="loading">
     <CardContent
-      class="flex items-center gap-2 py-6 text-sm text-muted-foreground"
+        class="flex items-center gap-2 py-6 text-sm text-muted-foreground"
     >
-      <Loader2 class="size-4 animate-spin" />
+      <Loader2 class="size-4 animate-spin"/>
       Cargando detalle de optimización...
     </CardContent>
   </Card>
@@ -85,13 +91,14 @@ if (import.meta.client) {
     <CardHeader>
       <CardTitle>Detalle no disponible</CardTitle>
       <CardDescription>{{
-        error || "No se pudo cargar la imagen."
-      }}</CardDescription>
+          error || "No se pudo cargar la imagen."
+        }}
+      </CardDescription>
     </CardHeader>
     <CardContent>
       <Button as-child variant="outline" size="sm">
         <NuxtLink to="/dashboard/images/optimize">
-          <ArrowLeft class="size-4" />
+          <ArrowLeft class="size-4"/>
           Volver a optimizar
         </NuxtLink>
       </Button>
@@ -102,21 +109,22 @@ if (import.meta.client) {
     <div class="flex flex-wrap items-center gap-2">
       <Button as-child variant="outline" size="sm">
         <NuxtLink to="/dashboard/images/optimize">
-          <ArrowLeft class="size-4" />
+          <ArrowLeft class="size-4"/>
           Volver
         </NuxtLink>
       </Button>
       <Badge variant="secondary">
-        <Zap class="mr-1 size-3" />
+        <Zap class="mr-1 size-3"/>
         Optimizada
       </Badge>
       <Badge v-if="data.image.sourceWasN8n" variant="secondary">
-        <Star class="mr-1 size-3 fill-current" />
+        <Star class="mr-1 size-3 fill-current"/>
         n8n
       </Badge>
       <Badge variant="outline">{{
-        formatearBytes(data.image.sizeBytes)
-      }}</Badge>
+          formatearBytes(data.image.sizeBytes)
+        }}
+      </Badge>
     </div>
 
     <Card>
@@ -133,9 +141,9 @@ if (import.meta.client) {
       <CardContent class="space-y-3">
         <div class="aspect-[16/9] overflow-hidden rounded-lg border bg-muted">
           <img
-            :src="data.image.downloadURL"
-            :alt="data.image.name"
-            class="size-full object-contain"
+              :src="data.image.downloadURL"
+              :alt="data.image.name"
+              class="size-full object-contain"
           />
         </div>
         <div class="grid gap-2 text-xs text-muted-foreground md:grid-cols-2">
@@ -175,33 +183,34 @@ if (import.meta.client) {
       <CardHeader>
         <CardTitle class="text-base">Ruta de Transformación</CardTitle>
         <CardDescription
-          >Histórico visual del proceso entre colecciones.</CardDescription
+        >Histórico visual del proceso entre colecciones.
+        </CardDescription
         >
       </CardHeader>
       <CardContent class="space-y-3">
         <div class="grid gap-3 md:grid-cols-3">
           <div
-            v-for="(node, index) in data.lineage"
-            :key="node.path"
-            class="space-y-2"
+              v-for="(node, index) in data.lineage"
+              :key="node.path"
+              class="space-y-2"
           >
             <article class="overflow-hidden rounded-lg border">
               <div class="relative aspect-[4/3] bg-muted">
                 <img
-                  v-if="node.downloadURL"
-                  :src="node.downloadURL"
-                  :alt="node.name"
-                  class="size-full object-cover"
+                    v-if="node.downloadURL"
+                    :src="node.downloadURL"
+                    :alt="node.name"
+                    class="size-full object-cover"
                 />
                 <div
-                  v-else
-                  class="flex size-full items-center justify-center p-2 text-center text-xs text-muted-foreground"
+                    v-else
+                    class="flex size-full items-center justify-center p-2 text-center text-xs text-muted-foreground"
                 >
                   Vista previa no disponible
                 </div>
                 <Badge
-                  variant="outline"
-                  class="absolute left-2 top-2 border-white/20 bg-black/65 text-white"
+                    variant="outline"
+                    class="absolute left-2 top-2 border-white/20 bg-black/65 text-white"
                 >
                   {{ node.stepLabel }}
                 </Badge>
@@ -218,22 +227,23 @@ if (import.meta.client) {
                     }}
                   </Badge>
                   <Badge variant="outline" class="text-[10px]">{{
-                    formatearBytes(node.sizeBytes)
-                  }}</Badge>
+                      formatearBytes(node.sizeBytes)
+                    }}
+                  </Badge>
                   <Badge
-                    v-if="node.collection === 'n8n'"
-                    variant="secondary"
-                    class="text-[10px]"
+                      v-if="node.collection === 'n8n'"
+                      variant="secondary"
+                      class="text-[10px]"
                   >
-                    <Star class="mr-1 size-3 fill-current" />
+                    <Star class="mr-1 size-3 fill-current"/>
                     n8n
                   </Badge>
                   <Badge
-                    v-if="node.collection === 'optimized'"
-                    variant="secondary"
-                    class="text-[10px]"
+                      v-if="node.collection === 'optimized'"
+                      variant="secondary"
+                      class="text-[10px]"
                   >
-                    <Sparkles class="mr-1 size-3" />
+                    <Sparkles class="mr-1 size-3"/>
                     optimizada
                   </Badge>
                 </div>
@@ -241,11 +251,11 @@ if (import.meta.client) {
             </article>
 
             <div
-              v-if="index < data.transitions.length"
-              class="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-xs text-emerald-700"
+                v-if="index < data.transitions.length"
+                class="rounded-md border border-emerald-500/30 bg-emerald-500/5 p-2 text-xs text-emerald-700"
             >
               <p class="flex items-center gap-1 font-medium">
-                <ArrowRight class="size-3" />
+                <ArrowRight class="size-3"/>
                 {{
                   getTransitionSummary({
                     fromStep: node.stepLabel,

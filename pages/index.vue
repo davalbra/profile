@@ -29,24 +29,12 @@ import { repositoriosFijadosPredeterminados } from "@/utils/constants/github"
 import { formatearFechaRelativa } from "@/utils/formatters/fechas"
 import { formatearNumeroCompacto } from "@/utils/formatters/numeros"
 
-useHead({
-  title: "davalbra | Control center Nuxt para MCP, billing e imágenes",
-  meta: [
-    {
-      name: "description",
-      content:
-        "Proyecto Nuxt de davalbra: dashboard privado para MCP, billing Firebase/Gemini, optimización de imágenes, flujos n8n y utilidades Milka.",
-    },
-  ],
-})
-
+/** Services, Components */
 const { isDark, toggleTheme } = useThemeMode()
 const githubRepositorio = useGithubRepositorio()
-const authModalOpen = ref(false)
 
-function abrirModalAuth() {
-  authModalOpen.value = true
-}
+/** DefineModel, Ref, Computed */
+const authModalOpen = ref(false)
 
 const services = [
   {
@@ -144,6 +132,23 @@ const pinnedRepositories = computed(() =>
     updatedText: formatearFechaRelativa(repo.updatedAt),
   })),
 )
+
+/** Functions */
+function abrirModalAuth() {
+  authModalOpen.value = true
+}
+
+/** Vue */
+useHead({
+  title: "davalbra | Control center Nuxt para MCP, billing e imágenes",
+  meta: [
+    {
+      name: "description",
+      content:
+        "Proyecto Nuxt de davalbra: dashboard privado para MCP, billing Firebase/Gemini, optimización de imágenes, flujos n8n y utilidades Milka.",
+    },
+  ],
+})
 
 onMounted(async () => {
   try {

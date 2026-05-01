@@ -10,12 +10,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-definePageMeta({
-  layout: "dashboard",
-})
-
+/** Services, Components */
 const route = useRoute()
 
+/** DefineModel, Ref, Computed */
 interface EnlaceVistaMilka {
   key: string
   label: string
@@ -61,6 +59,11 @@ const viewLinks: EnlaceVistaMilka[] = [
     description: "Utilidades de sesión y limpieza listas para reconectar.",
   },
 ]
+
+/** Vue */
+definePageMeta({
+  layout: "dashboard",
+})
 </script>
 
 <template>

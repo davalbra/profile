@@ -28,14 +28,16 @@ import {
   TamanoPaginaGaleria,
 } from "@/utils/enums/anums"
 
+/** Services, Components */
 const route = useRoute()
 const { user, error } = useAuth()
 const imagenesRepositorio = useImagenesRepositorio()
+
+/** DefineModel, Ref, Computed */
 const userId = computed(() => user.value?.uid || null)
 const requestedGalleryPath = computed(() =>
   typeof route.query.galleryPath === "string" ? route.query.galleryPath : null,
 )
-
 const selectedGalleryPath = ref<string | null>(requestedGalleryPath.value)
 const galleryPage = ref(1)
 const galleryPageSize = ref<TamanoPaginaGaleria>(TamanoPaginaGaleria.DIEZ)
@@ -81,37 +83,7 @@ const paginatedGalleryImages = computed(() => {
   return galleryImages.value.slice(start, start + galleryPageSize.value)
 })
 
-watch(requestedGalleryPath, (next) => {
-  if (next) selectedGalleryPath.value = next
-})
-
-watch(totalGalleryPages, (total) => {
-  galleryPage.value = Math.min(galleryPage.value, total)
-})
-
-watch(galleryError, (next) => {
-  if (next) failure.value = next
-})
-
-watch(galleryImages, (nextImages) => {
-  if (
-    selectedGalleryPath.value &&
-    !nextImages.some((image) => image.path === selectedGalleryPath.value)
-  ) {
-    selectedGalleryPath.value =
-      nextImages.find(
-        (image) => image.sourceGalleryPath === selectedGalleryPath.value,
-      )?.path || null
-  }
-
-  if (!selectedGalleryPath.value) return
-  const index = nextImages.findIndex(
-    (image) => image.path === selectedGalleryPath.value,
-  )
-  if (index >= 0)
-    galleryPage.value = Math.floor(index / galleryPageSize.value) + 1
-})
-
+/** Functions */
 async function handleSendToN8n() {
   if (!user.value) {
     failure.value = "Debes iniciar sesión para enviar imágenes a n8n."
@@ -194,6 +166,38 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
   galleryPageSize.value = nextSize
   galleryPage.value = 1
 }
+
+/** Vue */
+watch(requestedGalleryPath, (next) => {
+  if (next) selectedGalleryPath.value = next
+})
+
+watch(totalGalleryPages, (total) => {
+  galleryPage.value = Math.min(galleryPage.value, total)
+})
+
+watch(galleryError, (next) => {
+  if (next) failure.value = next
+})
+
+watch(galleryImages, (nextImages) => {
+  if (
+    selectedGalleryPath.value &&
+    !nextImages.some((image) => image.path === selectedGalleryPath.value)
+  ) {
+    selectedGalleryPath.value =
+      nextImages.find(
+        (image) => image.sourceGalleryPath === selectedGalleryPath.value,
+      )?.path || null
+  }
+
+  if (!selectedGalleryPath.value) return
+  const index = nextImages.findIndex(
+    (image) => image.path === selectedGalleryPath.value,
+  )
+  if (index >= 0)
+    galleryPage.value = Math.floor(index / galleryPageSize.value) + 1
+})
 </script>
 
 <template>

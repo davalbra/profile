@@ -35,8 +35,17 @@ import { formatearBytes } from "@/utils/formatters/archivos"
 import { formatearFechaMediaConHora } from "@/utils/formatters/fechas"
 import { TamanoPaginaGaleria } from "@/utils/enums/anums"
 
+/** Services, Components */
 const { user, loading, error } = useAuth()
 const imagenesRepositorio = useImagenesRepositorio()
+
+/** DefineModel, Ref, Computed */
+interface VistaPreviaPendiente {
+  name: string
+  size: number
+  previewUrl: string
+}
+
 const userId = computed(() => user.value?.uid || null)
 const files = ref<File[]>([])
 const galleryPage = ref(1)
@@ -59,25 +68,7 @@ const {
   userId,
 })
 
-const pendingPreviews = ref<
-  Array<{ name: string; size: number; previewUrl: string }>
->([])
-
-watch(
-  files,
-  (next, _previous, onCleanup) => {
-    const previews = next.map((file) => ({
-      name: file.name,
-      size: file.size,
-      previewUrl: URL.createObjectURL(file),
-    }))
-    pendingPreviews.value = previews
-    onCleanup(() => {
-      previews.forEach((preview) => URL.revokeObjectURL(preview.previewUrl))
-    })
-  },
-  { immediate: true },
-)
+const pendingPreviews = ref<VistaPreviaPendiente[]>([])
 
 const totalGalleryPages = computed(() =>
   Math.max(1, Math.ceil(images.value.length / galleryPageSize.value)),
@@ -87,14 +78,7 @@ const paginatedImages = computed(() => {
   return images.value.slice(start, start + galleryPageSize.value)
 })
 
-watch(totalGalleryPages, (total) => {
-  galleryPage.value = Math.min(galleryPage.value, total)
-})
-
-watch(galleryError, (next) => {
-  if (next) failure.value = next
-})
-
+/** Functions */
 function handleFileChange() {
   files.value = Array.from(fileInput.value?.files || [])
 }
@@ -219,6 +203,31 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
   galleryPageSize.value = nextSize
   galleryPage.value = 1
 }
+
+/** Vue */
+watch(
+  files,
+  (next, _previous, onCleanup) => {
+    const previews = next.map((file) => ({
+      name: file.name,
+      size: file.size,
+      previewUrl: URL.createObjectURL(file),
+    }))
+    pendingPreviews.value = previews
+    onCleanup(() => {
+      previews.forEach((preview) => URL.revokeObjectURL(preview.previewUrl))
+    })
+  },
+  { immediate: true },
+)
+
+watch(totalGalleryPages, (total) => {
+  galleryPage.value = Math.min(galleryPage.value, total)
+})
+
+watch(galleryError, (next) => {
+  if (next) failure.value = next
+})
 </script>
 
 <template>

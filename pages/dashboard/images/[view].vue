@@ -8,12 +8,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-definePageMeta({
-  layout: "dashboard",
-})
-
+/** Services, Components */
 const route = useRoute()
 
+/** DefineModel, Ref, Computed */
 interface TextoVistaImagen {
   title: string
   description: string
@@ -57,6 +55,11 @@ const activeView = computed(() => {
 const isKnownView = computed(() =>
   ["gallery", "copies", "optimize"].includes(activeView.value),
 )
+
+/** Vue */
+definePageMeta({
+  layout: "dashboard",
+})
 </script>
 
 <template>

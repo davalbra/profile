@@ -36,12 +36,6 @@ import { opcionesPeriodoFacturacion } from "@/utils/constants/facturacion"
 import { formatearFechaCorta } from "@/utils/formatters/fechas"
 import { formatearMoneda, formatearNumero } from "@/utils/formatters/numeros"
 
-const props = defineProps<{
-  service: BillingServiceKey
-  title: string
-  description: string
-}>()
-
 type ChartPoint = {
   date: string
   cost: number
@@ -49,8 +43,18 @@ type ChartPoint = {
   y: number
 }
 
+/** Props */
+const props = defineProps<{
+  service: BillingServiceKey
+  title: string
+  description: string
+}>()
+
+/** Services, Components */
 const { user, error: authError } = useAuth()
 const facturacionRepositorio = useFacturacionRepositorio()
+
+/** DefineModel, Ref, Computed */
 const period = ref<BillingPeriodKey>("30d")
 const loading = ref(false)
 const error = ref<string | null>(null)
@@ -113,6 +117,7 @@ const lastChartDate = computed(
   () => data.value?.daily[data.value.daily.length - 1]?.date || null,
 )
 
+/** Functions */
 async function loadData(selectedPeriod = period.value) {
   if (!user.value) {
     data.value = null
@@ -141,6 +146,7 @@ async function loadData(selectedPeriod = period.value) {
   }
 }
 
+/** Vue */
 watch(
   [() => props.service, period, user],
   () => {
@@ -200,8 +206,8 @@ watch(
         <AlertCircle class="size-4" />
         <AlertTitle>Sesión requerida</AlertTitle>
         <AlertDescription
-          >Inicia sesión para consultar costos.</AlertDescription
-        >
+          >Inicia sesión para consultar costos.
+        </AlertDescription>
       </Alert>
 
       <div class="grid gap-3 md:grid-cols-3">
@@ -343,12 +349,12 @@ watch(
               v-for="item in data?.skuBreakdown || []"
               :key="`${item.serviceName}-${item.skuName}-${item.usageUnit || '-'}`"
             >
-              <TableCell class="max-w-[360px] whitespace-normal font-medium">{{
-                item.skuName
-              }}</TableCell>
-              <TableCell class="max-w-[220px] whitespace-normal">{{
-                item.serviceName
-              }}</TableCell>
+              <TableCell class="max-w-[360px] whitespace-normal font-medium"
+                >{{ item.skuName }}
+              </TableCell>
+              <TableCell class="max-w-[220px] whitespace-normal"
+                >{{ item.serviceName }}
+              </TableCell>
               <TableCell class="text-right">
                 {{ formatearNumero(item.usageAmount) }}
                 {{ item.usageUnit || "" }}

@@ -1,38 +1,27 @@
 <script setup lang="ts">
 import { Chrome, Loader2, LogOut, X } from "lucide-vue-next"
 
+/** Props */
 const props = defineProps<{
   modelValue: boolean
 }>()
 
+/** Emit */
 const emit = defineEmits<{
   "update:modelValue": [value: boolean]
 }>()
 
+/** Services, Components */
 const { user, loading, error, loginWithGoogle, logout } = useAuth()
+
+/** DefineModel, Ref, Computed */
 const pending = ref(false)
 const localError = ref<string | null>(null)
 
+/** Functions */
 const close = () => {
   emit("update:modelValue", false)
 }
-
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (!import.meta.client) {
-      return
-    }
-
-    document.body.style.overflow = open ? "hidden" : ""
-  },
-)
-
-onBeforeUnmount(() => {
-  if (import.meta.client) {
-    document.body.style.overflow = ""
-  }
-})
 
 const handleGoogleLogin = async () => {
   pending.value = true
@@ -65,6 +54,24 @@ const handleLogout = async () => {
     pending.value = false
   }
 }
+
+/** Vue */
+watch(
+  () => props.modelValue,
+  (open) => {
+    if (!import.meta.client) {
+      return
+    }
+
+    document.body.style.overflow = open ? "hidden" : ""
+  },
+)
+
+onBeforeUnmount(() => {
+  if (import.meta.client) {
+    document.body.style.overflow = ""
+  }
+})
 </script>
 
 <template>

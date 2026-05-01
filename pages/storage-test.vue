@@ -2,13 +2,11 @@
 import { Loader2, Upload } from "lucide-vue-next"
 import { uploadFileForCurrentUserWithProgress } from "@/lib/firebase/storage"
 
-useHead({
-  title: "Storage Test | davalbra",
-})
-
+/** Services, Components */
 const { user, loading, error } = useAuth()
 const nuxtApp = useNuxtApp()
 
+/** DefineModel, Ref, Computed */
 const file = ref<File | null>(null)
 const busy = ref(false)
 const progress = ref(0)
@@ -16,6 +14,7 @@ const message = ref("")
 const downloadUrl = ref("")
 const fileInput = ref<HTMLInputElement | null>(null)
 
+/** Functions */
 const handleUpload = async () => {
   if (!file.value) {
     message.value = "Selecciona un archivo primero."
@@ -58,6 +57,11 @@ const handleUpload = async () => {
 const handleFileChange = () => {
   file.value = fileInput.value?.files?.[0] || null
 }
+
+/** Vue */
+useHead({
+  title: "Storage Test | davalbra",
+})
 </script>
 
 <template>

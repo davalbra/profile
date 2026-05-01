@@ -15,16 +15,7 @@ type Petalo = {
   delay: number
 }
 
-useHead({
-  title: "Flores amarillas | davalbra",
-  meta: [
-    {
-      name: "description",
-      content: "Un bouquet animado de flores amarillas.",
-    },
-  ],
-})
-
+/** DefineModel, Ref, Computed */
 const montado = ref(false)
 const petalos = ref<Petalo[]>([])
 
@@ -59,6 +50,17 @@ const bouquetRoses = computed<Rosa[]>(() => {
   }
 
   return roses.sort((first, second) => first.y - second.y)
+})
+
+/** Vue */
+useHead({
+  title: "Flores amarillas | davalbra",
+  meta: [
+    {
+      name: "description",
+      content: "Un bouquet animado de flores amarillas.",
+    },
+  ],
 })
 
 onMounted(() => {

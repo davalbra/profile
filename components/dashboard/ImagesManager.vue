@@ -45,10 +45,18 @@ import {
 } from "@/utils/enums/anums"
 import { modoCalidadImagenPredeterminado } from "@/utils/constants/imagenes"
 
+/** Services, Components */
 const route = useRoute()
 const router = useRouter()
 const { user, error } = useAuth()
 const imagenesRepositorio = useImagenesRepositorio()
+
+/** DefineModel, Ref, Computed */
+interface EntradaOptimizacionImagen {
+  path: string
+  name: string
+}
+
 const userId = computed(() => user.value?.uid || null)
 const requestedGalleryPath = computed(() =>
   typeof route.query.galleryPath === "string" ? route.query.galleryPath : null,
@@ -71,10 +79,6 @@ const status = ref<string | null>(null)
 const failure = ref<string | null>(null)
 const historyRecords = ref<RegistroHistorialOptimizacion[]>([])
 const loadingHistory = ref(false)
-
-watch(requestedGalleryPath, (next) => {
-  if (next) sourceMode.value = requestedSourceMode.value
-})
 
 const {
   images: sourceImages,
@@ -174,33 +178,9 @@ const statsSummary = computed(() => {
   return { totalSavedBytes, totalSavedPercent }
 })
 
-watch(totalPages, (total) => {
-  galleryPage.value = Math.min(galleryPage.value, total)
-})
-
-watch(sourceMode, () => {
-  galleryPage.value = 1
-})
-
-watch(
-  [sourceImages, galleryPageSize, requestedGalleryPath],
-  ([images, pageSize, requestedPath]) => {
-    if (!requestedPath) return
-    const index = images.findIndex((item) => item.path === requestedPath)
-    if (index >= 0) galleryPage.value = Math.floor(index / pageSize) + 1
-  },
-)
-
-watch(sourceError, (next) => {
-  if (next) failure.value = next
-})
-
-watch(optimizedAuxError, (next) => {
-  if (next) failure.value = next
-})
-
+/** Functions */
 async function refreshOptimizedCollection() {
-  if (sourceMode.value === "optimized") {
+  if (sourceMode.value === AlcanceGaleriaImagen.OPTIMIZADA) {
     return await refreshSource({ force: true })
   }
   return await refreshOptimizedAux({ force: true })
@@ -226,9 +206,7 @@ async function loadHistoryRecords() {
   }
 }
 
-watch(userId, () => void loadHistoryRecords(), { immediate: true })
-
-async function handleOptimizeImage(input: { path: string; name: string }) {
+async function handleOptimizeImage(input: EntradaOptimizacionImagen) {
   if (!user.value) {
     failure.value = "Debes iniciar sesión para administrar imágenes."
     return
@@ -374,6 +352,38 @@ function getImageState(image: GalleryImage) {
     quality: qualityByPath.value[image.path] || modoCalidadImagenPredeterminado,
   }
 }
+
+/** Vue */
+watch(requestedGalleryPath, (next) => {
+  if (next) sourceMode.value = requestedSourceMode.value
+})
+
+watch(totalPages, (total) => {
+  galleryPage.value = Math.min(galleryPage.value, total)
+})
+
+watch(sourceMode, () => {
+  galleryPage.value = 1
+})
+
+watch(
+  [sourceImages, galleryPageSize, requestedGalleryPath],
+  ([images, pageSize, requestedPath]) => {
+    if (!requestedPath) return
+    const index = images.findIndex((item) => item.path === requestedPath)
+    if (index >= 0) galleryPage.value = Math.floor(index / pageSize) + 1
+  },
+)
+
+watch(sourceError, (next) => {
+  if (next) failure.value = next
+})
+
+watch(optimizedAuxError, (next) => {
+  if (next) failure.value = next
+})
+
+watch(userId, () => void loadHistoryRecords(), { immediate: true })
 </script>
 
 <template>

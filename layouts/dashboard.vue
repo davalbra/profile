@@ -38,10 +38,13 @@ import {
 } from "@/lib/dashboard/dashboard.data"
 import { cn } from "@/lib/utils"
 
+/** Services, Components */
 const ruta = useRoute()
 const autenticacion = useAuth()
 const nuxtApp = useNuxtApp()
 const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode()
+
+/** DefineModel, Ref, Computed */
 const seccionesAbiertas = ref<Record<string, boolean>>({})
 const redireccionando = ref(false)
 let temporizadorRedireccion: number | null = null
@@ -50,6 +53,7 @@ const correoUsuario = computed(
   () => autenticacion.user.value?.email || "Sesión no activa",
 )
 
+/** Functions */
 const obtenerPrefijoSeccion = (rutaNavegacion: string) => {
   const segmentos = rutaNavegacion.split("/").filter(Boolean)
   if (segmentos.length < 2) {
@@ -78,6 +82,7 @@ const alternarSeccion = (clave: string) => {
   }
 }
 
+/** Vue */
 watch(
   () => ruta.path,
   () => {

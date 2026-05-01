@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { tamanosPaginaGaleria } from "@/utils/constants/imagenes"
 import type { TamanoPaginaGaleria } from "@/utils/enums/anums"
 
+/** Props */
 const props = withDefaults(
   defineProps<{
     totalItems: number
@@ -17,11 +18,13 @@ const props = withDefaults(
   },
 )
 
+/** Emit */
 const emit = defineEmits<{
   pageChange: [page: number]
   pageSizeChange: [pageSize: TamanoPaginaGaleria]
 }>()
 
+/** DefineModel, Ref, Computed */
 const totalPages = computed(() =>
   Math.max(1, Math.ceil(props.totalItems / props.pageSize)),
 )
@@ -39,6 +42,7 @@ const canNext = computed(
   () => clampedPage.value < totalPages.value && !props.disabled,
 )
 
+/** Functions */
 function manejarCambioTamanoPagina(tamanoPagina: TamanoPaginaGaleria) {
   emit("pageSizeChange", tamanoPagina)
 }

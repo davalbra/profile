@@ -11,12 +11,10 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 
-definePageMeta({
-  layout: "dashboard",
-})
-
+/** Services, Components */
 const route = useRoute()
 
+/** DefineModel, Ref, Computed */
 interface DocumentoHerramientaMcp {
   label: string
   title: string
@@ -73,6 +71,11 @@ const example = computed(() =>
     2,
   ),
 )
+
+/** Vue */
+definePageMeta({
+  layout: "dashboard",
+})
 </script>
 
 <template>
