@@ -24,6 +24,14 @@ type StoredN8nImage = {
   createdAt: string;
 };
 
+type StoredOptimizedImage = {
+  id: string;
+  original: StoredN8nImage;
+  optimized: StoredN8nImage;
+  savedBytes: number;
+  savedPercent: number;
+};
+
 function formatBytes(bytes: number | null): string {
   if (!bytes || Number.isNaN(bytes)) return "-";
   if (bytes < 1024) return `${bytes} B`;
@@ -159,11 +167,6 @@ async function handleSendToN8n() {
     return;
   }
 
-  if (selectedGalleryNeedsJpegWizard.value) {
-    failure.value = "Primero convierte la imagen a JPG en el Paso 1.";
-    return;
-  }
-
   if (!selectedGalleryPath.value) {
     failure.value = "Selecciona una imagen de la galería.";
     return;
@@ -176,6 +179,7 @@ async function handleSendToN8n() {
 
   const formData = new FormData();
   formData.append("galleryPath", selectedGalleryPath.value);
+  formData.append("optimizeForWeb", "true");
 
   sending.value = true;
   try {
@@ -190,6 +194,7 @@ async function handleSendToN8n() {
       n8nImage?: N8nImagePreview | null;
       n8nStoredImage?: StoredN8nImage | null;
       n8nCompatibleImage?: StoredN8nImage | null;
+      optimizedWebImage?: StoredOptimizedImage | null;
       source?: string;
       fileName?: string;
       wasConvertedToJpeg?: boolean;
@@ -201,9 +206,12 @@ async function handleSendToN8n() {
 
     const sourceLabel = payload.source === "gallery" ? "galería" : payload.source === "n8n" ? "galería n8n" : "galería";
     const convertedLabel = payload.wasConvertedToJpeg ? " (convertida a JPG)" : "";
-    const storedLabel = payload.n8nStoredImage ? " Resultado n8n guardado y reemplazado en galería n8n." : "";
-    const compatibleLabel = payload.n8nCompatibleImage ? " Galería n8n actualizada con versión JPG." : "";
-    status.value = `Imagen enviada a n8n desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${storedLabel}${compatibleLabel}`;
+    const storedLabel = payload.n8nStoredImage ? " Resultado n8n guardado." : "";
+    const compatibleLabel = payload.n8nCompatibleImage ? " Copia JPG intermedia guardada." : "";
+    const optimizedLabel = payload.optimizedWebImage
+      ? ` Optimizada para web en AVIF (${formatBytes(payload.optimizedWebImage.optimized.sizeBytes)}, ahorro ${formatBytes(payload.optimizedWebImage.savedBytes)} / ${payload.optimizedWebImage.savedPercent.toFixed(1)}%).`
+      : "";
+    status.value = `Flujo completo desde ${sourceLabel}: ${payload.fileName || "archivo"}${convertedLabel}.${compatibleLabel}${storedLabel}${optimizedLabel}`;
 
     responseImage.value = payload.n8nImage || null;
     responsePayload.value = responseImage.value
@@ -213,6 +221,7 @@ async function handleSendToN8n() {
           fileName: responseImage.value.fileName,
           sizeBytes: responseImage.value.sizeBytes,
           n8nStoredImage: payload.n8nStoredImage || null,
+          optimizedWebImage: payload.optimizedWebImage || null,
         }
       : payload.n8n ?? payload;
 
@@ -234,10 +243,10 @@ async function handleSendToN8n() {
       <div>
         <CardTitle class="flex items-center gap-2">
           <Sparkles class="size-5" />
-          Copias de Imágenes con n8n
+          Filtro n8n y optimización web
         </CardTitle>
         <CardDescription>
-          Elige una imagen desde galería y envíala al webhook para crear copias con tu flujo de n8n.
+          Elige una imagen, pásala por el webhook de n8n y guarda el resultado optimizado para web.
         </CardDescription>
       </div>
 
@@ -309,7 +318,7 @@ async function handleSendToN8n() {
         <div v-if="selectedGalleryImage" class="space-y-1">
           <p class="text-xs text-muted-foreground">Seleccionada: {{ selectedGalleryImage.name }}</p>
           <p v-if="selectedGalleryNeedsJpegWizard" class="text-xs text-amber-700">
-            Esta imagen no es compatible con n8n. Debes convertir a JPG y luego copiar.
+            Esta imagen se convertirá a JPG automáticamente antes de enviarla a n8n.
           </p>
           <p v-else class="text-xs text-muted-foreground">Formato compatible con n8n, envío directo.</p>
         </div>
@@ -317,21 +326,10 @@ async function handleSendToN8n() {
       </div>
 
       <div class="flex justify-end gap-2">
-        <Button
-          v-if="selectedGalleryNeedsJpegWizard"
-          size="sm"
-          variant="outline"
-          :disabled="busy || !user || !selectedGalleryPath"
-          @click="handlePrepareGalleryForN8n"
-        >
-          <Loader2 v-if="preparingGallery" class="size-4 animate-spin" />
-          <Sparkles v-else class="size-4" />
-          Paso 1: Convertir a JPG
-        </Button>
-        <Button size="sm" :disabled="busy || !user || !selectedGalleryPath || selectedGalleryNeedsJpegWizard" @click="handleSendToN8n">
+        <Button size="sm" :disabled="busy || !user || !selectedGalleryPath" @click="handleSendToN8n">
           <Loader2 v-if="sending" class="size-4 animate-spin" />
           <Sparkles v-else class="size-4" />
-          Enviar a n8n
+          Filtrar con n8n y optimizar
         </Button>
       </div>
 

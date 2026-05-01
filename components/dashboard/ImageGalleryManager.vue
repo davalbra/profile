@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Check, Copy, GalleryHorizontal, Loader2, Pencil, RefreshCcw, Trash2, Upload, X } from "lucide-vue-next";
+import { Check, Copy, GalleryHorizontal, Loader2, Pencil, RefreshCcw, Sparkles, Trash2, Upload, X, Zap } from "lucide-vue-next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -218,7 +218,7 @@ async function handleRename(path: string) {
           Galería de Imágenes
         </CardTitle>
         <CardDescription>
-          Sube imágenes a una galería central y luego elige si quieres optimizarlas o enviarlas al flujo de copias con n8n.
+          Sube imágenes a una galería central y envíalas directo al filtro n8n o a optimización web.
         </CardDescription>
       </div>
 
@@ -346,6 +346,18 @@ async function handleRename(path: string) {
               </div>
 
               <div class="mt-auto grid grid-cols-2 gap-2">
+                <Button as-child size="sm">
+                  <NuxtLink :to="`/dashboard/images/copies?galleryPath=${encodeURIComponent(image.path)}`">
+                    <Sparkles class="size-4" />
+                    Filtrar n8n
+                  </NuxtLink>
+                </Button>
+                <Button as-child size="sm" variant="outline">
+                  <NuxtLink :to="`/dashboard/images/optimize?galleryPath=${encodeURIComponent(image.path)}`">
+                    <Zap class="size-4" />
+                    Optimizar
+                  </NuxtLink>
+                </Button>
                 <Button size="sm" variant="outline" @click="handleCopy(image.downloadURL)">
                   <Copy class="size-4" />
                   Copiar URL

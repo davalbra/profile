@@ -16,9 +16,9 @@ const copyByView = {
       "Sube, previsualiza, renombra y administra imágenes guardadas en Firebase Storage.",
   },
   copies: {
-    title: "Copias con n8n",
+    title: "Filtro n8n",
     description:
-      "Selecciona imágenes compatibles, prepara JPG cuando haga falta y envía al webhook de n8n.",
+      "Selecciona una imagen, pásala por n8n y guarda el resultado optimizado para web.",
   },
   optimize: {
     title: "Optimización AVIF",

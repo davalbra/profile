@@ -14,7 +14,11 @@ const IMAGE_ROOT_FOLDER = "davalbra-imagenes-fix";
 const IMAGE_GALLERY_FOLDER = "galeria";
 const IMAGE_OPTIMIZED_FOLDER = "optimizadas";
 const IMAGE_N8N_FOLDER = "n8n";
+const IMAGE_ORIGINALS_FOLDER = "originales";
 const MAX_UPLOAD_BYTES = 40 * 1024 * 1024;
+const MAX_DIMENSION = 2400;
+const AVIF_QUALITY = 52;
+const AVIF_EFFORT = 4;
 const JPEG_CONTENT_TYPE = "image/jpeg";
 
 type SourceImage = {
@@ -45,6 +49,10 @@ function buildOptimizedPrefix(uid: string): string {
 
 function buildN8nPrefix(uid: string): string {
     return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_N8N_FOLDER}/`;
+}
+
+function buildOriginalsPrefix(uid: string): string {
+    return `users/${uid}/${IMAGE_ROOT_FOLDER}/${IMAGE_ORIGINALS_FOLDER}/`;
 }
 
 function getDownloadUrl(bucketName: string, path: string, token: string): string {
@@ -182,6 +190,11 @@ function shouldForceJpegConversion(formData: FormData): boolean {
 
 function shouldPrepareOnly(formData: FormData): boolean {
     const rawValue = String(formData.get("prepareOnly") || "").trim().toLowerCase();
+    return rawValue === "1" || rawValue === "true" || rawValue === "yes";
+}
+
+function shouldOptimizeForWeb(formData: FormData): boolean {
+    const rawValue = String(formData.get("optimizeForWeb") || "").trim().toLowerCase();
     return rawValue === "1" || rawValue === "true" || rawValue === "yes";
 }
 
@@ -392,6 +405,16 @@ function normalizeN8nStoredFileName(fileName: string, contentType: string): stri
     return `${withoutExtension}.${extension}`;
 }
 
+function getBaseName(fileName: string): string {
+    const trimmed = fileName.trim();
+    if (!trimmed) {
+        return "imagen";
+    }
+
+    const noExt = trimmed.replace(/\.[^.]+$/, "");
+    return noExt.replace(/[^a-zA-Z0-9\-_]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "") || "imagen";
+}
+
 type StoredN8nImage = {
     path: string;
     name: string;
@@ -399,6 +422,26 @@ type StoredN8nImage = {
     contentType: string;
     sizeBytes: number;
     createdAt: string;
+};
+
+type StoredOptimizedImage = {
+    id: string;
+    original: {
+        path: string;
+        name: string;
+        downloadURL: string;
+        contentType: string;
+        sizeBytes: number;
+    };
+    optimized: {
+        path: string;
+        name: string;
+        downloadURL: string;
+        contentType: string;
+        sizeBytes: number;
+    };
+    savedBytes: number;
+    savedPercent: number;
 };
 
 async function saveImageToN8nFolder(input: {
@@ -437,6 +480,133 @@ async function saveImageToN8nFolder(input: {
         contentType: input.contentType,
         sizeBytes: input.buffer.length,
         createdAt,
+    };
+}
+
+async function saveOptimizedWebImage(input: {
+    uid: string;
+    sourceFileName: string;
+    sourceContentType: string;
+    sourceBuffer: Buffer;
+    sourceStoragePath: string | null;
+}): Promise<StoredOptimizedImage> {
+    const optimizedBuffer = await sharp(input.sourceBuffer, {failOn: "none", animated: true})
+        .rotate()
+        .resize({
+            width: MAX_DIMENSION,
+            height: MAX_DIMENSION,
+            fit: "inside",
+            withoutEnlargement: true,
+        })
+        .avif({
+            quality: AVIF_QUALITY,
+            effort: AVIF_EFFORT,
+        })
+        .toBuffer();
+
+    if (optimizedBuffer.length <= 0) {
+        throw new Error("La optimización web produjo un archivo vacío.");
+    }
+
+    const bucket = getFirebaseAdminStorage().bucket();
+    const timestamp = Date.now();
+    const baseName = getBaseName(input.sourceFileName);
+    const sourceExtension = extractFileExtension(input.sourceFileName) || extensionFromMime(input.sourceContentType);
+    const originalName = `${timestamp}-${baseName}.${sourceExtension}`;
+    const optimizedName = `${timestamp}-${baseName}.avif`;
+    const originalPath = `${buildOriginalsPrefix(input.uid)}${originalName}`;
+    const optimizedPath = `${buildOptimizedPrefix(input.uid)}${optimizedName}`;
+    const originalToken = crypto.randomUUID();
+    const optimizedToken = crypto.randomUUID();
+
+    await bucket.file(originalPath).save(input.sourceBuffer, {
+        resumable: false,
+        metadata: {
+            contentType: input.sourceContentType,
+            metadata: {
+                firebaseStorageDownloadTokens: originalToken,
+                originalName: input.sourceFileName,
+                source: "n8n-response-original",
+                sourceCollection: "n8n",
+                sourceStoragePath: input.sourceStoragePath || "",
+                sourceWasN8n: "true",
+                uploadedAt: new Date().toISOString(),
+            },
+        },
+    });
+
+    await bucket.file(optimizedPath).save(optimizedBuffer, {
+        resumable: false,
+        metadata: {
+            contentType: "image/avif",
+            metadata: {
+                firebaseStorageDownloadTokens: optimizedToken,
+                originalName: input.sourceFileName,
+                originalPath,
+                originalBytes: String(input.sourceBuffer.length),
+                optimizedBytes: String(optimizedBuffer.length),
+                optimizedAt: new Date().toISOString(),
+                optimizationMode: "balanced",
+                sourceCollection: "n8n",
+                sourceStoragePath: input.sourceStoragePath || "",
+                sourceWasN8n: "true",
+            },
+        },
+    });
+
+    const savedBytes = Math.max(0, input.sourceBuffer.length - optimizedBuffer.length);
+    const savedPercent = input.sourceBuffer.length > 0 ? Number(((savedBytes / input.sourceBuffer.length) * 100).toFixed(1)) : 0;
+
+    const image = await prisma.$transaction(async (tx) => {
+        const createdImage = await tx.imagen.create({
+            data: {
+                usuarioId: input.uid,
+                nombreOriginal: input.sourceFileName,
+                nombreOptimizado: optimizedName,
+                pathOriginal: originalPath,
+                pathOptimizada: optimizedPath,
+                tokenOriginal: originalToken,
+                tokenOptimizado: optimizedToken,
+                mimeOriginal: input.sourceContentType,
+                mimeOptimizado: "image/avif",
+                bytesOriginal: input.sourceBuffer.length,
+                bytesOptimizado: optimizedBuffer.length,
+            },
+            select: {
+                id: true,
+            },
+        });
+
+        await tx.$executeRaw`
+            INSERT INTO "imagenes_optimizacion_estadisticas"
+            ("id", "imagenId", "bytesOriginal", "bytesOptimizado", "bytesAhorrados", "porcentajeAhorro",
+             "formatoOriginal", "formatoOptimizado", "motor", "calidad", "esfuerzo", "creadoEn")
+            VALUES (${crypto.randomUUID()}, ${createdImage.id}, ${input.sourceBuffer.length}, ${optimizedBuffer.length},
+                    ${savedBytes}, ${savedPercent}, ${input.sourceContentType},
+                    ${"image/avif"}, ${"sharp-avif-n8n-pipeline"}, ${AVIF_QUALITY}, ${AVIF_EFFORT}, ${new Date()})
+        `;
+
+        return createdImage;
+    });
+
+    return {
+        id: image.id,
+        original: {
+            path: originalPath,
+            name: input.sourceFileName,
+            downloadURL: getDownloadUrl(bucket.name, originalPath, originalToken),
+            contentType: input.sourceContentType,
+            sizeBytes: input.sourceBuffer.length,
+        },
+        optimized: {
+            path: optimizedPath,
+            name: optimizedName,
+            downloadURL: getDownloadUrl(bucket.name, optimizedPath, optimizedToken),
+            contentType: "image/avif",
+            sizeBytes: optimizedBuffer.length,
+        },
+        savedBytes,
+        savedPercent,
     };
 }
 
@@ -485,19 +655,6 @@ async function createOrUpdateN8nCompatibleDerivative(input: {
     originMime: string;
     buffer: Buffer;
 }): Promise<StoredN8nImage> {
-    const existingRelation = await prisma.imagenRelacion.findUnique({
-        where: {
-            usuarioId_tipo_origenPath: {
-                usuarioId: input.uid,
-                tipo: TipoRelacionImagen.N8N_COMPATIBLE,
-                origenPath: input.originPath,
-            },
-        },
-        select: {
-            destinoPath: true,
-        },
-    });
-
     const stored = await saveImageToN8nFolder({
         uid: input.uid,
         fileName: normalizeJpegFileName(input.originName),
@@ -518,11 +675,6 @@ async function createOrUpdateN8nCompatibleDerivative(input: {
         destinoNombre: stored.name,
     });
 
-    if (existingRelation?.destinoPath && existingRelation.destinoPath !== stored.path) {
-        const bucket = getFirebaseAdminStorage().bucket();
-        await bucket.file(existingRelation.destinoPath).delete({ignoreNotFound: true});
-    }
-
     return stored;
 }
 
@@ -535,19 +687,6 @@ async function createOrUpdateN8nResponseDerivative(input: {
     responseMime: string;
     responseBuffer: Buffer;
 }): Promise<StoredN8nImage> {
-    const existingRelation = await prisma.imagenRelacion.findUnique({
-        where: {
-            usuarioId_tipo_origenPath: {
-                usuarioId: input.uid,
-                tipo: TipoRelacionImagen.N8N_RESPUESTA,
-                origenPath: input.originPath,
-            },
-        },
-        select: {
-            destinoPath: true,
-        },
-    });
-
     const stored = await saveImageToN8nFolder({
         uid: input.uid,
         fileName: input.responseFileName,
@@ -567,11 +706,6 @@ async function createOrUpdateN8nResponseDerivative(input: {
         origenNombre: input.originName,
         destinoNombre: stored.name,
     });
-
-    if (existingRelation?.destinoPath && existingRelation.destinoPath !== stored.path) {
-        const bucket = getFirebaseAdminStorage().bucket();
-        await bucket.file(existingRelation.destinoPath).delete({ignoreNotFound: true});
-    }
 
     return stored;
 }
@@ -633,6 +767,7 @@ export async function POST(request: Request) {
         const sesion = await requerirSesionFirebase(request, {rolMinimo: "COLABORADOR"});
         const formData = await request.formData();
         const prepareOnly = shouldPrepareOnly(formData);
+        const optimizeForWeb = shouldOptimizeForWeb(formData);
         const sourceImage = await resolveSourceImage(formData, sesion.uid);
         let preparedImage = await prepareImageForN8n(sourceImage, {
             forceJpegConversion: shouldForceJpegConversion(formData),
@@ -724,6 +859,9 @@ export async function POST(request: Request) {
         let storedN8nImage:
             | StoredN8nImage
             | null = null;
+        let optimizedWebImage:
+            | StoredOptimizedImage
+            | null = null;
 
         if (n8nResponseIsImage) {
             const n8nImageFileName =
@@ -759,6 +897,16 @@ export async function POST(request: Request) {
                         buffer: n8nBuffer,
                         metadataSource: "n8n-response",
                         originalPath: null,
+                    });
+                }
+
+                if (optimizeForWeb) {
+                    optimizedWebImage = await saveOptimizedWebImage({
+                        uid: sesion.uid,
+                        sourceFileName: n8nImageFileName,
+                        sourceContentType: n8nContentType,
+                        sourceBuffer: n8nBuffer,
+                        sourceStoragePath: storedN8nImage?.path || preparedImage.storagePath || null,
                     });
                 }
             }
@@ -799,6 +947,7 @@ export async function POST(request: Request) {
                 n8nImage: imagePayload,
                 n8nCompatibleImage,
                 n8nStoredImage: storedN8nImage,
+                optimizedWebImage,
                 n8n: parsed,
             },
             {headers: {"Cache-Control": "no-store"}},
