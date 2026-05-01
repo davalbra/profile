@@ -98,7 +98,7 @@ watch(
       autenticacion.loading.value,
       autenticacion.user.value,
       autenticacion.serverSession.value,
-    ] as const,
+    ],
   ([cargando, usuario, sesionServidor]) => {
     if (!import.meta.client || redireccionando.value) {
       return;
