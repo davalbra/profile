@@ -10,15 +10,26 @@ import {
   Trash2,
   Upload,
   X,
-  Zap
+  Zap,
 } from "lucide-vue-next";
+import {toast} from "vue-sonner";
 import {Badge} from "@/components/ui/badge";
 import {Button} from "@/components/ui/button";
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import {Input} from "@/components/ui/input";
 import {getImageFormatLabel} from "@/lib/images/image-format-label";
 import {isPreviewableImage} from "@/lib/images/is-previewable-image";
 import {useImagenesRepositorio} from "@/store/repository/imagenes";
+import {
+  abrirAlertaProceso,
+  cerrarAlertaProceso,
+} from "@/utils/alertas/proceso";
 import {bytesMaximosCargaImagen} from "@/utils/constants/imagenes";
 import {formatearBytes} from "@/utils/formatters/archivos";
 import {formatearFechaMediaConHora} from "@/utils/formatters/fechas";
@@ -39,11 +50,18 @@ const status = ref<string | null>(null);
 const failure = ref<string | null>(null);
 const fileInput = ref<HTMLInputElement | null>(null);
 
-const {images, loading: loadingImages, error: galleryError, refresh: refreshGallery} = useGalleryImages({
+const {
+  images,
+  loading: loadingImages,
+  error: galleryError,
+  refresh: refreshGallery,
+} = useGalleryImages({
   userId,
 });
 
-const pendingPreviews = ref<Array<{ name: string; size: number; previewUrl: string }>>([]);
+const pendingPreviews = ref<
+    Array<{ name: string; size: number; previewUrl: string }>
+>([]);
 
 watch(
     files,
@@ -61,7 +79,9 @@ watch(
     {immediate: true},
 );
 
-const totalGalleryPages = computed(() => Math.max(1, Math.ceil(images.value.length / galleryPageSize.value)));
+const totalGalleryPages = computed(() =>
+    Math.max(1, Math.ceil(images.value.length / galleryPageSize.value)),
+);
 const paginatedImages = computed(() => {
   const start = (galleryPage.value - 1) * galleryPageSize.value;
   return images.value.slice(start, start + galleryPageSize.value);
@@ -93,6 +113,7 @@ async function handleUploadAll() {
   uploading.value = true;
   failure.value = null;
   status.value = null;
+  abrirAlertaProceso("Subiendo imágenes");
 
   try {
     for (const file of files.value) {
@@ -104,12 +125,17 @@ async function handleUploadAll() {
     }
 
     status.value = `${files.value.length} imagen(es) subida(s) a la galería.`;
+    toast.success("Imágenes subidas a la galería.");
     files.value = [];
     if (fileInput.value) fileInput.value.value = "";
     await refreshGallery({force: true});
   } catch (reason) {
-    failure.value = reason instanceof Error ? reason.message : "No se pudieron subir las imágenes.";
+    failure.value =
+        reason instanceof Error
+            ? reason.message
+            : "No se pudieron subir las imágenes.";
   } finally {
+    cerrarAlertaProceso();
     uploading.value = false;
   }
 }
@@ -130,7 +156,10 @@ async function handleDelete(path: string) {
     }
     await refreshGallery({force: true});
   } catch (reason) {
-    failure.value = reason instanceof Error ? reason.message : "No se pudo eliminar la imagen.";
+    failure.value =
+        reason instanceof Error
+            ? reason.message
+            : "No se pudo eliminar la imagen.";
   } finally {
     deletingPath.value = null;
   }
@@ -167,14 +196,20 @@ async function handleRename(path: string) {
   renamingPath.value = path;
   failure.value = null;
   try {
-    await imagenesRepositorio.renombrarImagenGaleria({path, name: normalizedName});
+    await imagenesRepositorio.renombrarImagenGaleria({
+      path,
+      name: normalizedName,
+    });
 
     status.value = "Nombre de imagen actualizado.";
     editingPath.value = null;
     editName.value = "";
     await refreshGallery({force: true});
   } catch (reason) {
-    failure.value = reason instanceof Error ? reason.message : "No se pudo renombrar la imagen.";
+    failure.value =
+        reason instanceof Error
+            ? reason.message
+            : "No se pudo renombrar la imagen.";
   } finally {
     renamingPath.value = null;
   }
@@ -195,7 +230,8 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
           Galería de Imágenes
         </CardTitle>
         <CardDescription>
-          Sube imágenes a una galería central y envíalas directo al filtro n8n o a optimización web.
+          Sube imágenes a una galería central y envíalas directo al filtro n8n o
+          a optimización web.
         </CardDescription>
       </div>
 
@@ -213,7 +249,11 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
       <section class="space-y-4 rounded-lg border p-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <p class="text-sm font-medium">1. Subir nuevas imágenes a galería</p>
-          <Button size="sm" :disabled="uploading || !user || !files.length" @click="handleUploadAll">
+          <Button
+              size="sm"
+              :disabled="uploading || !user || !files.length"
+              @click="handleUploadAll"
+          >
             <Loader2 v-if="uploading" class="size-4 animate-spin"/>
             <Upload v-else class="size-4"/>
             Subir a galería
@@ -234,30 +274,51 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
           <label
               for="images-gallery-upload-input"
               class="inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-medium transition-colors"
-              :class="!user || loading || uploading ? 'pointer-events-none cursor-not-allowed opacity-50' : 'cursor-pointer hover:bg-accent hover:text-accent-foreground'"
+              :class="
+              !user || loading || uploading
+                ? 'pointer-events-none cursor-not-allowed opacity-50'
+                : 'cursor-pointer hover:bg-accent hover:text-accent-foreground'
+            "
           >
             <Upload class="size-4"/>
             Seleccionar imágenes
           </label>
           <p class="mt-2 text-xs text-muted-foreground">
-            {{ files.length > 0 ? `${files.length} archivo(s) seleccionado(s)` : "Ningún archivo seleccionado" }}
+            {{
+              files.length > 0
+                  ? `${files.length} archivo(s) seleccionado(s)`
+                  : "Ningún archivo seleccionado"
+            }}
           </p>
         </div>
 
-        <div v-if="pendingPreviews.length > 0" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <article v-for="preview in pendingPreviews" :key="preview.previewUrl"
-                   class="overflow-hidden rounded-lg border bg-card">
+        <div
+            v-if="pendingPreviews.length > 0"
+            class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4"
+        >
+          <article
+              v-for="preview in pendingPreviews"
+              :key="preview.previewUrl"
+              class="overflow-hidden rounded-lg border bg-card"
+          >
             <div class="relative aspect-[4/3] bg-muted">
-              <Badge variant="secondary"
-                     class="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65">
+              <Badge
+                  variant="secondary"
+                  class="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+              >
                 {{ getImageFormatLabel({fileName: preview.name}) }}
               </Badge>
-              <img :src="preview.previewUrl" :alt="`Previsualización de ${preview.name}`"
-                   class="size-full object-cover">
+              <img
+                  :src="preview.previewUrl"
+                  :alt="`Previsualización de ${preview.name}`"
+                  class="size-full object-cover"
+              >
             </div>
             <div class="space-y-1 p-2">
               <p class="truncate text-xs font-medium">{{ preview.name }}</p>
-              <p class="text-xs text-muted-foreground">{{ formatearBytes(preview.size) }}</p>
+              <p class="text-xs text-muted-foreground">
+                {{ formatearBytes(preview.size) }}
+              </p>
             </div>
           </article>
         </div>
@@ -266,8 +327,12 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
       <section class="space-y-4 rounded-lg border p-4">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <p class="text-sm font-medium">2. Imágenes guardadas en galería</p>
-          <Button variant="outline" size="sm" :disabled="loadingImages || uploading || !user"
-                  @click="refreshGallery({ force: true })">
+          <Button
+              variant="outline"
+              size="sm"
+              :disabled="loadingImages || uploading || !user"
+              @click="refreshGallery({ force: true })"
+          >
             <Loader2 v-if="loadingImages" class="size-4 animate-spin"/>
             <RefreshCcw v-else class="size-4"/>
             Recargar
@@ -275,18 +340,35 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
         </div>
 
         <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <article v-for="image in paginatedImages" :key="image.path"
-                   class="flex h-full flex-col overflow-hidden rounded-lg border bg-card">
+          <article
+              v-for="image in paginatedImages"
+              :key="image.path"
+              class="flex h-full flex-col overflow-hidden rounded-lg border bg-card"
+          >
             <div class="relative aspect-[4/3] bg-muted">
-              <Badge variant="secondary"
-                     class="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65">
-                {{ getImageFormatLabel({contentType: image.contentType, fileName: image.name || image.path}) }}
+              <Badge
+                  variant="secondary"
+                  class="pointer-events-none absolute left-2 top-2 z-10 border-white/20 bg-black/65 text-[10px] text-white hover:bg-black/65"
+              >
+                {{
+                  getImageFormatLabel({
+                    contentType: image.contentType,
+                    fileName: image.name || image.path,
+                  })
+                }}
               </Badge>
-              <img v-if="isPreviewableImage(image.contentType, image.name)" :src="image.downloadURL" :alt="image.name"
-                   class="size-full object-cover">
-              <div v-else
-                   class="flex size-full items-center justify-center p-3 text-center text-xs text-muted-foreground">
-                Vista previa no disponible para {{ image.contentType || "este formato" }}
+              <img
+                  v-if="isPreviewableImage(image.contentType, image.name)"
+                  :src="image.downloadURL"
+                  :alt="image.name"
+                  class="size-full object-cover"
+              >
+              <div
+                  v-else
+                  class="flex size-full items-center justify-center p-3 text-center text-xs text-muted-foreground"
+              >
+                Vista previa no disponible para
+                {{ image.contentType || "este formato" }}
               </div>
             </div>
 
@@ -299,17 +381,31 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
                       placeholder="Nuevo nombre de imagen"
                       class="h-8"
                       :disabled="renamingPath === image.path"
-                      @keydown.enter.prevent="renamingPath !== image.path && handleRename(image.path)"
+                      @keydown.enter.prevent="
+                      renamingPath !== image.path && handleRename(image.path)
+                    "
                   />
                   <div class="flex gap-2">
-                    <Button size="sm" class="h-8" :disabled="renamingPath === image.path"
-                            @click="handleRename(image.path)">
-                      <Loader2 v-if="renamingPath === image.path" class="size-4 animate-spin"/>
+                    <Button
+                        size="sm"
+                        class="h-8"
+                        :disabled="renamingPath === image.path"
+                        @click="handleRename(image.path)"
+                    >
+                      <Loader2
+                          v-if="renamingPath === image.path"
+                          class="size-4 animate-spin"
+                      />
                       <Check v-else class="size-4"/>
                       Guardar
                     </Button>
-                    <Button size="sm" variant="outline" class="h-8" :disabled="renamingPath === image.path"
-                            @click="cancelRename">
+                    <Button
+                        size="sm"
+                        variant="outline"
+                        class="h-8"
+                        :disabled="renamingPath === image.path"
+                        @click="cancelRename"
+                    >
                       <X class="size-4"/>
                       Cancelar
                     </Button>
@@ -321,41 +417,64 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
                       size="icon"
                       variant="ghost"
                       class="size-7"
-                      :disabled="uploading || Boolean(deletingPath) || Boolean(renamingPath)"
+                      :disabled="
+                      uploading ||
+                      Boolean(deletingPath) ||
+                      Boolean(renamingPath)
+                    "
                       @click="startRename(image.path, image.name)"
                   >
                     <Pencil class="size-4"/>
                     <span class="sr-only">Renombrar imagen</span>
                   </Button>
                 </div>
-                <p class="text-xs text-muted-foreground">Subida: {{ formatearFechaMediaConHora(image.createdAt) }}</p>
-                <p class="text-xs text-muted-foreground">Tamaño: {{ formatearBytes(image.sizeBytes) }}</p>
+                <p class="text-xs text-muted-foreground">
+                  Subida: {{ formatearFechaMediaConHora(image.createdAt) }}
+                </p>
+                <p class="text-xs text-muted-foreground">
+                  Tamaño: {{ formatearBytes(image.sizeBytes) }}
+                </p>
               </div>
 
               <div class="mt-auto grid grid-cols-2 gap-2">
                 <Button as-child size="sm">
-                  <NuxtLink :to="`/dashboard/images/copies?galleryPath=${encodeURIComponent(image.path)}`">
+                  <NuxtLink
+                      :to="`/dashboard/images/copies?galleryPath=${encodeURIComponent(image.path)}`"
+                  >
                     <Sparkles class="size-4"/>
                     Filtrar n8n
                   </NuxtLink>
                 </Button>
                 <Button as-child size="sm" variant="outline">
-                  <NuxtLink :to="`/dashboard/images/optimize?galleryPath=${encodeURIComponent(image.path)}`">
+                  <NuxtLink
+                      :to="`/dashboard/images/optimize?galleryPath=${encodeURIComponent(image.path)}`"
+                  >
                     <Zap class="size-4"/>
                     Optimizar
                   </NuxtLink>
                 </Button>
-                <Button size="sm" variant="outline" @click="handleCopy(image.downloadURL)">
+                <Button
+                    size="sm"
+                    variant="outline"
+                    @click="handleCopy(image.downloadURL)"
+                >
                   <Copy class="size-4"/>
                   Copiar URL
                 </Button>
                 <Button
                     size="sm"
                     variant="destructive"
-                    :disabled="uploading || deletingPath === image.path || renamingPath === image.path"
+                    :disabled="
+                    uploading ||
+                    deletingPath === image.path ||
+                    renamingPath === image.path
+                  "
                     @click="handleDelete(image.path)"
                 >
-                  <Loader2 v-if="deletingPath === image.path" class="size-4 animate-spin"/>
+                  <Loader2
+                      v-if="deletingPath === image.path"
+                      class="size-4 animate-spin"
+                  />
                   <Trash2 v-else class="size-4"/>
                   Eliminar
                 </Button>
@@ -368,12 +487,20 @@ function handleGalleryPageSizeChange(nextSize: TamanoPaginaGaleria) {
             :total-items="images.length"
             :page="galleryPage"
             :page-size="galleryPageSize"
-            :disabled="uploading || loadingImages || Boolean(renamingPath) || Boolean(deletingPath)"
+            :disabled="
+            uploading ||
+            loadingImages ||
+            Boolean(renamingPath) ||
+            Boolean(deletingPath)
+          "
             @page-change="galleryPage = $event"
             @page-size-change="handleGalleryPageSizeChange"
         />
 
-        <p v-if="!loadingImages && user && images.length === 0" class="text-sm text-muted-foreground">
+        <p
+            v-if="!loadingImages && user && images.length === 0"
+            class="text-sm text-muted-foreground"
+        >
           No hay imágenes en galería todavía.
         </p>
       </section>
