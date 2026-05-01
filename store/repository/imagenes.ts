@@ -1,5 +1,10 @@
 import axios from "axios";
 import {defineStore} from "pinia";
+import {
+    construirFormularioCopiasImagen,
+    construirFormularioOptimizacionImagen,
+    construirFormularioSubidaImagen,
+} from "@/utils/formularios/imagenes";
 import {AlcanceGaleriaImagen} from "@/utils/enums/anums";
 import type {
     DetalleImagenOptimizada,
@@ -15,33 +20,10 @@ import type {
     RespuestaPrepararImagenN8n,
 } from "@/types/imagenes";
 
-function construirFormularioSubida(entrada: EntradaSubirImagenGaleria): FormData {
-    const formulario = new FormData();
-    formulario.append("image", entrada.imagen);
-    return formulario;
-}
-
-function construirFormularioOptimizacion(entrada: EntradaOptimizarImagen): FormData {
-    const formulario = new FormData();
-    formulario.append("galleryPath", entrada.galleryPath);
-    formulario.append("qualityMode", entrada.qualityMode);
-    return formulario;
-}
-
-function construirFormularioCopias(entrada: EntradaCopiasImagen): FormData {
-    const formulario = new FormData();
-    formulario.append("galleryPath", entrada.galleryPath);
-
-    if (entrada.forceJpegConversion) formulario.append("forceJpegConversion", "true");
-    if (entrada.prepareOnly) formulario.append("prepareOnly", "true");
-    if (entrada.optimizeForWeb) formulario.append("optimizeForWeb", "true");
-
-    return formulario;
-}
-
 export const useImagenesRepositorio = defineStore("imagenesRepositorio", () => {
     const obtenerGaleria = async (alcance: AlcanceGaleriaImagen) => {
-        const parametros = alcance === AlcanceGaleriaImagen.GALERIA ? {} : {scope: alcance};
+        const parametros =
+            alcance === AlcanceGaleriaImagen.GALERIA ? {} : {scope: alcance};
         return await axios.get<RespuestaGaleriaImagenes>("/api/images/gallery", {
             params: parametros,
             headers: {"Cache-Control": "no-store"},
@@ -49,7 +31,10 @@ export const useImagenesRepositorio = defineStore("imagenesRepositorio", () => {
     };
 
     const subirImagenGaleria = async (entrada: EntradaSubirImagenGaleria) => {
-        return await axios.post("/api/images/gallery", construirFormularioSubida(entrada));
+        return await axios.post(
+            "/api/images/gallery",
+            construirFormularioSubidaImagen(entrada),
+        );
     };
 
     const eliminarImagenGaleria = async (entrada: EntradaRutaImagen) => {
@@ -61,7 +46,10 @@ export const useImagenesRepositorio = defineStore("imagenesRepositorio", () => {
     };
 
     const optimizarImagen = async (entrada: EntradaOptimizarImagen) => {
-        return await axios.post<RespuestaOptimizarImagen>("/api/images", construirFormularioOptimizacion(entrada));
+        return await axios.post<RespuestaOptimizarImagen>(
+            "/api/images",
+            construirFormularioOptimizacionImagen(entrada),
+        );
     };
 
     const obtenerHistorialOptimizacion = async () => {
@@ -71,17 +59,26 @@ export const useImagenesRepositorio = defineStore("imagenesRepositorio", () => {
     };
 
     const prepararImagenN8n = async (entrada: EntradaCopiasImagen) => {
-        return await axios.post<RespuestaPrepararImagenN8n>("/api/images/copies", construirFormularioCopias(entrada));
+        return await axios.post<RespuestaPrepararImagenN8n>(
+            "/api/images/copies",
+            construirFormularioCopiasImagen(entrada),
+        );
     };
 
     const enviarImagenN8n = async (entrada: EntradaCopiasImagen) => {
-        return await axios.post<RespuestaCopiasImagen>("/api/images/copies", construirFormularioCopias(entrada));
+        return await axios.post<RespuestaCopiasImagen>(
+            "/api/images/copies",
+            construirFormularioCopiasImagen(entrada),
+        );
     };
 
     const obtenerDetalleOptimizacion = async (id: string) => {
-        return await axios.get<DetalleImagenOptimizada>(`/api/images/optimize/${encodeURIComponent(id)}`, {
-            headers: {"Cache-Control": "no-store"},
-        });
+        return await axios.get<DetalleImagenOptimizada>(
+            `/api/images/optimize/${encodeURIComponent(id)}`,
+            {
+                headers: {"Cache-Control": "no-store"},
+            },
+        );
     };
 
     return {
