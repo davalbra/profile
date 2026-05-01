@@ -2,14 +2,14 @@
 import { ChevronLeft, ChevronRight } from "lucide-vue-next";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-
-const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+import { tamanosPaginaGaleria } from "@/utils/constants/imagenes";
+import type { TamanoPaginaGaleria } from "@/utils/enums/anums";
 
 const props = withDefaults(
   defineProps<{
     totalItems: number;
     page: number;
-    pageSize: 10 | 25 | 50;
+    pageSize: TamanoPaginaGaleria;
     disabled?: boolean;
   }>(),
   {
@@ -19,7 +19,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   pageChange: [page: number];
-  pageSizeChange: [pageSize: 10 | 25 | 50];
+  pageSizeChange: [pageSize: TamanoPaginaGaleria];
 }>();
 
 const totalPages = computed(() => Math.max(1, Math.ceil(props.totalItems / props.pageSize)));
@@ -28,6 +28,18 @@ const from = computed(() => (props.totalItems === 0 ? 0 : (clampedPage.value - 1
 const to = computed(() => Math.min(clampedPage.value * props.pageSize, props.totalItems));
 const canPrev = computed(() => clampedPage.value > 1 && !props.disabled);
 const canNext = computed(() => clampedPage.value < totalPages.value && !props.disabled);
+
+function manejarCambioTamanoPagina(tamanoPagina: TamanoPaginaGaleria) {
+  emit("pageSizeChange", tamanoPagina);
+}
+
+function manejarPaginaAnterior() {
+  emit("pageChange", clampedPage.value - 1);
+}
+
+function manejarPaginaSiguiente() {
+  emit("pageChange", clampedPage.value + 1);
+}
 </script>
 
 <template>
@@ -38,7 +50,7 @@ const canNext = computed(() => clampedPage.value < totalPages.value && !props.di
       </p>
       <span class="text-xs text-muted-foreground">Solicitud:</span>
       <Badge
-        v-for="option in PAGE_SIZE_OPTIONS"
+        v-for="option in tamanosPaginaGaleria"
         :key="option"
         :variant="option === pageSize ? 'default' : 'outline'"
         :class="disabled ? 'opacity-60' : ''"
@@ -47,7 +59,7 @@ const canNext = computed(() => clampedPage.value < totalPages.value && !props.di
           type="button"
           class="cursor-pointer"
           :disabled="disabled || option === pageSize"
-          @click="emit('pageSizeChange', option)"
+          @click="manejarCambioTamanoPagina(option)"
         >
           {{ option }}
         </button>
@@ -59,7 +71,7 @@ const canNext = computed(() => clampedPage.value < totalPages.value && !props.di
         size="sm"
         variant="outline"
         :disabled="!canPrev"
-        @click="emit('pageChange', clampedPage - 1)"
+        @click="manejarPaginaAnterior"
       >
         <ChevronLeft class="size-4" />
         Anterior
@@ -71,7 +83,7 @@ const canNext = computed(() => clampedPage.value < totalPages.value && !props.di
         size="sm"
         variant="outline"
         :disabled="!canNext"
-        @click="emit('pageChange', clampedPage + 1)"
+        @click="manejarPaginaSiguiente"
       >
         Siguiente
         <ChevronRight class="size-4" />
