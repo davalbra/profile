@@ -23,6 +23,11 @@ import {
   Wallet,
   Workflow,
 } from "lucide-vue-next";
+import { useGithubRepositorio } from "@/store/repository/github";
+import type { RepositorioFijado } from "@/types/github";
+import { repositoriosFijadosPredeterminados } from "@/utils/constants/github";
+import { formatearFechaRelativa } from "@/utils/formatters/fechas";
+import { formatearNumeroCompacto } from "@/utils/formatters/numeros";
 
 useHead({
   title: "davalbra | Control center Nuxt para MCP, billing e imágenes",
@@ -36,7 +41,12 @@ useHead({
 });
 
 const { isDark, toggleTheme } = useThemeMode();
+const githubRepositorio = useGithubRepositorio();
 const authModalOpen = ref(false);
+
+function abrirModalAuth() {
+  authModalOpen.value = true;
+}
 
 const services = [
   {
@@ -122,38 +132,25 @@ const stackGroups = [
   },
 ];
 
-const formatCompact = (value: number) =>
-  new Intl.NumberFormat("es-ES", { notation: "compact", maximumFractionDigits: 1 }).format(value);
-
-const formatRelativeDate = (isoDate: string) => {
-  const diffMs = Date.now() - new Date(isoDate).getTime();
-  const minute = 60 * 1000;
-  const hour = 60 * minute;
-  const day = 24 * hour;
-
-  if (diffMs < hour) {
-    return `hace ${Math.max(1, Math.floor(diffMs / minute))} min`;
-  }
-
-  if (diffMs < day) {
-    return `hace ${Math.max(1, Math.floor(diffMs / hour))} h`;
-  }
-
-  return `hace ${Math.max(1, Math.floor(diffMs / day))} d`;
-};
-
-const { data } = await useFetch("/api/github/pinned", {
-  default: () => ({ repos: [] }),
-});
+const repositorios = ref<RepositorioFijado[]>(repositoriosFijadosPredeterminados.repos);
 
 const pinnedRepositories = computed(() =>
-  (data.value?.repos || []).map((repo) => ({
+  repositorios.value.map((repo) => ({
     ...repo,
-    starsText: formatCompact(repo.stars),
-    forksText: formatCompact(repo.forks),
-    updatedText: formatRelativeDate(repo.updatedAt),
+    starsText: formatearNumeroCompacto(repo.stars),
+    forksText: formatearNumeroCompacto(repo.forks),
+    updatedText: formatearFechaRelativa(repo.updatedAt),
   })),
 );
+
+onMounted(async () => {
+  try {
+    const { data } = await githubRepositorio.obtenerRepositoriosFijados();
+    repositorios.value = data.repos;
+  } catch {
+    repositorios.value = repositoriosFijadosPredeterminados.repos;
+  }
+});
 </script>
 
 <template>
@@ -180,7 +177,7 @@ const pinnedRepositories = computed(() =>
         <button
           type="button"
           class="inline-flex min-h-11 items-center justify-center text-2xl font-bold tracking-tight text-white transition hover:text-[#5faaf3]"
-          @click="authModalOpen = true"
+          @click="abrirModalAuth"
         >
           <small>davalbra</small>
           <span class="text-[#137fec]">.</span>
