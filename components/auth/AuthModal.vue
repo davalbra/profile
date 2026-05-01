@@ -1,67 +1,70 @@
 <script setup lang="ts">
-import { Chrome, Loader2, LogOut, X } from "lucide-vue-next";
+import { Chrome, Loader2, LogOut, X } from "lucide-vue-next"
 
 const props = defineProps<{
-  modelValue: boolean;
-}>();
+  modelValue: boolean
+}>()
 
 const emit = defineEmits<{
-  "update:modelValue": [value: boolean];
-}>();
+  "update:modelValue": [value: boolean]
+}>()
 
-const { user, loading, error, loginWithGoogle, logout } = useAuth();
-const pending = ref(false);
-const localError = ref<string | null>(null);
+const { user, loading, error, loginWithGoogle, logout } = useAuth()
+const pending = ref(false)
+const localError = ref<string | null>(null)
 
 const close = () => {
-  emit("update:modelValue", false);
-};
+  emit("update:modelValue", false)
+}
 
 watch(
   () => props.modelValue,
   (open) => {
     if (!import.meta.client) {
-      return;
+      return
     }
 
-    document.body.style.overflow = open ? "hidden" : "";
+    document.body.style.overflow = open ? "hidden" : ""
   },
-);
+)
 
 onBeforeUnmount(() => {
   if (import.meta.client) {
-    document.body.style.overflow = "";
+    document.body.style.overflow = ""
   }
-});
+})
 
 const handleGoogleLogin = async () => {
-  pending.value = true;
-  localError.value = null;
+  pending.value = true
+  localError.value = null
 
   try {
-    await loginWithGoogle();
-    close();
+    await loginWithGoogle()
+    close()
   } catch (reason) {
     localError.value =
-      reason instanceof Error ? reason.message : "No se pudo iniciar sesión con Google.";
+      reason instanceof Error
+        ? reason.message
+        : "No se pudo iniciar sesión con Google."
   } finally {
-    pending.value = false;
+    pending.value = false
   }
-};
+}
 
 const handleLogout = async () => {
-  pending.value = true;
-  localError.value = null;
+  pending.value = true
+  localError.value = null
 
   try {
-    await logout();
-    close();
+    await logout()
+    close()
   } catch (reason) {
-    localError.value = reason instanceof Error ? reason.message : "No se pudo cerrar la sesión.";
+    localError.value =
+      reason instanceof Error ? reason.message : "No se pudo cerrar la sesión."
   } finally {
-    pending.value = false;
+    pending.value = false
   }
-};
+}
 </script>
 
 <template>
@@ -80,7 +83,8 @@ const handleLogout = async () => {
         <div>
           <h2 class="text-xl font-semibold text-white">Acceso con Google</h2>
           <p class="mt-1 text-sm text-slate-400">
-            La sesión cliente se valida con Firebase y luego se registra en el servidor.
+            La sesión cliente se valida con Firebase y luego se registra en el
+            servidor.
           </p>
         </div>
         <button

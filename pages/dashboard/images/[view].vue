@@ -1,17 +1,22 @@
 <script setup lang="ts">
-import { ImageIcon } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { ImageIcon } from "lucide-vue-next"
+import { Badge } from "@/components/ui/badge"
+import {
+  Card,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card"
 
 definePageMeta({
   layout: "dashboard",
-});
+})
 
-const route = useRoute();
+const route = useRoute()
 
 interface TextoVistaImagen {
-  title: string;
-  description: string;
+  title: string
+  description: string
 }
 
 const copyByView: Record<string, TextoVistaImagen> = {
@@ -30,26 +35,28 @@ const copyByView: Record<string, TextoVistaImagen> = {
     description:
       "Optimiza imágenes desde galería, n8n u optimizadas y consulta el histórico de ahorro.",
   },
-};
+}
 
 const currentView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
-    : route.params.view;
-  if (raw === "copies") return copyByView.copies;
-  if (raw === "optimize") return copyByView.optimize;
-  return copyByView.gallery;
-});
+    : route.params.view
+  if (raw === "copies") return copyByView.copies
+  if (raw === "optimize") return copyByView.optimize
+  return copyByView.gallery
+})
 
 const activeView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
-    : route.params.view;
-  if (raw === "copies" || raw === "optimize") return raw;
-  return "gallery";
-});
+    : route.params.view
+  if (raw === "copies" || raw === "optimize") return raw
+  return "gallery"
+})
 
-const isKnownView = computed(() => ["gallery", "copies", "optimize"].includes(activeView.value));
+const isKnownView = computed(() =>
+  ["gallery", "copies", "optimize"].includes(activeView.value),
+)
 </script>
 
 <template>
@@ -77,7 +84,10 @@ const isKnownView = computed(() => ["gallery", "copies", "optimize"].includes(ac
     <DashboardImageGalleryManager v-if="activeView === 'gallery'" />
     <DashboardImageCopiesManager v-else-if="activeView === 'copies'" />
     <DashboardImagesManager v-else-if="activeView === 'optimize'" />
-    <Card v-else-if="!isKnownView" class="border-white/10 bg-card/80 backdrop-blur-xl">
+    <Card
+      v-else-if="!isKnownView"
+      class="border-white/10 bg-card/80 backdrop-blur-xl"
+    >
       <CardHeader>
         <CardTitle>Vista no disponible</CardTitle>
         <CardDescription>Usa galería, copias u optimización.</CardDescription>

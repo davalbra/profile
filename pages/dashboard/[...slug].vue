@@ -1,22 +1,22 @@
 <script setup lang="ts">
-import { ArrowLeft, Home, SearchX } from "lucide-vue-next";
-import { Button } from "@/components/ui/button";
+import { ArrowLeft, Home, SearchX } from "lucide-vue-next"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
   CardDescription,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 
 definePageMeta({
   layout: "dashboard",
-});
+})
 
-const ruta = useRoute();
+const ruta = useRoute()
 
 if (import.meta.server) {
-  setResponseStatus(404);
+  setResponseStatus(404)
 }
 </script>
 
@@ -32,12 +32,15 @@ if (import.meta.server) {
           <SearchX class="size-7" />
         </div>
         <div>
-          <p class="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-100/75">
+          <p
+            class="text-sm font-semibold uppercase tracking-[0.22em] text-cyan-100/75"
+          >
             Error 404
           </p>
           <CardTitle class="mt-2 text-3xl">Página no encontrada</CardTitle>
           <CardDescription class="mt-3 text-base leading-7 text-slate-300">
-            La ruta <span class="font-medium text-white">{{ ruta.path }}</span> no
+            La ruta
+            <span class="font-medium text-white">{{ ruta.path }}</span> no
             existe dentro del dashboard.
           </CardDescription>
         </div>

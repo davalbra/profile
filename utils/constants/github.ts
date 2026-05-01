@@ -1,3 +1,3 @@
 export const repositoriosFijadosPredeterminados = {
   repos: [],
-};
+}

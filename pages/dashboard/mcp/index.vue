@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo("/dashboard/mcp/optimize", { replace: true });
+await navigateTo("/dashboard/mcp/optimize", { replace: true })
 </script>
 
 <template>

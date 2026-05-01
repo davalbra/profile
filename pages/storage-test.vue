@@ -1,67 +1,77 @@
 <script setup lang="ts">
-import {Loader2, Upload} from "lucide-vue-next";
-import {uploadFileForCurrentUserWithProgress} from "@/lib/firebase/storage";
+import { Loader2, Upload } from "lucide-vue-next"
+import { uploadFileForCurrentUserWithProgress } from "@/lib/firebase/storage"
 
 useHead({
   title: "Storage Test | davalbra",
-});
+})
 
-const {user, loading, error} = useAuth();
-const nuxtApp = useNuxtApp();
+const { user, loading, error } = useAuth()
+const nuxtApp = useNuxtApp()
 
-const file = ref<File | null>(null);
-const busy = ref(false);
-const progress = ref(0);
-const message = ref("");
-const downloadUrl = ref("");
-const fileInput = ref<HTMLInputElement | null>(null);
+const file = ref<File | null>(null)
+const busy = ref(false)
+const progress = ref(0)
+const message = ref("")
+const downloadUrl = ref("")
+const fileInput = ref<HTMLInputElement | null>(null)
 
 const handleUpload = async () => {
   if (!file.value) {
-    message.value = "Selecciona un archivo primero.";
-    return;
+    message.value = "Selecciona un archivo primero."
+    return
   }
 
   if (!user.value) {
-    message.value = "Debes iniciar sesión para subir archivos.";
-    return;
+    message.value = "Debes iniciar sesión para subir archivos."
+    return
   }
 
   if (!nuxtApp.$fbStorage) {
-    message.value = "Firebase Storage no está configurado.";
-    return;
+    message.value = "Firebase Storage no está configurado."
+    return
   }
 
-  busy.value = true;
-  progress.value = 0;
-  message.value = "";
-  downloadUrl.value = "";
+  busy.value = true
+  progress.value = 0
+  message.value = ""
+  downloadUrl.value = ""
 
   try {
-    const resultado = await uploadFileForCurrentUserWithProgress(file.value, (porcentaje) => {
-      progress.value = porcentaje;
-    });
+    const resultado = await uploadFileForCurrentUserWithProgress(
+      file.value,
+      (porcentaje) => {
+        progress.value = porcentaje
+      },
+    )
 
-    downloadUrl.value = resultado.downloadURL;
-    message.value = `Archivo subido: ${resultado.path}`;
+    downloadUrl.value = resultado.downloadURL
+    message.value = `Archivo subido: ${resultado.path}`
   } catch (reason) {
-    message.value = reason instanceof Error ? reason.message : "No se pudo subir el archivo.";
+    message.value =
+      reason instanceof Error ? reason.message : "No se pudo subir el archivo."
   } finally {
-    busy.value = false;
+    busy.value = false
   }
-};
+}
 
 const handleFileChange = () => {
-  file.value = fileInput.value?.files?.[0] || null;
-};
+  file.value = fileInput.value?.files?.[0] || null
+}
 </script>
 
 <template>
-  <main class="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-12 text-slate-100">
+  <main
+    class="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-6 py-12 text-slate-100"
+  >
     <header class="space-y-2">
       <h1 class="text-3xl font-bold">Storage Test</h1>
-      <p class="text-slate-400">Prueba subida de archivos a Firebase Storage con progreso.</p>
-      <NuxtLink to="/" class="text-sm underline">Volver a la página principal</NuxtLink>
+      <p class="text-slate-400">
+        Prueba subida de archivos a Firebase Storage con progreso.
+      </p>
+      <NuxtLink to="/" class="text-sm underline"
+        >Volver a la página principal</NuxtLink
+      >
     </header>
 
     <p v-if="loading" class="text-sm text-slate-300">Cargando sesión...</p>
@@ -72,36 +82,39 @@ const handleFileChange = () => {
 
     <section class="panel-shell space-y-4 p-6">
       <input
-          ref="fileInput"
-          type="file"
-          class="block w-full text-sm"
-          :disabled="!user || busy"
-          @change="handleFileChange"
-      >
+        ref="fileInput"
+        type="file"
+        class="block w-full text-sm"
+        :disabled="!user || busy"
+        @change="handleFileChange"
+      />
 
       <button
-          type="button"
-          class="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#137fec] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
-          :disabled="!user || busy"
-          @click="handleUpload"
+        type="button"
+        class="inline-flex min-h-11 items-center gap-2 rounded-2xl bg-[#137fec] px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+        :disabled="!user || busy"
+        @click="handleUpload"
       >
-        <Loader2 v-if="busy" class="h-4 w-4 animate-spin"/>
-        <Upload v-else class="h-4 w-4"/>
+        <Loader2 v-if="busy" class="h-4 w-4 animate-spin" />
+        <Upload v-else class="h-4 w-4" />
         {{ busy ? "Subiendo..." : "Subir archivo" }}
       </button>
 
       <div class="h-2 w-full overflow-hidden rounded-full bg-white/10">
-        <div class="h-full bg-[#137fec] transition-all" :style="{ width: `${progress}%` }"/>
+        <div
+          class="h-full bg-[#137fec] transition-all"
+          :style="{ width: `${progress}%` }"
+        />
       </div>
       <p class="text-sm text-slate-400">{{ progress }}%</p>
 
       <p v-if="message" class="text-sm text-slate-300">{{ message }}</p>
       <a
-          v-if="downloadUrl"
-          class="text-sm underline"
-          :href="downloadUrl"
-          target="_blank"
-          rel="noreferrer"
+        v-if="downloadUrl"
+        class="text-sm underline"
+        :href="downloadUrl"
+        target="_blank"
+        rel="noreferrer"
       >
         Abrir archivo subido
       </a>

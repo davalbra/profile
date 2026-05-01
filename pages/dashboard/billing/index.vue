@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo("/dashboard/billing/firebase", { replace: true });
+await navigateTo("/dashboard/billing/firebase", { replace: true })
 </script>
 
 <template>

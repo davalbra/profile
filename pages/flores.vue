@@ -1,19 +1,19 @@
 <script setup lang="ts">
 type Rosa = {
-  id: number;
-  x: number;
-  y: number;
-  scale: number;
-  rot: number;
-  delay: number;
-};
+  id: number
+  x: number
+  y: number
+  scale: number
+  rot: number
+  delay: number
+}
 
 type Petalo = {
-  id: number;
-  left: number;
-  duration: number;
-  delay: number;
-};
+  id: number
+  left: number
+  duration: number
+  delay: number
+}
 
 useHead({
   title: "Flores amarillas | davalbra",
@@ -23,17 +23,19 @@ useHead({
       content: "Un bouquet animado de flores amarillas.",
     },
   ],
-});
+})
 
-const montado = ref(false);
-const petalos = ref<Petalo[]>([]);
+const montado = ref(false)
+const petalos = ref<Petalo[]>([])
 
 const bouquetRoses = computed<Rosa[]>(() => {
-  const center = { x: 200, y: 150 };
-  const roses: Rosa[] = [{ id: 0, x: center.x, y: center.y, scale: 1.25, rot: 0, delay: 0 }];
+  const center = { x: 200, y: 150 }
+  const roses: Rosa[] = [
+    { id: 0, x: center.x, y: center.y, scale: 1.25, rot: 0, delay: 0 },
+  ]
 
   for (let index = 0; index < 6; index += 1) {
-    const angle = (index * Math.PI) / 3;
+    const angle = (index * Math.PI) / 3
     roses.push({
       id: roses.length,
       x: center.x + Math.cos(angle) * 55,
@@ -41,11 +43,11 @@ const bouquetRoses = computed<Rosa[]>(() => {
       scale: 1.15,
       rot: index * 45,
       delay: 300 + index * 100,
-    });
+    })
   }
 
   for (let index = 0; index < 12; index += 1) {
-    const angle = (index * Math.PI) / 6;
+    const angle = (index * Math.PI) / 6
     roses.push({
       id: roses.length,
       x: center.x + Math.cos(angle) * 110,
@@ -53,21 +55,21 @@ const bouquetRoses = computed<Rosa[]>(() => {
       scale: 0.95,
       rot: index * 25,
       delay: 1000 + index * 80,
-    });
+    })
   }
 
-  return roses.sort((first, second) => first.y - second.y);
-});
+  return roses.sort((first, second) => first.y - second.y)
+})
 
 onMounted(() => {
-  montado.value = true;
+  montado.value = true
   petalos.value = Array.from({ length: 45 }).map((_, index) => ({
     id: index,
     left: Math.random() * 100,
     duration: 5 + Math.random() * 7,
     delay: Math.random() * 10,
-  }));
-});
+  }))
+})
 </script>
 
 <template>
@@ -103,9 +105,23 @@ onMounted(() => {
     <div class="bouquet-stage">
       <div class="bouquet-scale">
         <div class="bouquet-container">
-          <svg viewBox="0 0 400 550" class="bouquet-background" aria-hidden="true">
-            <path d="M 40 180 Q 200 120 360 180 L 220 500 Q 200 520 180 500 Z" fill="#d7ccc8" opacity="0.4" />
-            <path d="M 40 180 Q 200 120 360 180" fill="none" stroke="#a1887f" stroke-width="2" opacity="0.6" />
+          <svg
+            viewBox="0 0 400 550"
+            class="bouquet-background"
+            aria-hidden="true"
+          >
+            <path
+              d="M 40 180 Q 200 120 360 180 L 220 500 Q 200 520 180 500 Z"
+              fill="#d7ccc8"
+              opacity="0.4"
+            />
+            <path
+              d="M 40 180 Q 200 120 360 180"
+              fill="none"
+              stroke="#a1887f"
+              stroke-width="2"
+              opacity="0.6"
+            />
 
             <line
               v-for="rosa in bouquetRoses"
@@ -119,10 +135,26 @@ onMounted(() => {
               opacity="0.8"
             />
 
-            <path d="M 60 220 Q 30 180 50 160 Q 80 180 60 220 Z" fill="#1b5e20" opacity="0.8" />
-            <path d="M 340 220 Q 370 180 350 160 Q 320 180 340 220 Z" fill="#2e7d32" opacity="0.8" />
-            <path d="M 120 100 Q 100 60 130 50 Q 150 70 120 100 Z" fill="#388e3c" opacity="0.9" />
-            <path d="M 280 100 Q 300 60 270 50 Q 250 70 280 100 Z" fill="#2e7d32" opacity="0.9" />
+            <path
+              d="M 60 220 Q 30 180 50 160 Q 80 180 60 220 Z"
+              fill="#1b5e20"
+              opacity="0.8"
+            />
+            <path
+              d="M 340 220 Q 370 180 350 160 Q 320 180 340 220 Z"
+              fill="#2e7d32"
+              opacity="0.8"
+            />
+            <path
+              d="M 120 100 Q 100 60 130 50 Q 150 70 120 100 Z"
+              fill="#388e3c"
+              opacity="0.9"
+            />
+            <path
+              d="M 280 100 Q 300 60 270 50 Q 250 70 280 100 Z"
+              fill="#2e7d32"
+              opacity="0.9"
+            />
           </svg>
 
           <div class="roses-layer">
@@ -138,22 +170,49 @@ onMounted(() => {
                 animationDelay: `${rosa.delay}ms`,
               }"
             >
-              <svg width="100" height="100" viewBox="-40 -40 80 80" class="rose-svg" aria-hidden="true">
+              <svg
+                width="100"
+                height="100"
+                viewBox="-40 -40 80 80"
+                class="rose-svg"
+                aria-hidden="true"
+              >
                 <defs>
-                  <radialGradient :id="`petal-outer-${rosa.id}`" cx="50%" cy="100%" r="100%">
+                  <radialGradient
+                    :id="`petal-outer-${rosa.id}`"
+                    cx="50%"
+                    cy="100%"
+                    r="100%"
+                  >
                     <stop offset="0%" stop-color="#f57f17" />
                     <stop offset="100%" stop-color="#ffca28" />
                   </radialGradient>
-                  <radialGradient :id="`petal-mid-${rosa.id}`" cx="50%" cy="100%" r="100%">
+                  <radialGradient
+                    :id="`petal-mid-${rosa.id}`"
+                    cx="50%"
+                    cy="100%"
+                    r="100%"
+                  >
                     <stop offset="0%" stop-color="#f9a825" />
                     <stop offset="100%" stop-color="#ffee58" />
                   </radialGradient>
-                  <radialGradient :id="`petal-inner-${rosa.id}`" cx="50%" cy="100%" r="100%">
+                  <radialGradient
+                    :id="`petal-inner-${rosa.id}`"
+                    cx="50%"
+                    cy="100%"
+                    r="100%"
+                  >
                     <stop offset="0%" stop-color="#fbc02d" />
                     <stop offset="100%" stop-color="#fff59d" />
                   </radialGradient>
                 </defs>
-                <circle cx="0" cy="0" r="32" fill="rgba(0,0,0,0.15)" filter="blur(4px)" />
+                <circle
+                  cx="0"
+                  cy="0"
+                  r="32"
+                  fill="rgba(0,0,0,0.15)"
+                  filter="blur(4px)"
+                />
                 <path
                   v-for="grado in [0, 72, 144, 216, 288]"
                   :key="`outer-${rosa.id}-${grado}`"
@@ -201,7 +260,12 @@ onMounted(() => {
                 <stop offset="100%" stop-color="#a1887f" />
               </linearGradient>
               <filter id="bouquetShadow">
-                <feDropShadow dx="0" dy="10" stdDeviation="15" flood-opacity="0.3" />
+                <feDropShadow
+                  dx="0"
+                  dy="10"
+                  stdDeviation="15"
+                  flood-opacity="0.3"
+                />
               </filter>
             </defs>
             <path
@@ -209,15 +273,55 @@ onMounted(() => {
               fill="url(#frontWrapGrad)"
               filter="url(#bouquetShadow)"
             />
-            <path d="M 20 230 L 160 500 L 200 500 L 100 280 Z" fill="#efebe9" opacity="0.6" />
-            <path d="M 380 230 L 240 500 L 200 500 L 300 280 Z" fill="#8d6e63" opacity="0.3" />
+            <path
+              d="M 20 230 L 160 500 L 200 500 L 100 280 Z"
+              fill="#efebe9"
+              opacity="0.6"
+            />
+            <path
+              d="M 380 230 L 240 500 L 200 500 L 300 280 Z"
+              fill="#8d6e63"
+              opacity="0.3"
+            />
             <g transform="translate(200, 390)">
-              <path d="M -5 0 C -60 -40 -80 30 -5 10" fill="none" stroke="#ffc107" stroke-width="12" stroke-linecap="round" />
-              <path d="M 5 0 C 60 -40 80 30 5 10" fill="none" stroke="#ffca28" stroke-width="12" stroke-linecap="round" />
-              <path d="M -8 8 Q -30 60 -20 100" fill="none" stroke="#ffb300" stroke-width="12" stroke-linecap="round" />
-              <path d="M 8 8 Q 30 60 20 100" fill="none" stroke="#ffa000" stroke-width="12" stroke-linecap="round" />
+              <path
+                d="M -5 0 C -60 -40 -80 30 -5 10"
+                fill="none"
+                stroke="#ffc107"
+                stroke-width="12"
+                stroke-linecap="round"
+              />
+              <path
+                d="M 5 0 C 60 -40 80 30 5 10"
+                fill="none"
+                stroke="#ffca28"
+                stroke-width="12"
+                stroke-linecap="round"
+              />
+              <path
+                d="M -8 8 Q -30 60 -20 100"
+                fill="none"
+                stroke="#ffb300"
+                stroke-width="12"
+                stroke-linecap="round"
+              />
+              <path
+                d="M 8 8 Q 30 60 20 100"
+                fill="none"
+                stroke="#ffa000"
+                stroke-width="12"
+                stroke-linecap="round"
+              />
               <circle cx="0" cy="5" r="12" fill="#ff8f00" />
-              <circle cx="0" cy="5" r="12" fill="none" stroke="#ffe082" stroke-width="2" opacity="0.6" />
+              <circle
+                cx="0"
+                cy="5"
+                r="12"
+                fill="none"
+                stroke="#ffe082"
+                stroke-width="2"
+                opacity="0.6"
+              />
             </g>
           </svg>
         </div>
@@ -226,9 +330,10 @@ onMounted(() => {
 
     <section class="dedication text-bloom">
       <p>
-        "Milka, te dedico estas rosas amarillas con muchísimo cariño. Eres alguien verdaderamente especial para mí.
-        Me encanta el brillo y la alegría que traes a mi vida, y este detalle es solo una forma de darte las gracias
-        por estar en ella."
+        "Milka, te dedico estas rosas amarillas con muchísimo cariño. Eres
+        alguien verdaderamente especial para mí. Me encanta el brillo y la
+        alegría que traes a mi vida, y este detalle es solo una forma de darte
+        las gracias por estar en ella."
       </p>
     </section>
   </div>
@@ -311,7 +416,12 @@ onMounted(() => {
   width: 16rem;
   height: 1px;
   margin-bottom: 1.5rem;
-  background: linear-gradient(90deg, transparent, rgba(234, 179, 8, 0.8), transparent);
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(234, 179, 8, 0.8),
+    transparent
+  );
 }
 
 .bouquet-stage {
@@ -449,7 +559,8 @@ onMounted(() => {
   }
 
   100% {
-    transform: translate(-50%, -50%) scale(var(--target-scale, 1)) rotate(var(--target-rot, 0deg));
+    transform: translate(-50%, -50%) scale(var(--target-scale, 1))
+      rotate(var(--target-rot, 0deg));
     opacity: 1;
   }
 }

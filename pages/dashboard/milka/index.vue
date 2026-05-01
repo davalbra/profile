@@ -1,5 +1,5 @@
 <script setup lang="ts">
-await navigateTo("/dashboard/milka/musica", { replace: true });
+await navigateTo("/dashboard/milka/musica", { replace: true })
 </script>
 
 <template>

@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { ArrowRight, CheckCircle2, Network, Rocket, Sparkles } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Network,
+  Rocket,
+  Sparkles,
+} from "lucide-vue-next"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -9,19 +15,19 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import {
   credencialesDashboard,
   metricasDashboard,
   modulosDashboard,
   procesosDashboard,
-} from "@/lib/dashboard/dashboard.data";
-import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario";
+} from "@/lib/dashboard/dashboard.data"
+import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario"
 
 definePageMeta({
   layout: "dashboard",
-});
+})
 </script>
 
 <template>
@@ -79,16 +85,24 @@ definePageMeta({
             </CardHeader>
             <CardContent>
               <div class="grid grid-cols-2 gap-2 text-sm">
-                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
                   Billing
                 </span>
-                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
                   MCP
                 </span>
-                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
                   Imágenes
                 </span>
-                <span class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300">
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
                   Milka
                 </span>
               </div>
@@ -122,7 +136,7 @@ definePageMeta({
         :key="metrica.etiqueta"
         class="border-white/10 bg-black/25 text-white shadow-xl shadow-cyan-950/10 backdrop-blur-xl"
       >
-          <CardHeader>
+        <CardHeader>
           <div class="flex items-center justify-between gap-3">
             <CardDescription class="text-slate-400">{{
               metrica.etiqueta
@@ -134,7 +148,9 @@ definePageMeta({
               {{ metrica.tendencia }}
             </Badge>
           </div>
-          <CardTitle class="text-3xl" :class="metrica.tono">{{ metrica.valor }}</CardTitle>
+          <CardTitle class="text-3xl" :class="metrica.tono">{{
+            metrica.valor
+          }}</CardTitle>
         </CardHeader>
         <CardContent class="text-sm text-slate-400">{{
           metrica.detalle
@@ -173,7 +189,8 @@ definePageMeta({
                   variant="outline"
                   class="border-white/15 bg-white/10 text-white"
                 >
-                  {{ modulo.etiqueta }} · {{ etiquetaEstadoPanelDashboard[modulo.estado] }}
+                  {{ modulo.etiqueta }} ·
+                  {{ etiquetaEstadoPanelDashboard[modulo.estado] }}
                 </Badge>
               </div>
               <CardTitle class="mt-5 text-2xl">{{ modulo.titulo }}</CardTitle>
@@ -199,7 +216,9 @@ definePageMeta({
                 </Badge>
               </div>
               <div class="space-y-2">
-                <p class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">
+                <p
+                  class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500"
+                >
                   Qué resuelve
                 </p>
                 <ul class="space-y-2 text-sm leading-6 text-slate-300">
@@ -266,7 +285,9 @@ definePageMeta({
                 <p class="mt-1 text-sm leading-6 text-slate-400">
                   {{ proceso.descripcion }}
                 </p>
-                <p class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100/80">
+                <p
+                  class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100/80"
+                >
                   {{ proceso.resultado }}
                 </p>
               </div>

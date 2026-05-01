@@ -1,32 +1,32 @@
 <script setup lang="ts">
-import { ArrowRight, Music4 } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, Music4 } from "lucide-vue-next"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardDescription,
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
+} from "@/components/ui/card"
 
 definePageMeta({
   layout: "dashboard",
-});
+})
 
-const route = useRoute();
+const route = useRoute()
 
 interface EnlaceVistaMilka {
-  key: string;
-  label: string;
-  to: string;
-  description: string;
+  key: string
+  label: string
+  to: string
+  description: string
 }
 
 const currentView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
-    : route.params.view;
+    : route.params.view
   return raw === "cookies"
     ? {
         title: "Milka: limpieza de cookies",
@@ -37,23 +37,22 @@ const currentView = computed(() => {
         title: "Milka: música y lyrics",
         description:
           "Paneles de audio, letras y sincronización listos para operación interna.",
-      };
-});
+      }
+})
 
 const activeView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
-    : route.params.view;
-  return raw === "cookies" ? "cookies" : "musica";
-});
+    : route.params.view
+  return raw === "cookies" ? "cookies" : "musica"
+})
 
 const viewLinks: EnlaceVistaMilka[] = [
   {
     key: "musica",
     label: "Música y lyrics",
     to: "/dashboard/milka/musica",
-    description:
-      "Audio, letras y sincronización para operar la suite privada.",
+    description: "Audio, letras y sincronización para operar la suite privada.",
   },
   {
     key: "cookies",
@@ -61,7 +60,7 @@ const viewLinks: EnlaceVistaMilka[] = [
     to: "/dashboard/milka/cookies",
     description: "Utilidades de sesión y limpieza listas para reconectar.",
   },
-];
+]
 </script>
 
 <template>

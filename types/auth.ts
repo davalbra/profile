@@ -1,17 +1,17 @@
 export interface SesionServidor {
-  uid: string;
-  email: string;
-  nombre: string;
-  avatarUrl: string;
-  rol: string;
+  uid: string
+  email: string
+  nombre: string
+  avatarUrl: string
+  rol: string
 }
 
 export interface RespuestaSesionFirebase {
-  ok: boolean;
-  usuario: SesionServidor;
+  ok: boolean
+  usuario: SesionServidor
 }
 
 export interface RespuestaSesionSegura {
-  ok: boolean;
-  sesion: SesionServidor;
+  ok: boolean
+  sesion: SesionServidor
 }

@@ -1,4 +1,4 @@
-import Swal from "sweetalert2";
+import Swal from "sweetalert2"
 
 export function abrirAlertaProceso(titulo: string): void {
   void Swal.fire({
@@ -6,11 +6,11 @@ export function abrirAlertaProceso(titulo: string): void {
     allowOutsideClick: false,
     allowEscapeKey: false,
     didOpen: () => {
-      Swal.showLoading();
+      Swal.showLoading()
     },
-  });
+  })
 }
 
 export function cerrarAlertaProceso(): void {
-  Swal.close();
+  Swal.close()
 }
