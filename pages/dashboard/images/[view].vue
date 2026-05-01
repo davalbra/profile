@@ -9,7 +9,12 @@ definePageMeta({
 
 const route = useRoute();
 
-const copyByView = {
+interface TextoVistaImagen {
+  title: string;
+  description: string;
+}
+
+const copyByView: Record<string, TextoVistaImagen> = {
   gallery: {
     title: "Galería de imágenes",
     description:
@@ -25,7 +30,7 @@ const copyByView = {
     description:
       "Optimiza imágenes desde galería, n8n u optimizadas y consulta el histórico de ahorro.",
   },
-} as const;
+};
 
 const currentView = computed(() => {
   const raw = Array.isArray(route.params.view)

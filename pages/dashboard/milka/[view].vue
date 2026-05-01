@@ -16,6 +16,13 @@ definePageMeta({
 
 const route = useRoute();
 
+interface EnlaceVistaMilka {
+  key: string;
+  label: string;
+  to: string;
+  description: string;
+}
+
 const currentView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
@@ -40,7 +47,7 @@ const activeView = computed(() => {
   return raw === "cookies" ? "cookies" : "musica";
 });
 
-const viewLinks = [
+const viewLinks: EnlaceVistaMilka[] = [
   {
     key: "musica",
     label: "Música y lyrics",
@@ -54,7 +61,7 @@ const viewLinks = [
     to: "/dashboard/milka/cookies",
     description: "Utilidades de sesión y limpieza listas para reconectar.",
   },
-] as const;
+];
 </script>
 
 <template>
