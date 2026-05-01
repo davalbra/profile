@@ -147,7 +147,8 @@ export function useAuth() {
         }
       });
 
-      void checkServerSession();
+      // La sesión del servidor se sincroniza cuando Firebase confirma usuario.
+      // Evita llamar /api/secure/session sin cookie/token y generar 401 esperados.
     }
   }
 

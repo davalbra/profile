@@ -40,8 +40,11 @@ import { cn } from "@/lib/utils";
 
 const ruta = useRoute();
 const autenticacion = useAuth();
+const nuxtApp = useNuxtApp();
 const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode();
 const seccionesAbiertas = ref<Record<string, boolean>>({});
+const redireccionando = ref(false);
+let temporizadorRedireccion: number | null = null;
 
 const correoUsuario = computed(
   () => autenticacion.user.value?.email || "Sesión no activa",
@@ -88,6 +91,48 @@ watch(
   },
   { immediate: true },
 );
+
+watch(
+  () =>
+    [
+      autenticacion.loading.value,
+      autenticacion.user.value,
+      autenticacion.serverSession.value,
+    ] as const,
+  ([cargando, usuario, sesionServidor]) => {
+    if (!import.meta.client || redireccionando.value) {
+      return;
+    }
+
+    if (temporizadorRedireccion !== null) {
+      window.clearTimeout(temporizadorRedireccion);
+      temporizadorRedireccion = null;
+    }
+
+    if (cargando || usuario || sesionServidor) {
+      return;
+    }
+
+    temporizadorRedireccion = window.setTimeout(() => {
+      const usuarioActual =
+        autenticacion.user.value || nuxtApp.$fbAuth?.currentUser || null;
+
+      if (usuarioActual || autenticacion.serverSession.value || redireccionando.value) {
+        return;
+      }
+
+      redireccionando.value = true;
+      void navigateTo("/", { replace: true });
+    }, 1200);
+  },
+  { immediate: true },
+);
+
+onBeforeUnmount(() => {
+  if (temporizadorRedireccion !== null) {
+    window.clearTimeout(temporizadorRedireccion);
+  }
+});
 </script>
 
 <template>
