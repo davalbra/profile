@@ -15,14 +15,14 @@ import {
   Workflow,
   Wrench,
   Zap,
-} from "lucide-vue-next";
+} from "lucide-vue-next"
 import type {
   MetricaDashboard,
   ModuloDashboard,
   NavegacionDashboard,
   ProcesoDashboard,
-} from "@/lib/dashboard/dashboard.types";
-import { EstadoPanelDashboard } from "@/utils/enums/anums";
+} from "@/lib/dashboard/dashboard.types"
+import { EstadoPanelDashboard } from "@/utils/enums/anums"
 
 export const navegacionDashboard: NavegacionDashboard[] = [
   {
@@ -103,7 +103,7 @@ export const navegacionDashboard: NavegacionDashboard[] = [
       },
     ],
   },
-];
+]
 
 export const modulosDashboard: ModuloDashboard[] = [
   {
@@ -190,13 +190,14 @@ export const modulosDashboard: ModuloDashboard[] = [
     claseIcono: "bg-rose-300/15 text-rose-100 ring-rose-200/20",
     claseTarjeta: "from-rose-500/20 via-fuchsia-500/10 to-transparent",
   },
-];
+]
 
 export const metricasDashboard: MetricaDashboard[] = [
   {
     etiqueta: "MCP",
     valor: "2",
-    detalle: "Herramientas JSON-RPC disponibles para agentes y automatizaciones.",
+    detalle:
+      "Herramientas JSON-RPC disponibles para agentes y automatizaciones.",
     tendencia: "operativo",
     tono: "text-cyan-100",
   },
@@ -214,7 +215,7 @@ export const metricasDashboard: MetricaDashboard[] = [
     tendencia: "conectado",
     tono: "text-emerald-100",
   },
-];
+]
 
 export const procesosDashboard: ProcesoDashboard[] = [
   {
@@ -235,7 +236,7 @@ export const procesosDashboard: ProcesoDashboard[] = [
       "Las vistas de Firebase y Gemini reducen la fricción para revisar consumo por servicio.",
     resultado: "Costos visibles sin salir del panel",
   },
-];
+]
 
 export const credencialesDashboard = {
   titulo: "davalbra",
@@ -249,4 +250,4 @@ export const credencialesDashboard = {
   rutaPrimaria: "/dashboard/billing/firebase",
   rutaSecundaria: "/storage-test",
   indicador: ShieldCheck,
-};
+}

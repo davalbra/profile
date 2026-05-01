@@ -7,7 +7,12 @@ import { getYouTubeMusicEnvConfig } from "@/lib/youtube-music"
 
 const execFileAsync = promisify(execFile)
 const AUDIO_CACHE_DIR = path.join(process.cwd(), ".cache", "ytmusic-audio")
-const LOCAL_YT_DLP_PYTHON = path.join(process.cwd(), ".venv-ytdlp", "bin", "python")
+const LOCAL_YT_DLP_PYTHON = path.join(
+  process.cwd(),
+  ".venv-ytdlp",
+  "bin",
+  "python",
+)
 const downloadLocks = new Map<string, Promise<string>>()
 
 function getAudioContentType(filePath: string) {
@@ -59,9 +64,15 @@ async function runYtDlpDownload(videoId: string) {
       `https://music.youtube.com/watch?v=${videoId}`,
     ])
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo ejecutar yt-dlp."
-    if (message.includes("ENOENT") || message.includes("No module named yt_dlp")) {
-      throw new Error("Falta yt-dlp local. Instala con: python3 -m venv .venv-ytdlp && ./.venv-ytdlp/bin/pip install yt-dlp")
+    const message =
+      error instanceof Error ? error.message : "No se pudo ejecutar yt-dlp."
+    if (
+      message.includes("ENOENT") ||
+      message.includes("No module named yt_dlp")
+    ) {
+      throw new Error(
+        "Falta yt-dlp local. Instala con: python3 -m venv .venv-ytdlp && ./.venv-ytdlp/bin/pip install yt-dlp",
+      )
     }
     throw new Error(`yt-dlp no pudo descargar el audio: ${message}`)
   }
@@ -92,7 +103,10 @@ export async function ensureCachedYouTubeMusicAudio(videoId: string) {
   return lock
 }
 
-function createSafeWebStream(filePath: string, options?: { start?: number; end?: number }) {
+function createSafeWebStream(
+  filePath: string,
+  options?: { start?: number; end?: number },
+) {
   const source = createReadStream(filePath, options)
   let closed = false
 
@@ -114,7 +128,12 @@ function createSafeWebStream(filePath: string, options?: { start?: number; end?:
         try {
           controller.close()
         } catch (error) {
-          if (!(error instanceof TypeError && error.message.includes("Controller is already closed"))) {
+          if (
+            !(
+              error instanceof TypeError &&
+              error.message.includes("Controller is already closed")
+            )
+          ) {
             throw error
           }
         }
@@ -127,10 +146,15 @@ function createSafeWebStream(filePath: string, options?: { start?: number; end?:
 
         try {
           const data =
-            chunk instanceof Uint8Array ? chunk : new Uint8Array(Buffer.from(chunk))
+            chunk instanceof Uint8Array
+              ? chunk
+              : new Uint8Array(Buffer.from(chunk))
           controller.enqueue(data)
         } catch (error) {
-          if (error instanceof TypeError && error.message.includes("Controller is already closed")) {
+          if (
+            error instanceof TypeError &&
+            error.message.includes("Controller is already closed")
+          ) {
             closed = true
             cleanup()
             source.destroy()
@@ -175,7 +199,10 @@ function createSafeWebStream(filePath: string, options?: { start?: number; end?:
   })
 }
 
-export async function createAudioStreamResponse(request: Request, filePath: string) {
+export async function createAudioStreamResponse(
+  request: Request,
+  filePath: string,
+) {
   const fileStats = await stat(filePath)
   const totalSize = fileStats.size
   const range = request.headers.get("range")
@@ -200,7 +227,12 @@ export async function createAudioStreamResponse(request: Request, filePath: stri
 
   const start = match[1] ? Number(match[1]) : 0
   const end = match[2] ? Number(match[2]) : totalSize - 1
-  if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= totalSize) {
+  if (
+    !Number.isFinite(start) ||
+    !Number.isFinite(end) ||
+    start > end ||
+    start >= totalSize
+  ) {
     return new Response("Range invalido.", { status: 416 })
   }
 

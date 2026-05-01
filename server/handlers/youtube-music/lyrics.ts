@@ -1,4 +1,4 @@
-import { jsonResponse } from "@/server/utils/json-response";
+import { jsonResponse } from "@/server/utils/json-response"
 import { z } from "zod"
 import {
   getStoredLyricsForVideoId,
@@ -49,11 +49,16 @@ export async function GET(request: Request) {
       return jsonResponse({ error: "Falta videoId." }, { status: 400 })
     }
 
-    const refresh = ["1", "true", "yes"].includes((url.searchParams.get("refresh") || "").toLowerCase())
+    const refresh = ["1", "true", "yes"].includes(
+      (url.searchParams.get("refresh") || "").toLowerCase(),
+    )
     if (!refresh) {
       const stored = await getStoredLyricsForVideoId(videoId)
       if (stored?.lyrics) {
-        return jsonResponse({ ok: true, data: stored.lyrics }, { headers: { "Cache-Control": "no-store" } })
+        return jsonResponse(
+          { ok: true, data: stored.lyrics },
+          { headers: { "Cache-Control": "no-store" } },
+        )
       }
     }
 
@@ -66,9 +71,15 @@ export async function GET(request: Request) {
     }
 
     const syncResult = await synchronizeLyrics(song)
-    const syncedLyrics = syncResult.summary?.activeLyrics || syncResult.summary?.officialLyrics || null
+    const syncedLyrics =
+      syncResult.summary?.activeLyrics ||
+      syncResult.summary?.officialLyrics ||
+      null
     if (syncedLyrics) {
-      return jsonResponse({ ok: true, data: syncedLyrics }, { headers: { "Cache-Control": "no-store" } })
+      return jsonResponse(
+        { ok: true, data: syncedLyrics },
+        { headers: { "Cache-Control": "no-store" } },
+      )
     }
 
     return jsonResponse(
@@ -81,10 +92,13 @@ export async function GET(request: Request) {
           source: null,
         },
       },
-      { headers: { "Cache-Control": "no-store" } }
+      { headers: { "Cache-Control": "no-store" } },
     )
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudieron obtener las letras."
+    const message =
+      error instanceof Error
+        ? error.message
+        : "No se pudieron obtener las letras."
     return jsonResponse({ error: message }, { status: 500 })
   }
 }
@@ -107,7 +121,10 @@ export async function POST(request: Request) {
       })),
     })
 
-    return jsonResponse({ ok: true, data }, { headers: { "Cache-Control": "no-store" } })
+    return jsonResponse(
+      { ok: true, data },
+      { headers: { "Cache-Control": "no-store" } },
+    )
   } catch (error) {
     if (error instanceof z.ZodError) {
       return jsonResponse(
@@ -115,11 +132,14 @@ export async function POST(request: Request) {
           error: "Payload invalido.",
           details: error.flatten(),
         },
-        { status: 400 }
+        { status: 400 },
       )
     }
 
-    const message = error instanceof Error ? error.message : "No se pudo guardar la sincronizacion manual."
+    const message =
+      error instanceof Error
+        ? error.message
+        : "No se pudo guardar la sincronizacion manual."
     return jsonResponse({ error: message }, { status: 500 })
   }
 }

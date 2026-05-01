@@ -1,5 +1,8 @@
-import { jsonResponse } from "@/server/utils/json-response";
-import { createAudioStreamResponse, ensureCachedYouTubeMusicAudio } from "@/lib/youtube-music-audio"
+import { jsonResponse } from "@/server/utils/json-response"
+import {
+  createAudioStreamResponse,
+  ensureCachedYouTubeMusicAudio,
+} from "@/lib/youtube-music-audio"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -19,7 +22,8 @@ export async function GET(request: Request) {
     const filePath = await ensureCachedYouTubeMusicAudio(videoId)
     return createAudioStreamResponse(request, filePath)
   } catch (error) {
-    const message = error instanceof Error ? error.message : "No se pudo preparar el audio."
+    const message =
+      error instanceof Error ? error.message : "No se pudo preparar el audio."
     return jsonResponse({ error: message }, { status: 500 })
   }
 }

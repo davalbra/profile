@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import { ArrowRight, ChevronDown, Home, Moon, Sun } from "lucide-vue-next";
-import { computed, ref, watch } from "vue";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import { ArrowRight, ChevronDown, Home, Moon, Sun } from "lucide-vue-next"
+import { computed, ref, watch } from "vue"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,8 +11,8 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/dropdown-menu"
+import { Separator } from "@/components/ui/separator"
 import {
   Sidebar,
   SidebarContent,
@@ -31,108 +31,111 @@ import {
   SidebarProvider,
   SidebarRail,
   SidebarTrigger,
-} from "@/components/ui/sidebar";
+} from "@/components/ui/sidebar"
 import {
   credencialesDashboard,
   navegacionDashboard,
-} from "@/lib/dashboard/dashboard.data";
-import { cn } from "@/lib/utils";
+} from "@/lib/dashboard/dashboard.data"
+import { cn } from "@/lib/utils"
 
-const ruta = useRoute();
-const autenticacion = useAuth();
-const nuxtApp = useNuxtApp();
-const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode();
-const seccionesAbiertas = ref<Record<string, boolean>>({});
-const redireccionando = ref(false);
-let temporizadorRedireccion: number | null = null;
+const ruta = useRoute()
+const autenticacion = useAuth()
+const nuxtApp = useNuxtApp()
+const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode()
+const seccionesAbiertas = ref<Record<string, boolean>>({})
+const redireccionando = ref(false)
+let temporizadorRedireccion: number | null = null
 
 const correoUsuario = computed(
   () => autenticacion.user.value?.email || "Sesión no activa",
-);
+)
 
 const obtenerPrefijoSeccion = (rutaNavegacion: string) => {
-  const segmentos = rutaNavegacion.split("/").filter(Boolean);
+  const segmentos = rutaNavegacion.split("/").filter(Boolean)
   if (segmentos.length < 2) {
-    return rutaNavegacion;
+    return rutaNavegacion
   }
 
-  return `/${segmentos[0]}/${segmentos[1]}`;
-};
+  return `/${segmentos[0]}/${segmentos[1]}`
+}
 
 const estaRutaActiva = (rutaNavegacion: string) => {
   if (rutaNavegacion === "/dashboard") {
-    return ruta.path === "/dashboard";
+    return ruta.path === "/dashboard"
   }
 
-  return ruta.path.startsWith(obtenerPrefijoSeccion(rutaNavegacion));
-};
+  return ruta.path.startsWith(obtenerPrefijoSeccion(rutaNavegacion))
+}
 
 const estaSubRutaActiva = (rutaNavegacion: string) => {
-  return ruta.path === rutaNavegacion;
-};
+  return ruta.path === rutaNavegacion
+}
 
 const alternarSeccion = (clave: string) => {
   seccionesAbiertas.value = {
     ...seccionesAbiertas.value,
     [clave]: !seccionesAbiertas.value[clave],
-  };
-};
+  }
+}
 
 watch(
   () => ruta.path,
   () => {
-    const siguientes = { ...seccionesAbiertas.value };
+    const siguientes = { ...seccionesAbiertas.value }
     for (const item of navegacionDashboard) {
       if (item.subsecciones?.length && estaRutaActiva(item.ruta)) {
-        siguientes[item.ruta] = true;
+        siguientes[item.ruta] = true
       }
     }
-    seccionesAbiertas.value = siguientes;
+    seccionesAbiertas.value = siguientes
   },
   { immediate: true },
-);
+)
 
 watch(
-  () =>
-    [
-      autenticacion.loading.value,
-      autenticacion.user.value,
-      autenticacion.serverSession.value,
-    ],
+  () => [
+    autenticacion.loading.value,
+    autenticacion.user.value,
+    autenticacion.serverSession.value,
+  ],
   ([cargando, usuario, sesionServidor]) => {
     if (!import.meta.client || redireccionando.value) {
-      return;
+      return
     }
 
     if (temporizadorRedireccion !== null) {
-      window.clearTimeout(temporizadorRedireccion);
-      temporizadorRedireccion = null;
+      window.clearTimeout(temporizadorRedireccion)
+      temporizadorRedireccion = null
     }
 
     if (cargando || usuario || sesionServidor) {
-      return;
+      return
     }
 
     temporizadorRedireccion = window.setTimeout(() => {
       const usuarioActual =
-        autenticacion.user.value || nuxtApp.$fbAuth?.currentUser || null;
+        autenticacion.user.value || nuxtApp.$fbAuth?.currentUser || null
 
-      if (usuarioActual || autenticacion.serverSession.value || redireccionando.value) {
-        return;
+      if (
+        usuarioActual ||
+        autenticacion.serverSession.value ||
+        redireccionando.value
+      ) {
+        return
       }
 
-      redireccionando.value = true;
-      void navigateTo("/", { replace: true });
-    }, 1200);
+      redireccionando.value = true
+      void navigateTo("/", { replace: true })
+    }, 1200)
   },
   { immediate: true },
-);
+)
 
 onBeforeUnmount(() => {
   if (temporizadorRedireccion !== null) {
-    window.clearTimeout(temporizadorRedireccion);
+    window.clearTimeout(temporizadorRedireccion)
   }
-});
+})
 </script>
 
 <template>
@@ -178,7 +181,10 @@ onBeforeUnmount(() => {
           <SidebarGroupLabel>Panel</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
-              <SidebarMenuItem v-for="item in navegacionDashboard" :key="item.ruta">
+              <SidebarMenuItem
+                v-for="item in navegacionDashboard"
+                :key="item.ruta"
+              >
                 <SidebarMenuButton
                   v-if="!item.subsecciones?.length"
                   as-child

@@ -31,7 +31,7 @@ function normalizeCaptionText(value: string) {
     .replace(/<[^>]+>/g, " ")
     .replace(/&nbsp;/gi, " ")
     .replace(/&amp;/gi, "&")
-    .replace(/&quot;/gi, "\"")
+    .replace(/&quot;/gi, '"')
     .replace(/&#39;/gi, "'")
     .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
@@ -73,7 +73,9 @@ function parseJson3Captions(raw: string): CaptionLyricLine[] {
       const startMs = Number(event.tStartMs ?? 0)
       const durationMs = Number(event.dDurationMs ?? 0)
       const text = cleanupCaptionLine(
-        Array.isArray(event.segs) ? event.segs.map((segment) => segment.utf8 || "").join("") : ""
+        Array.isArray(event.segs)
+          ? event.segs.map((segment) => segment.utf8 || "").join("")
+          : "",
       )
 
       if (!text || !Number.isFinite(startMs)) {
@@ -121,10 +123,14 @@ function parseVttCaptions(raw: string): CaptionLyricLine[] {
       }
 
       const timingLine = lines[timingLineIndex]
-      const [rawStart, rawEnd] = timingLine.split("-->").map((part) => part.trim().split(" ")[0] || "")
+      const [rawStart, rawEnd] = timingLine
+        .split("-->")
+        .map((part) => part.trim().split(" ")[0] || "")
       const startMs = parseTimestampToMs(rawStart)
       const endMs = parseTimestampToMs(rawEnd)
-      const text = cleanupCaptionLine(lines.slice(timingLineIndex + 1).join("\n"))
+      const text = cleanupCaptionLine(
+        lines.slice(timingLineIndex + 1).join("\n"),
+      )
 
       if (!text || startMs === null) {
         return null
@@ -144,7 +150,11 @@ function dedupeCaptionLines(lines: CaptionLyricLine[]) {
 
   for (const line of lines) {
     const previous = result[result.length - 1]
-    if (previous && previous.text === line.text && Math.abs(previous.startMs - line.startMs) < 300) {
+    if (
+      previous &&
+      previous.text === line.text &&
+      Math.abs(previous.startMs - line.startMs) < 300
+    ) {
       previous.endMs = Math.max(previous.endMs, line.endMs)
       continue
     }
@@ -156,8 +166,12 @@ function dedupeCaptionLines(lines: CaptionLyricLine[]) {
 }
 
 function pickTrack(
-  groups: Record<string, unknown> | null | undefined
-): { language: string; track: YtDlpTrack; trackKind: "subtitles" | "automatic_captions" } | null {
+  groups: Record<string, unknown> | null | undefined,
+): {
+  language: string
+  track: YtDlpTrack
+  trackKind: "subtitles" | "automatic_captions"
+} | null {
   if (!groups) {
     return null
   }
@@ -170,14 +184,22 @@ function pickTrack(
 
   const orderedLanguages = [
     ...languagePriority.filter((language) => languages.includes(language)),
-    ...languages.filter((language) => !languagePriority.includes(language)).sort(),
+    ...languages
+      .filter((language) => !languagePriority.includes(language))
+      .sort(),
   ]
 
   for (const language of orderedLanguages) {
-    const tracks = Array.isArray(groups[language]) ? (groups[language] as YtDlpTrack[]) : []
+    const tracks = Array.isArray(groups[language])
+      ? (groups[language] as YtDlpTrack[])
+      : []
     const preferredTrack =
-      tracks.find((track) => track.ext === "json3" && typeof track.url === "string") ||
-      tracks.find((track) => track.ext === "vtt" && typeof track.url === "string") ||
+      tracks.find(
+        (track) => track.ext === "json3" && typeof track.url === "string",
+      ) ||
+      tracks.find(
+        (track) => track.ext === "vtt" && typeof track.url === "string",
+      ) ||
       tracks.find((track) => typeof track.url === "string")
 
     if (preferredTrack) {
@@ -193,8 +215,10 @@ function pickTrack(
 }
 
 function pickBestCaptionTrack(payload: Record<string, unknown>) {
-  const subtitles = (payload.subtitles as Record<string, unknown> | undefined) || null
-  const automaticCaptions = (payload.automatic_captions as Record<string, unknown> | undefined) || null
+  const subtitles =
+    (payload.subtitles as Record<string, unknown> | undefined) || null
+  const automaticCaptions =
+    (payload.automatic_captions as Record<string, unknown> | undefined) || null
 
   const manualTrack = pickTrack(subtitles)
   if (manualTrack) {
@@ -221,13 +245,17 @@ async function fetchCaptionTrack(url: string) {
   })
 
   if (!response.ok) {
-    throw new Error(`No se pudo descargar la pista de captions (${response.status}).`)
+    throw new Error(
+      `No se pudo descargar la pista de captions (${response.status}).`,
+    )
   }
 
   return response.text()
 }
 
-async function resolveYouTubeCaptionLyrics(videoId: string): Promise<YouTubeCaptionLyricsResult> {
+async function resolveYouTubeCaptionLyrics(
+  videoId: string,
+): Promise<YouTubeCaptionLyricsResult> {
   const env = getYouTubeMusicEnvConfig()
   const { stdout } = await execFileAsync(LOCAL_YT_DLP_PYTHON, [
     "-m",
@@ -256,7 +284,9 @@ async function resolveYouTubeCaptionLyrics(videoId: string): Promise<YouTubeCapt
 
   const rawTrack = await fetchCaptionTrack(selectedTrack.track.url)
   const lines = dedupeCaptionLines(
-    selectedTrack.track.ext === "json3" ? parseJson3Captions(rawTrack) : parseVttCaptions(rawTrack)
+    selectedTrack.track.ext === "json3"
+      ? parseJson3Captions(rawTrack)
+      : parseVttCaptions(rawTrack),
   )
 
   return {
@@ -271,7 +301,9 @@ async function resolveYouTubeCaptionLyrics(videoId: string): Promise<YouTubeCapt
   }
 }
 
-export async function getYouTubeCaptionLyrics(videoId: string): Promise<YouTubeCaptionLyricsResult> {
+export async function getYouTubeCaptionLyrics(
+  videoId: string,
+): Promise<YouTubeCaptionLyricsResult> {
   const cached = captionsCache.get(videoId)
   if (cached) {
     return cached
