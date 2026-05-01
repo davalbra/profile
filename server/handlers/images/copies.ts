@@ -85,7 +85,10 @@ function asString(value: unknown): string | null {
 }
 
 function getN8nCopyWebhookUrl(): string | null {
-    const rawUrl = process.env.N8N_COPY_WEBHOOK_URL?.trim() || "";
+    const rawUrl =
+        process.env.N8N_MCP_NANO_BANANA_WURL?.trim() ||
+        process.env.N8N_COPY_WEBHOOK_URL?.trim() ||
+        "";
     if (!rawUrl) {
         return null;
     }
@@ -815,7 +818,7 @@ export async function POST(request: Request) {
         const n8nCopyWebhookUrl = getN8nCopyWebhookUrl();
         if (!n8nCopyWebhookUrl) {
             return jsonResponse(
-                {error: "Falta configurar N8N_COPY_WEBHOOK_URL en variables de entorno."},
+                {error: "Falta configurar N8N_MCP_NANO_BANANA_WURL en variables de entorno."},
                 {status: 500},
             );
         }
