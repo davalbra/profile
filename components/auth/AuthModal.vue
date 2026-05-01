@@ -1,67 +1,77 @@
 <script setup lang="ts">
-import { Chrome, Loader2, LogOut, X } from "lucide-vue-next";
+import { Chrome, Loader2, LogOut, X } from "lucide-vue-next"
 
+/** Props */
 const props = defineProps<{
-  modelValue: boolean;
-}>();
+  modelValue: boolean
+}>()
 
+/** Emit */
 const emit = defineEmits<{
-  "update:modelValue": [value: boolean];
-}>();
+  "update:modelValue": [value: boolean]
+}>()
 
-const { user, loading, error, loginWithGoogle, logout } = useAuth();
-const pending = ref(false);
-const localError = ref<string | null>(null);
+/** Services, Components */
+const { user, loading, error, loginWithGoogle, logout } = useAuth()
 
+/** DefineModel, Ref, Computed */
+const pending = ref(false)
+const localError = ref<string | null>(null)
+
+/** Functions */
 const close = () => {
-  emit("update:modelValue", false);
-};
+  emit("update:modelValue", false)
+}
 
+const handleGoogleLogin = async () => {
+  pending.value = true
+  localError.value = null
+
+  try {
+    await loginWithGoogle()
+    close()
+  } catch (reason) {
+    localError.value =
+      reason instanceof Error
+        ? reason.message
+        : "No se pudo iniciar sesión con Google."
+  } finally {
+    pending.value = false
+  }
+}
+
+const handleLogout = async () => {
+  pending.value = true
+  localError.value = null
+
+  try {
+    await logout()
+    close()
+  } catch (reason) {
+    localError.value =
+      reason instanceof Error ? reason.message : "No se pudo cerrar la sesión."
+  } finally {
+    pending.value = false
+  }
+}
+
+/** Vue */
 watch(
   () => props.modelValue,
   (open) => {
     if (!import.meta.client) {
-      return;
+      return
     }
 
-    document.body.style.overflow = open ? "hidden" : "";
+    document.body.style.overflow = open ? "hidden" : ""
   },
-);
+)
 
 onBeforeUnmount(() => {
   if (import.meta.client) {
-    document.body.style.overflow = "";
+    document.body.style.overflow = ""
   }
-});
-
-const handleGoogleLogin = async () => {
-  pending.value = true;
-  localError.value = null;
-
-  try {
-    await loginWithGoogle();
-    close();
-  } catch (reason) {
-    localError.value =
-      reason instanceof Error ? reason.message : "No se pudo iniciar sesión con Google.";
-  } finally {
-    pending.value = false;
-  }
-};
-
-const handleLogout = async () => {
-  pending.value = true;
-  localError.value = null;
-
-  try {
-    await logout();
-    close();
-  } catch (reason) {
-    localError.value = reason instanceof Error ? reason.message : "No se pudo cerrar la sesión.";
-  } finally {
-    pending.value = false;
-  }
-};
+})
 </script>
 
 <template>
@@ -80,7 +90,8 @@ const handleLogout = async () => {
         <div>
           <h2 class="text-xl font-semibold text-white">Acceso con Google</h2>
           <p class="mt-1 text-sm text-slate-400">
-            La sesión cliente se valida con Firebase y luego se registra en el servidor.
+            La sesión cliente se valida con Firebase y luego se registra en el
+            servidor.
           </p>
         </div>
         <button

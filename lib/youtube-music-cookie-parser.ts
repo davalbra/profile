@@ -159,21 +159,30 @@ export function parseYouTubeMusicCookieExport(raw: string): CookieParseResult {
     throw new Error("No pude detectar cookies validas en el texto pegado.")
   }
 
-  const orderedCookieNames = [...REQUIRED_COOKIE_NAMES, ...OPTIONAL_COOKIE_NAMES].filter((name) =>
-    cookieMap.has(name)
-  )
+  const orderedCookieNames = [
+    ...REQUIRED_COOKIE_NAMES,
+    ...OPTIONAL_COOKIE_NAMES,
+  ].filter((name) => cookieMap.has(name))
 
-  const cookieHeader = orderedCookieNames.map((name) => `${name}=${cookieMap.get(name) || ""}`).join("; ")
+  const cookieHeader = orderedCookieNames
+    .map((name) => `${name}=${cookieMap.get(name) || ""}`)
+    .join("; ")
   if (!cookieHeader) {
-    throw new Error("No encontré ninguna de las cookies necesarias para YouTube Music.")
+    throw new Error(
+      "No encontré ninguna de las cookies necesarias para YouTube Music.",
+    )
   }
 
-  const missingRequiredCookies = REQUIRED_COOKIE_NAMES.filter((name) => !cookieMap.has(name))
+  const missingRequiredCookies = REQUIRED_COOKIE_NAMES.filter(
+    (name) => !cookieMap.has(name),
+  )
   const userAgent = extractUserAgent(raw)
 
   return {
     envCookieLine: `YTMUSIC_COOKIE="${cookieHeader}"`,
-    envUserAgentLine: userAgent ? `YTMUSIC_USER_AGENT="${userAgent.replace(/"/g, '\\"')}"` : 'YTMUSIC_USER_AGENT=""',
+    envUserAgentLine: userAgent
+      ? `YTMUSIC_USER_AGENT="${userAgent.replace(/"/g, '\\"')}"`
+      : 'YTMUSIC_USER_AGENT=""',
     cookieHeader,
     detectedCookies: orderedCookieNames,
     missingRequiredCookies,

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-await navigateTo("/flores", { replace: true });
+/** Vue */
+await navigateTo("/flores", { replace: true })
 </script>
 
 <template>

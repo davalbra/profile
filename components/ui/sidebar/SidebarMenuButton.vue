@@ -1,23 +1,23 @@
 <script setup lang="ts">
-import type { Component } from "vue";
-import type { SidebarMenuButtonProps } from "./SidebarMenuButtonChild.vue";
-import { reactiveOmit } from "@vueuse/core";
+import type { Component } from "vue"
+import type { SidebarMenuButtonProps } from "./SidebarMenuButtonChild.vue"
+import { reactiveOmit } from "@vueuse/core"
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
-import SidebarMenuButtonChild from "./SidebarMenuButtonChild.vue";
-import { useSidebar } from "./utils";
+} from "@/components/ui/tooltip"
+import SidebarMenuButtonChild from "./SidebarMenuButtonChild.vue"
+import { useSidebar } from "./utils"
 
 defineOptions({
   inheritAttrs: false,
-});
+})
 
 const props = withDefaults(
   defineProps<
     SidebarMenuButtonProps & {
-      tooltip?: string | Component;
+      tooltip?: string | Component
     }
   >(),
   {
@@ -25,11 +25,11 @@ const props = withDefaults(
     variant: "default",
     size: "default",
   },
-);
+)
 
-const { isMobile, state } = useSidebar();
+const { isMobile, state } = useSidebar()
 
-const delegatedProps = reactiveOmit(props, "tooltip");
+const delegatedProps = reactiveOmit(props, "tooltip")
 </script>
 
 <template>

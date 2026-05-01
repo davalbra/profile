@@ -1,7 +1,13 @@
 <script setup lang="ts">
-import { ArrowRight, Rocket, Sparkles } from "lucide-vue-next";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
+import {
+  ArrowRight,
+  CheckCircle2,
+  Network,
+  Rocket,
+  Sparkles,
+} from "lucide-vue-next"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import {
   Card,
   CardContent,
@@ -9,20 +15,19 @@ import {
   CardFooter,
   CardHeader,
   CardTitle,
-} from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/card"
+import { Separator } from "@/components/ui/separator"
 import {
   credencialesDashboard,
   metricasDashboard,
   modulosDashboard,
   procesosDashboard,
-} from "@/lib/dashboard/dashboard.data";
-import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario";
+} from "@/lib/dashboard/dashboard.data"
+import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario"
 
 definePageMeta({
   layout: "dashboard",
-});
+})
 </script>
 
 <template>
@@ -39,13 +44,13 @@ definePageMeta({
             class="border-transparent bg-cyan-300/15 text-cyan-100 hover:bg-cyan-300/15"
           >
             <Sparkles class="size-3" />
-            Dashboard shadcn
+            MCP e imágenes
           </Badge>
           <Badge
             variant="outline"
             class="border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
           >
-            Nuxt 4 activo
+            Billing conectado
           </Badge>
         </div>
 
@@ -55,16 +60,16 @@ definePageMeta({
               Panel operativo
             </p>
             <CardTitle
-              class="mt-3 max-w-3xl text-4xl font-black tracking-tight text-white lg:text-6xl"
+              class="mt-3 max-w-4xl text-4xl font-black tracking-tight text-white lg:text-6xl"
             >
-              Control center para módulos, costos y automatización.
+              Mapa operativo de todos los módulos del proyecto.
             </CardTitle>
             <CardDescription
               class="mt-4 max-w-2xl text-base leading-8 text-slate-300"
             >
-              Base visual reconstruida con componentes shadcn reales:
-              navegación, cards, acciones, métricas y progreso quedan listos
-              para extender cada módulo sin romper el runtime.
+              Este dashboard organiza lo que ya existe en la app: billing de
+              Firebase y Gemini, herramientas MCP, tratamiento de imágenes,
+              flujos n8n y utilidades privadas de audio/cookies.
             </CardDescription>
           </div>
 
@@ -75,14 +80,35 @@ definePageMeta({
               >
               <CardTitle class="flex items-center gap-2 text-3xl">
                 <Rocket class="size-7 text-cyan-100" />
-                81%
+                4 módulos
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Progress :model-value="81" class="h-3 bg-white/10" />
-              <p class="mt-3 text-sm leading-relaxed text-slate-300">
-                Migración visual consistente sobre shadcn, Tailwind 4 y layout
-                responsive.
+              <div class="grid grid-cols-2 gap-2 text-sm">
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
+                  Billing
+                </span>
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
+                  MCP
+                </span>
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
+                  Imágenes
+                </span>
+                <span
+                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
+                >
+                  Milka
+                </span>
+              </div>
+              <p class="mt-4 text-sm leading-relaxed text-slate-300">
+                Cada sección tiene una función clara, una integración principal
+                y una ruta directa para operar sin buscar entre archivos.
               </p>
             </CardContent>
           </Card>
@@ -92,7 +118,7 @@ definePageMeta({
       <CardFooter
         class="relative flex flex-col gap-3 border-t border-white/10 bg-white/[0.03] p-4 sm:flex-row sm:justify-between lg:p-6"
       >
-        <p class="text-sm text-slate-400">
+        <p class="max-w-3xl text-sm leading-6 text-slate-400">
           {{ credencialesDashboard.descripcion }}
         </p>
         <Button as-child class="w-full rounded-2xl sm:w-auto">
@@ -122,7 +148,9 @@ definePageMeta({
               {{ metrica.tendencia }}
             </Badge>
           </div>
-          <CardTitle class="text-3xl">{{ metrica.valor }}</CardTitle>
+          <CardTitle class="text-3xl" :class="metrica.tono">{{
+            metrica.valor
+          }}</CardTitle>
         </CardHeader>
         <CardContent class="text-sm text-slate-400">{{
           metrica.detalle
@@ -161,32 +189,64 @@ definePageMeta({
                   variant="outline"
                   class="border-white/15 bg-white/10 text-white"
                 >
+                  {{ modulo.etiqueta }} ·
                   {{ etiquetaEstadoPanelDashboard[modulo.estado] }}
                 </Badge>
               </div>
               <CardTitle class="mt-5 text-2xl">{{ modulo.titulo }}</CardTitle>
               <CardDescription
-                class="min-h-16 text-sm leading-7 text-slate-300"
+                class="min-h-20 text-sm leading-7 text-slate-300"
               >
-                {{ modulo.descripcion }}
+                {{ modulo.resumen }}
               </CardDescription>
             </CardHeader>
-            <CardContent class="relative space-y-3">
-              <div class="flex items-center justify-between text-sm">
-                <span class="text-slate-400">{{ modulo.detalle }}</span>
-                <span class="font-semibold text-white"
-                  >{{ modulo.progreso }}%</span
+            <CardContent class="relative space-y-5">
+              <div class="flex flex-wrap items-center gap-2 text-sm">
+                <Badge
+                  variant="outline"
+                  class="border-cyan-300/20 bg-cyan-300/10 text-cyan-100"
                 >
+                  {{ modulo.detalle }}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  class="border-white/10 bg-white/[0.06] text-slate-200"
+                >
+                  Ruta {{ modulo.ruta }}
+                </Badge>
               </div>
-              <Progress
-                :model-value="modulo.progreso"
-                class="h-2.5 bg-white/10"
-              />
+              <div class="space-y-2">
+                <p
+                  class="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500"
+                >
+                  Qué resuelve
+                </p>
+                <ul class="space-y-2 text-sm leading-6 text-slate-300">
+                  <li
+                    v-for="funcion in modulo.funciones"
+                    :key="funcion"
+                    class="flex gap-2"
+                  >
+                    <CheckCircle2 class="mt-1 size-4 shrink-0 text-cyan-200" />
+                    <span>{{ funcion }}</span>
+                  </li>
+                </ul>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <Badge
+                  v-for="integracion in modulo.integraciones"
+                  :key="integracion"
+                  variant="outline"
+                  class="border-white/10 bg-white/[0.06] text-slate-200"
+                >
+                  {{ integracion }}
+                </Badge>
+              </div>
             </CardContent>
             <CardFooter
               class="relative justify-between border-t border-white/10 bg-black/10"
             >
-              <span class="text-sm text-slate-400">Abrir módulo</span>
+              <span class="text-sm text-slate-400">{{ modulo.accion }}</span>
               <ArrowRight
                 class="size-4 text-cyan-100 transition group-hover:translate-x-1"
               />
@@ -202,12 +262,12 @@ definePageMeta({
           <Badge
             class="w-fit border-transparent bg-emerald-300/15 text-emerald-100 hover:bg-emerald-300/15"
           >
-            Roadmap
+            Operación
           </Badge>
-          <CardTitle class="text-2xl">Estado de migración</CardTitle>
+          <CardTitle class="text-2xl">Cómo se conectan</CardTitle>
           <CardDescription class="text-slate-400">
-            Prioridades inmediatas para mantener el dashboard limpio y
-            extensible.
+            Lectura rápida de los servicios que sostienen operación,
+            automatización, assets y control de costos.
           </CardDescription>
         </CardHeader>
         <CardContent class="space-y-5">
@@ -216,18 +276,22 @@ definePageMeta({
             :key="proceso.titulo"
             class="space-y-3"
           >
-            <div class="flex items-start justify-between gap-4">
+            <div class="space-y-2">
               <div>
-                <p class="font-semibold text-white">{{ proceso.titulo }}</p>
+                <p class="flex items-center gap-2 font-semibold text-white">
+                  <Network class="size-4 text-emerald-200" />
+                  {{ proceso.titulo }}
+                </p>
                 <p class="mt-1 text-sm leading-6 text-slate-400">
                   {{ proceso.descripcion }}
                 </p>
+                <p
+                  class="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-100/80"
+                >
+                  {{ proceso.resultado }}
+                </p>
               </div>
-              <span class="text-sm font-semibold text-cyan-100"
-                >{{ proceso.progreso }}%</span
-              >
             </div>
-            <Progress :model-value="proceso.progreso" class="h-2 bg-white/10" />
             <Separator class="bg-white/10 last:hidden" />
           </div>
         </CardContent>

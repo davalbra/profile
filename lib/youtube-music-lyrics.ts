@@ -18,7 +18,9 @@ export type YouTubeMusicLyricsResult = {
 const lyricsCache = new Map<string, Promise<YouTubeMusicLyricsResult>>()
 
 function asRecord(value: unknown): Record<string, unknown> | null {
-  return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : null
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
 }
 
 function getNested(value: unknown, path: Array<string | number>): unknown {
@@ -76,7 +78,12 @@ function extractLyricsBrowseId(payload: unknown) {
     return null
   }
 
-  const browseId = getNested(tabs[1], ["tabRenderer", "endpoint", "browseEndpoint", "browseId"])
+  const browseId = getNested(tabs[1], [
+    "tabRenderer",
+    "endpoint",
+    "browseEndpoint",
+    "browseId",
+  ])
   return typeof browseId === "string" ? browseId : null
 }
 
@@ -156,7 +163,9 @@ function extractPlainLyrics(payload: unknown): YouTubeMusicLyricsResult {
   }
 }
 
-async function resolveLyrics(videoId: string): Promise<YouTubeMusicLyricsResult> {
+async function resolveLyrics(
+  videoId: string,
+): Promise<YouTubeMusicLyricsResult> {
   const watchPayload = await sendYouTubeMusicRequest("next", {
     enablePersistentPlaylistPanel: true,
     isAudioOnly: true,
@@ -182,7 +191,11 @@ async function resolveLyrics(videoId: string): Promise<YouTubeMusicLyricsResult>
   }
 
   try {
-    const timedPayload = await sendYouTubeMusicRequest("browse", { browseId }, { useMobileClient: true })
+    const timedPayload = await sendYouTubeMusicRequest(
+      "browse",
+      { browseId },
+      { useMobileClient: true },
+    )
     const timedLyrics = extractTimedLyrics(timedPayload)
     if (timedLyrics?.found) {
       return {
@@ -201,7 +214,9 @@ async function resolveLyrics(videoId: string): Promise<YouTubeMusicLyricsResult>
   }
 }
 
-export async function getYouTubeMusicLyrics(videoId: string): Promise<YouTubeMusicLyricsResult> {
+export async function getYouTubeMusicLyrics(
+  videoId: string,
+): Promise<YouTubeMusicLyricsResult> {
   const cached = lyricsCache.get(videoId)
   if (cached) {
     return cached

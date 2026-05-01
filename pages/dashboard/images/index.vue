@@ -1,5 +1,6 @@
 <script setup lang="ts">
-await navigateTo("/dashboard/images/gallery", { replace: true });
+/** Vue */
+await navigateTo("/dashboard/images/optimize", { replace: true })
 </script>
 
 <template>

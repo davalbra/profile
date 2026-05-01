@@ -1,5 +1,6 @@
 <script setup lang="ts">
-await navigateTo("/dashboard/mcp/optimize", { replace: true });
+/** Vue */
+await navigateTo("/dashboard/mcp/optimize", { replace: true })
 </script>
 
 <template>

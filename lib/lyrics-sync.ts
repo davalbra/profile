@@ -1,6 +1,9 @@
 import { LyricsSetStatus, LyricsSource, type Prisma } from "@prisma/client"
 import prisma from "@/lib/prisma"
-import type { TimedLyricLine, YouTubeMusicLyricsResult } from "@/lib/youtube-music-lyrics"
+import type {
+  TimedLyricLine,
+  YouTubeMusicLyricsResult,
+} from "@/lib/youtube-music-lyrics"
 import { getYouTubeCaptionLyrics } from "@/lib/youtube-captions"
 import { getYouTubeMusicLyrics } from "@/lib/youtube-music-lyrics"
 
@@ -100,7 +103,9 @@ function splitPlainTextIntoLines(value: string): LyricsLineInput[] {
     .map((text) => ({ text }))
 }
 
-function toLineInputsFromYouTube(result: YouTubeMusicLyricsResult): LyricsLineInput[] {
+function toLineInputsFromYouTube(
+  result: YouTubeMusicLyricsResult,
+): LyricsLineInput[] {
   if (Array.isArray(result.lyrics)) {
     return result.lyrics
       .map((line) => ({
@@ -118,14 +123,20 @@ function toLineInputsFromYouTube(result: YouTubeMusicLyricsResult): LyricsLineIn
   return []
 }
 
-function buildComparison(officialLines: LyricsLineInput[], candidateLines: LyricsLineInput[]) {
+function buildComparison(
+  officialLines: LyricsLineInput[],
+  candidateLines: LyricsLineInput[],
+) {
   const officialText = linesToPlainText(officialLines)
   const candidateText = linesToPlainText(candidateLines)
   const officialTokens = new Set(tokenizeLyrics(officialText))
   const candidateTokens = new Set(tokenizeLyrics(candidateText))
 
-  const sharedTokens = [...candidateTokens].filter((token) => officialTokens.has(token))
-  const tokenCoverage = officialTokens.size > 0 ? sharedTokens.length / officialTokens.size : 0
+  const sharedTokens = [...candidateTokens].filter((token) =>
+    officialTokens.has(token),
+  )
+  const tokenCoverage =
+    officialTokens.size > 0 ? sharedTokens.length / officialTokens.size : 0
 
   const candidateLineScores = candidateLines
     .map((candidateLine) => {
@@ -148,8 +159,11 @@ function buildComparison(officialLines: LyricsLineInput[], candidateLines: Lyric
 
         const officialLineTokens = new Set(tokenizeLyrics(officialLine.text))
         const candidateLineTokens = new Set(tokenizeLyrics(candidateLine.text))
-        const overlap = [...candidateLineTokens].filter((token) => officialLineTokens.has(token)).length
-        const union = new Set([...officialLineTokens, ...candidateLineTokens]).size
+        const overlap = [...candidateLineTokens].filter((token) =>
+          officialLineTokens.has(token),
+        ).length
+        const union = new Set([...officialLineTokens, ...candidateLineTokens])
+          .size
         const lineScore = union > 0 ? overlap / union : 0
         if (lineScore > best) {
           best = lineScore
@@ -161,7 +175,8 @@ function buildComparison(officialLines: LyricsLineInput[], candidateLines: Lyric
     .filter((score) => Number.isFinite(score))
 
   const averageLineScore = candidateLineScores.length
-    ? candidateLineScores.reduce((sum, score) => sum + score, 0) / candidateLineScores.length
+    ? candidateLineScores.reduce((sum, score) => sum + score, 0) /
+      candidateLineScores.length
     : 0
 
   return {
@@ -170,7 +185,14 @@ function buildComparison(officialLines: LyricsLineInput[], candidateLines: Lyric
   }
 }
 
-function mapDbLinesToTimed(lines: Array<{ id: string; text: string; startMs: number | null; endMs: number | null }>): TimedLyricLine[] {
+function mapDbLinesToTimed(
+  lines: Array<{
+    id: string
+    text: string
+    startMs: number | null
+    endMs: number | null
+  }>,
+): TimedLyricLine[] {
   return lines.map((line, index) => ({
     id: index + 1,
     text: line.text,
@@ -183,7 +205,11 @@ function toApiLyricsPayload(lyricsSet: LyricsSetWithLines) {
   const lyrics = lyricsSet.isSynced
     ? mapDbLinesToTimed(lyricsSet.lineas)
     : lyricsSet.plainText ||
-      linesToPlainText(lyricsSet.lineas.map((line: LyricsSetWithLines["lineas"][number]) => ({ text: line.text }))) ||
+      linesToPlainText(
+        lyricsSet.lineas.map((line: LyricsSetWithLines["lineas"][number]) => ({
+          text: line.text,
+        })),
+      ) ||
       null
 
   return {
@@ -224,7 +250,9 @@ async function getSongWithLyrics(videoId: string) {
   })
 }
 
-function pickBestLyricsSet(lyricsSets: LyricsSetWithLines[]): LyricsSetWithLines | null {
+function pickBestLyricsSet(
+  lyricsSets: LyricsSetWithLines[],
+): LyricsSetWithLines | null {
   if (!lyricsSets.length) {
     return null
   }
@@ -245,7 +273,7 @@ function pickBestLyricsSet(lyricsSets: LyricsSetWithLines[]): LyricsSetWithLines
 
 async function upsertSongMetadata(
   tx: Prisma.TransactionClient,
-  song: SongMetadataInput
+  song: SongMetadataInput,
 ) {
   const title = song.title?.trim() || song.videoId
   const record = await tx.song.upsert({
@@ -294,8 +322,11 @@ export async function persistSongsMetadata(songs: SongMetadataInput[]) {
     new Map(
       songs
         .filter((song) => song.videoId.trim())
-        .map((song) => [song.videoId, { ...song, videoId: song.videoId.trim() }])
-    ).values()
+        .map((song) => [
+          song.videoId,
+          { ...song, videoId: song.videoId.trim() },
+        ]),
+    ).values(),
   )
 
   if (!uniqueSongs.length) {
@@ -331,8 +362,11 @@ type PersistLyricsSetInput = {
 async function persistLyricsSet(input: PersistLyricsSetInput) {
   return prisma.$transaction(async (tx) => {
     const song = await upsertSongMetadata(tx, input.song)
-    const plainText = input.plainText?.trim() || linesToPlainText(input.lines) || null
-    const normalizedPlainText = plainText ? normalizeLyricsText(plainText.replace(/\n/g, " ")) : null
+    const plainText =
+      input.plainText?.trim() || linesToPlainText(input.lines) || null
+    const normalizedPlainText = plainText
+      ? normalizeLyricsText(plainText.replace(/\n/g, " "))
+      : null
 
     let activateSet = false
     if (input.isOfficial && input.isSynced) {
@@ -354,7 +388,9 @@ async function persistLyricsSet(input: PersistLyricsSetInput) {
 
       activateSet =
         (meetsComparisonThreshold && noExistingActive) ||
-        ((noOfficialLyrics || hasOnlyUnsyncedOfficialLyrics) && noExistingActive && input.lines.length >= 3)
+        ((noOfficialLyrics || hasOnlyUnsyncedOfficialLyrics) &&
+          noExistingActive &&
+          input.lines.length >= 3)
     }
 
     if (input.forceActive) {
@@ -465,14 +501,21 @@ export async function getStoredLyricsForVideoId(videoId: string) {
       album: song.album,
       duration: song.duracionTexto,
       thumbnailUrl: song.thumbnailUrl,
-      artists: song.artistas.map((artist) => ({ name: artist.nombre, id: artist.browseId })),
+      artists: song.artistas.map((artist) => ({
+        name: artist.nombre,
+        id: artist.browseId,
+      })),
     },
     lyrics: toApiLyricsPayload(lyricsSet),
   }
 }
 
-export async function getStoredLyricsIndex(videoIds: string[]): Promise<Record<string, StoredLyricsPayload>> {
-  const uniqueVideoIds = Array.from(new Set(videoIds.map((videoId) => videoId.trim()).filter(Boolean)))
+export async function getStoredLyricsIndex(
+  videoIds: string[],
+): Promise<Record<string, StoredLyricsPayload>> {
+  const uniqueVideoIds = Array.from(
+    new Set(videoIds.map((videoId) => videoId.trim()).filter(Boolean)),
+  )
   if (!uniqueVideoIds.length) {
     return {}
   }
@@ -495,19 +538,27 @@ export async function getStoredLyricsIndex(videoIds: string[]): Promise<Record<s
     },
   })
 
-  return songs.reduce<Record<string, StoredLyricsPayload>>((accumulator, song) => {
-    const lyricsSet = pickBestLyricsSet(song.lyricsSets)
-    if (!lyricsSet) {
-      return accumulator
-    }
+  return songs.reduce<Record<string, StoredLyricsPayload>>(
+    (accumulator, song) => {
+      const lyricsSet = pickBestLyricsSet(song.lyricsSets)
+      if (!lyricsSet) {
+        return accumulator
+      }
 
-    accumulator[song.videoId] = toApiLyricsPayload(lyricsSet)
-    return accumulator
-  }, {})
+      accumulator[song.videoId] = toApiLyricsPayload(lyricsSet)
+      return accumulator
+    },
+    {},
+  )
 }
 
-export async function persistYouTubeLyrics(song: SongMetadataInput, lyrics: YouTubeMusicLyricsResult) {
-  const source = lyrics.hasTimestamps ? LyricsSource.YOUTUBE_MUSIC_SYNCED : LyricsSource.YOUTUBE_MUSIC_PLAIN
+export async function persistYouTubeLyrics(
+  song: SongMetadataInput,
+  lyrics: YouTubeMusicLyricsResult,
+) {
+  const source = lyrics.hasTimestamps
+    ? LyricsSource.YOUTUBE_MUSIC_SYNCED
+    : LyricsSource.YOUTUBE_MUSIC_PLAIN
   const lines = toLineInputsFromYouTube(lyrics)
 
   return persistLyricsSet({
@@ -518,29 +569,41 @@ export async function persistYouTubeLyrics(song: SongMetadataInput, lyrics: YouT
     isOfficial: true,
     isSynced: lyrics.hasTimestamps,
     lines,
-    plainText: typeof lyrics.lyrics === "string" ? lyrics.lyrics : linesToPlainText(lines),
+    plainText:
+      typeof lyrics.lyrics === "string"
+        ? lyrics.lyrics
+        : linesToPlainText(lines),
     status: lyrics.found ? LyricsSetStatus.READY : LyricsSetStatus.REJECTED,
   })
 }
 
-export async function persistCandidateLyrics(song: SongMetadataInput, candidate: CandidateLyricsInput) {
+export async function persistCandidateLyrics(
+  song: SongMetadataInput,
+  candidate: CandidateLyricsInput,
+) {
   const stored = await getSongWithLyrics(song.videoId)
-  const officialSet = stored ? pickBestLyricsSet(stored.lyricsSets.filter((set) => set.isOfficial)) : null
+  const officialSet = stored
+    ? pickBestLyricsSet(stored.lyricsSets.filter((set) => set.isOfficial))
+    : null
   const lines =
-    candidate.lines?.filter((line) => line.text.trim()).map((line) => ({
-      text: line.text,
-      startMs: line.startMs ?? null,
-      endMs: line.endMs ?? null,
-    })) || splitPlainTextIntoLines(candidate.plainText || "")
+    candidate.lines
+      ?.filter((line) => line.text.trim())
+      .map((line) => ({
+        text: line.text,
+        startMs: line.startMs ?? null,
+        endMs: line.endMs ?? null,
+      })) || splitPlainTextIntoLines(candidate.plainText || "")
 
   const comparison = officialSet
     ? buildComparison(
-        officialSet.lineas.map((line: LyricsSetWithLines["lineas"][number]) => ({
-          text: line.text,
-          startMs: line.startMs,
-          endMs: line.endMs,
-        })),
-        lines
+        officialSet.lineas.map(
+          (line: LyricsSetWithLines["lineas"][number]) => ({
+            text: line.text,
+            startMs: line.startMs,
+            endMs: line.endMs,
+          }),
+        ),
+        lines,
       )
     : null
 
@@ -561,7 +624,10 @@ export async function persistCandidateLyrics(song: SongMetadataInput, candidate:
   })
 }
 
-export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual: ManualKaraokeInput) {
+export async function persistManualKaraokeLyrics(
+  song: SongMetadataInput,
+  manual: ManualKaraokeInput,
+) {
   const lines = manual.segments
     .map((segment) => ({
       text: segment.text.trim(),
@@ -587,7 +653,8 @@ export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual
       startMs: segment.startMs,
       endMs: segment.endMs,
     })),
-    plainText: manual.plainText || lines.map((segment) => segment.text).join("\n"),
+    plainText:
+      manual.plainText || lines.map((segment) => segment.text).join("\n"),
     status: LyricsSetStatus.READY,
     analysisMetadata: {
       kind: "manual_karaoke",
@@ -608,7 +675,10 @@ export async function persistManualKaraokeLyrics(song: SongMetadataInput, manual
   return toApiLyricsPayload(lyricsSet)
 }
 
-export async function synchronizeLyrics(song: SongMetadataInput, options?: { refreshOfficial?: boolean }) {
+export async function synchronizeLyrics(
+  song: SongMetadataInput,
+  options?: { refreshOfficial?: boolean },
+) {
   let officialSet = null
   let candidateSet = null
 
@@ -617,7 +687,9 @@ export async function synchronizeLyrics(song: SongMetadataInput, options?: { ref
     officialSet = await persistYouTubeLyrics(song, officialLyrics)
 
     if (!officialLyrics.hasTimestamps) {
-      const captionLyrics = await getYouTubeCaptionLyrics(song.videoId).catch(() => null)
+      const captionLyrics = await getYouTubeCaptionLyrics(song.videoId).catch(
+        () => null,
+      )
       if (captionLyrics?.found) {
         candidateSet = await persistCandidateLyrics(song, {
           source: LyricsSource.EXTERNAL_ALIGNMENT,
@@ -655,7 +727,9 @@ export async function getLyricsSyncSummary(videoId: string) {
     return null
   }
 
-  const officialSet = pickBestLyricsSet(song.lyricsSets.filter((set) => set.isOfficial))
+  const officialSet = pickBestLyricsSet(
+    song.lyricsSets.filter((set) => set.isOfficial),
+  )
   const activeSet = pickBestLyricsSet(song.lyricsSets)
   const latestCandidate = song.lyricsSets.find((set) => !set.isOfficial) || null
 
@@ -666,10 +740,15 @@ export async function getLyricsSyncSummary(videoId: string) {
       album: song.album,
       duration: song.duracionTexto,
       thumbnailUrl: song.thumbnailUrl,
-      artists: song.artistas.map((artist) => ({ name: artist.nombre, id: artist.browseId })),
+      artists: song.artistas.map((artist) => ({
+        name: artist.nombre,
+        id: artist.browseId,
+      })),
     },
     activeLyrics: activeSet ? toApiLyricsPayload(activeSet) : null,
     officialLyrics: officialSet ? toApiLyricsPayload(officialSet) : null,
-    latestCandidate: latestCandidate ? toApiLyricsPayload(latestCandidate) : null,
+    latestCandidate: latestCandidate
+      ? toApiLyricsPayload(latestCandidate)
+      : null,
   }
 }

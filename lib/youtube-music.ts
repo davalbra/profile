@@ -40,7 +40,9 @@ export type YouTubeMusicEnvConfig = {
 export function getYouTubeMusicEnvConfig(): YouTubeMusicEnvConfig {
   const cookie = process.env.YTMUSIC_COOKIE?.trim() || ""
   if (!cookie) {
-    throw new YouTubeMusicConfigError("Falta YTMUSIC_COOKIE en el entorno del servidor.")
+    throw new YouTubeMusicConfigError(
+      "Falta YTMUSIC_COOKIE en el entorno del servidor.",
+    )
   }
 
   return {
@@ -69,7 +71,7 @@ function buildAuthorizationHeader(cookieHeader: string): string {
 
   if (!sapisid) {
     throw new YouTubeMusicConfigError(
-      "La cookie debe incluir __Secure-3PAPISID o SAPISID para autenticar peticiones de YouTube Music."
+      "La cookie debe incluir __Secure-3PAPISID o SAPISID para autenticar peticiones de YouTube Music.",
     )
   }
 
@@ -82,7 +84,9 @@ function buildAuthorizationHeader(cookieHeader: string): string {
 }
 
 function mergeCookieHeader(cookieHeader: string): string {
-  return cookieHeader.includes("SOCS=") ? cookieHeader : `SOCS=CAI; ${cookieHeader}`
+  return cookieHeader.includes("SOCS=")
+    ? cookieHeader
+    : `SOCS=CAI; ${cookieHeader}`
 }
 
 function extractJsonConfig(html: string): Partial<BootstrapConfig> {
@@ -100,7 +104,10 @@ function extractJsonConfig(html: string): Partial<BootstrapConfig> {
       if (typeof parsed.INNERTUBE_API_KEY === "string" && !config.apiKey) {
         config.apiKey = parsed.INNERTUBE_API_KEY
       }
-      if (typeof parsed.INNERTUBE_CLIENT_VERSION === "string" && !config.clientVersion) {
+      if (
+        typeof parsed.INNERTUBE_CLIENT_VERSION === "string" &&
+        !config.clientVersion
+      ) {
         config.clientVersion = parsed.INNERTUBE_CLIENT_VERSION
       }
       if (typeof parsed.VISITOR_DATA === "string" && !config.visitorData) {
@@ -114,7 +121,9 @@ function extractJsonConfig(html: string): Partial<BootstrapConfig> {
   return config
 }
 
-async function getBootstrapConfig(env: YouTubeMusicEnvConfig): Promise<BootstrapConfig> {
+async function getBootstrapConfig(
+  env: YouTubeMusicEnvConfig,
+): Promise<BootstrapConfig> {
   const response = await fetch(YTM_DOMAIN, {
     headers: {
       accept: "text/html,application/xhtml+xml",
@@ -125,7 +134,9 @@ async function getBootstrapConfig(env: YouTubeMusicEnvConfig): Promise<Bootstrap
   })
 
   if (!response.ok) {
-    throw new Error(`No se pudo cargar la pagina base de YouTube Music (${response.status}).`)
+    throw new Error(
+      `No se pudo cargar la pagina base de YouTube Music (${response.status}).`,
+    )
   }
 
   const html = await response.text()
@@ -133,12 +144,17 @@ async function getBootstrapConfig(env: YouTubeMusicEnvConfig): Promise<Bootstrap
 
   return {
     apiKey: extracted.apiKey || YTM_DEFAULT_API_KEY,
-    clientVersion: extracted.clientVersion || `1.${new Date().toISOString().slice(0, 10).replaceAll("-", "")}.01.00`,
+    clientVersion:
+      extracted.clientVersion ||
+      `1.${new Date().toISOString().slice(0, 10).replaceAll("-", "")}.01.00`,
     visitorData: extracted.visitorData || "",
   }
 }
 
-function getEndpointUrl(endpoint: "browse" | "next" | "search", apiKey: string) {
+function getEndpointUrl(
+  endpoint: "browse" | "next" | "search",
+  apiKey: string,
+) {
   const base =
     endpoint === "browse"
       ? YTM_BROWSE_ENDPOINT
@@ -154,7 +170,7 @@ export async function sendYouTubeMusicRequest(
   body: Record<string, unknown>,
   options?: {
     useMobileClient?: boolean
-  }
+  },
 ) {
   const env = getYouTubeMusicEnvConfig()
   const bootstrap = await getBootstrapConfig(env)
@@ -201,14 +217,18 @@ export async function sendYouTubeMusicRequest(
   if (!response.ok) {
     const responseText = await response.text()
     throw new Error(
-      `YouTube Music respondio ${response.status}. ${responseText.slice(0, 180) || "Sin detalle adicional."}`
+      `YouTube Music respondio ${response.status}. ${responseText.slice(0, 180) || "Sin detalle adicional."}`,
     )
   }
 
   return (await response.json()) as Record<string, unknown>
 }
 
-function findValuesByKey(value: unknown, key: string, results: unknown[] = []): unknown[] {
+function findValuesByKey(
+  value: unknown,
+  key: string,
+  results: unknown[] = [],
+): unknown[] {
   if (!value || typeof value !== "object") {
     return results
   }
@@ -237,7 +257,10 @@ function textFromNode(value: unknown): string | null {
     return null
   }
 
-  const record = value as { simpleText?: unknown; runs?: Array<{ text?: unknown }> }
+  const record = value as {
+    simpleText?: unknown
+    runs?: Array<{ text?: unknown }>
+  }
   if (typeof record.simpleText === "string") {
     return record.simpleText
   }
@@ -253,7 +276,9 @@ function textFromNode(value: unknown): string | null {
   return null
 }
 
-function parseArtists(column: unknown): Array<{ name: string; id?: string | null }> {
+function parseArtists(
+  column: unknown,
+): Array<{ name: string; id?: string | null }> {
   if (!column || typeof column !== "object") {
     return []
   }
@@ -271,21 +296,27 @@ function parseArtists(column: unknown): Array<{ name: string; id?: string | null
       continue
     }
 
-    const pageType = ((run.navigationEndpoint as Record<string, unknown> | undefined)?.browseEndpoint as
+    const pageType = (
+      (run.navigationEndpoint as Record<string, unknown> | undefined)
+        ?.browseEndpoint as Record<string, unknown> | undefined
+    )?.browseEndpointContextSupportedConfigs as
       | Record<string, unknown>
-      | undefined)?.browseEndpointContextSupportedConfigs as Record<string, unknown> | undefined
+      | undefined
 
-    const musicConfig = pageType?.browseEndpointContextMusicConfig as Record<string, unknown> | undefined
-    const resolvedPageType = typeof musicConfig?.pageType === "string" ? musicConfig.pageType : ""
+    const musicConfig = pageType?.browseEndpointContextMusicConfig as
+      | Record<string, unknown>
+      | undefined
+    const resolvedPageType =
+      typeof musicConfig?.pageType === "string" ? musicConfig.pageType : ""
     const browseId =
-      typeof ((run.navigationEndpoint as Record<string, unknown> | undefined)?.browseEndpoint as Record<
-        string,
-        unknown
-      > | undefined)?.browseId === "string"
-        ? (((run.navigationEndpoint as Record<string, unknown> | undefined)?.browseEndpoint as Record<
-            string,
-            unknown
-          >).browseId as string)
+      typeof (
+        (run.navigationEndpoint as Record<string, unknown> | undefined)
+          ?.browseEndpoint as Record<string, unknown> | undefined
+      )?.browseId === "string"
+        ? ((
+            (run.navigationEndpoint as Record<string, unknown> | undefined)
+              ?.browseEndpoint as Record<string, unknown>
+          ).browseId as string)
         : null
 
     if (
@@ -311,41 +342,66 @@ function pickBestThumbnail(thumbnails: unknown): string | null {
   }
 
   const ordered = thumbnails
-    .filter((thumbnail): thumbnail is { url?: string; width?: number; height?: number } => typeof thumbnail === "object" && thumbnail !== null)
-    .sort((a, b) => (Number(b.width || 0) * Number(b.height || 0)) - (Number(a.width || 0) * Number(a.height || 0)))
+    .filter(
+      (
+        thumbnail,
+      ): thumbnail is { url?: string; width?: number; height?: number } =>
+        typeof thumbnail === "object" && thumbnail !== null,
+    )
+    .sort(
+      (a, b) =>
+        Number(b.width || 0) * Number(b.height || 0) -
+        Number(a.width || 0) * Number(a.height || 0),
+    )
 
   return typeof ordered[0]?.url === "string" ? ordered[0].url : null
 }
 
-function parseSongRenderer(renderer: Record<string, unknown>): YouTubeMusicSong | null {
-  const flexColumns = Array.isArray(renderer.flexColumns) ? renderer.flexColumns : []
-  const titleColumn = (flexColumns[0] as Record<string, unknown> | undefined)?.musicResponsiveListItemFlexColumnRenderer as
+function parseSongRenderer(
+  renderer: Record<string, unknown>,
+): YouTubeMusicSong | null {
+  const flexColumns = Array.isArray(renderer.flexColumns)
+    ? renderer.flexColumns
+    : []
+  const titleColumn = (flexColumns[0] as Record<string, unknown> | undefined)
+    ?.musicResponsiveListItemFlexColumnRenderer as
     | Record<string, unknown>
     | undefined
-  const artistsColumn = (flexColumns[1] as Record<string, unknown> | undefined)?.musicResponsiveListItemFlexColumnRenderer as
+  const artistsColumn = (flexColumns[1] as Record<string, unknown> | undefined)
+    ?.musicResponsiveListItemFlexColumnRenderer as
     | Record<string, unknown>
     | undefined
-  const albumColumn = (flexColumns[2] as Record<string, unknown> | undefined)?.musicResponsiveListItemFlexColumnRenderer as
+  const albumColumn = (flexColumns[2] as Record<string, unknown> | undefined)
+    ?.musicResponsiveListItemFlexColumnRenderer as
     | Record<string, unknown>
     | undefined
-  const fixedColumns = Array.isArray(renderer.fixedColumns) ? renderer.fixedColumns : []
-  const durationColumn = (fixedColumns[0] as Record<string, unknown> | undefined)?.musicResponsiveListItemFixedColumnRenderer as
+  const fixedColumns = Array.isArray(renderer.fixedColumns)
+    ? renderer.fixedColumns
+    : []
+  const durationColumn = (
+    fixedColumns[0] as Record<string, unknown> | undefined
+  )?.musicResponsiveListItemFixedColumnRenderer as
     | Record<string, unknown>
     | undefined
 
   const title = textFromNode(titleColumn?.text)
   const videoIdValues = findValuesByKey(renderer, "videoId")
-  const videoId = videoIdValues.find((value): value is string => typeof value === "string") || null
+  const videoId =
+    videoIdValues.find((value): value is string => typeof value === "string") ||
+    null
 
   if (!title || !videoId) {
     return null
   }
 
-  const thumbnailCandidates =
-    ((renderer.thumbnail as Record<string, unknown> | undefined)?.musicThumbnailRenderer as Record<string, unknown> | undefined)
-      ?.thumbnail as Record<string, unknown> | undefined
+  const thumbnailCandidates = (
+    (renderer.thumbnail as Record<string, unknown> | undefined)
+      ?.musicThumbnailRenderer as Record<string, unknown> | undefined
+  )?.thumbnail as Record<string, unknown> | undefined
 
-  const thumbnails = Array.isArray(thumbnailCandidates?.thumbnails) ? thumbnailCandidates.thumbnails : []
+  const thumbnails = Array.isArray(thumbnailCandidates?.thumbnails)
+    ? thumbnailCandidates.thumbnails
+    : []
 
   return {
     videoId,
@@ -357,15 +413,22 @@ function parseSongRenderer(renderer: Record<string, unknown>): YouTubeMusicSong 
   }
 }
 
-export async function getYouTubeMusicLibrarySongs(limit = 25): Promise<YouTubeMusicSong[]> {
+export async function getYouTubeMusicLibrarySongs(
+  limit = 25,
+): Promise<YouTubeMusicSong[]> {
   const payload = await sendYouTubeMusicRequest("browse", {
     browseId: YTM_LIBRARY_SONGS_BROWSE_ID,
   })
   const renderers = findValuesByKey(payload, "musicResponsiveListItemRenderer")
-    .filter((value): value is Record<string, unknown> => Boolean(value) && typeof value === "object")
+    .filter(
+      (value): value is Record<string, unknown> =>
+        Boolean(value) && typeof value === "object",
+    )
     .map(parseSongRenderer)
     .filter((song): song is YouTubeMusicSong => song !== null)
 
-  const uniqueSongs = Array.from(new Map(renderers.map((song) => [song.videoId, song])).values())
+  const uniqueSongs = Array.from(
+    new Map(renderers.map((song) => [song.videoId, song])).values(),
+  )
   return uniqueSongs.slice(0, limit)
 }
