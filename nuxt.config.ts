@@ -61,6 +61,19 @@ export default defineNuxtConfig({
       },
     },
     optimizeDeps: {
+      include: [
+        "@vueuse/core",
+        "axios",
+        "class-variance-authority",
+        "clsx",
+        "firebase/app",
+        "firebase/auth",
+        "firebase/storage",
+        "lucide-vue-next",
+        "sweetalert2",
+        "tailwind-merge",
+        "vue-sonner",
+      ],
       exclude: ["@prisma/client", ".prisma"],
     },
     build: {
