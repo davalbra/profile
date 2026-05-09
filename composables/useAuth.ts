@@ -61,11 +61,18 @@ export function useAuth() {
   }
 
   const logout = async () => {
-    try {
-      if (user.value) {
-        const idToken = await user.value.getIdToken()
-        await authRepositorio.eliminarSesionFirebase(idToken)
+    let idToken: string | null = null
+
+    if (user.value) {
+      try {
+        idToken = await user.value.getIdToken()
+      } catch {
+        idToken = null
       }
+    }
+
+    try {
+      await authRepositorio.eliminarSesionFirebase(idToken)
     } catch {
       lastSyncedToken.value = ""
     } finally {

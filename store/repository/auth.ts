@@ -13,11 +13,15 @@ export const useAuthRepositorio = defineStore("authRepositorio", () => {
     )
   }
 
-  const eliminarSesionFirebase = async (idToken: string) => {
+  const eliminarSesionFirebase = async (idToken: string | null = null) => {
+    const headers = idToken
+      ? {
+          Authorization: `Bearer ${idToken}`,
+        }
+      : {}
+
     return await axios.delete("/api/auth/firebase-session", {
-      headers: {
-        Authorization: `Bearer ${idToken}`,
-      },
+      headers,
     })
   }
 
