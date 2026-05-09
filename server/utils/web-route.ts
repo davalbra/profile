@@ -1,33 +1,56 @@
-import { getMethod, getRouterParam, toWebRequest } from "h3"
 import type { H3Event } from "h3"
+import { getMethod, getRouterParam, toWebRequest } from "h3"
 
-type WebRouteParams = Record<string, string> & { imageId: string }
-type WebRouteHandler = (
+type WebRouteParams = Record<string, string>
+type WebRouteHandler<ParametrosRuta extends WebRouteParams> = (
   request: Request,
-  context: { params: Promise<WebRouteParams> },
+  context: { params: Promise<ParametrosRuta> },
 ) => Promise<Response>
 
-type WebRoute = Partial<
-  Record<"GET" | "POST" | "PUT" | "PATCH" | "DELETE", WebRouteHandler>
+type WebRoute<ParametrosRuta extends WebRouteParams> = Partial<
+  Record<
+    "GET" | "POST" | "PUT" | "PATCH" | "DELETE",
+    WebRouteHandler<ParametrosRuta>
+  >
 >
 
-export async function dispatchWebRoute(
+function esMetodoRuta(
+  metodo: string,
+): metodo is keyof WebRoute<WebRouteParams> {
+  return (
+    metodo === "GET" ||
+    metodo === "POST" ||
+    metodo === "PUT" ||
+    metodo === "PATCH" ||
+    metodo === "DELETE"
+  )
+}
+
+export async function dispatchWebRoute<ParametrosRuta extends WebRouteParams>(
   event: H3Event,
-  route: WebRoute,
-  params: Record<string, string> = {},
+  route: WebRoute<ParametrosRuta>,
+  params: ParametrosRuta,
 ) {
-  const method = getMethod(event).toUpperCase() as keyof WebRoute
-  const handler = route[method]
+  const metodo = getMethod(event).toUpperCase()
+
+  if (!esMetodoRuta(metodo)) {
+    throw createError({
+      statusCode: 405,
+      statusMessage: `Método ${metodo} no permitido.`,
+    })
+  }
+
+  const handler = route[metodo]
 
   if (!handler) {
     throw createError({
       statusCode: 405,
-      statusMessage: `Método ${method} no permitido.`,
+      statusMessage: `Método ${metodo} no permitido.`,
     })
   }
 
   return await handler(toWebRequest(event), {
-    params: Promise.resolve(params as WebRouteParams),
+    params: Promise.resolve(params),
   })
 }
 

@@ -1,7 +1,7 @@
-import { config as loadEnv } from "dotenv";
-import { defineConfig } from "prisma/config";
+import { config as loadEnv } from "dotenv"
+import { defineConfig } from "prisma/config"
 
-loadEnv({ path: ".env", override: false });
+loadEnv({ path: ".env", override: false })
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -11,4 +11,4 @@ export default defineConfig({
   datasource: {
     url: process.env["DATABASE_URL"],
   },
-});
+})
