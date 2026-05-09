@@ -1,71 +1,59 @@
 <script setup lang="ts">
 import { Chrome, Loader2, LogOut, X } from "lucide-vue-next"
 
-/** Props */
-const props = defineProps<{
-  modelValue: boolean
-}>()
-
-/** Emit */
-const emit = defineEmits<{
-  "update:modelValue": [value: boolean]
-}>()
-
 /** Services, Components */
 const { user, loading, error, loginWithGoogle, logout } = useAuth()
 
 /** DefineModel, Ref, Computed */
-const pending = ref(false)
-const localError = ref<string | null>(null)
+const abierto = defineModel<boolean>({ required: true })
+const pendiente = ref(false)
+const errorLocal = ref<string | null>(null)
 
 /** Functions */
-const close = () => {
-  emit("update:modelValue", false)
+const cerrar = () => {
+  abierto.value = false
 }
 
-const handleGoogleLogin = async () => {
-  pending.value = true
-  localError.value = null
+const manejarIngresoGoogle = async () => {
+  pendiente.value = true
+  errorLocal.value = null
 
   try {
     await loginWithGoogle()
-    close()
+    cerrar()
   } catch (reason) {
-    localError.value =
+    errorLocal.value =
       reason instanceof Error
         ? reason.message
         : "No se pudo iniciar sesión con Google."
   } finally {
-    pending.value = false
+    pendiente.value = false
   }
 }
 
-const handleLogout = async () => {
-  pending.value = true
-  localError.value = null
+const manejarCierreSesion = async () => {
+  pendiente.value = true
+  errorLocal.value = null
 
   try {
     await logout()
-    close()
+    cerrar()
   } catch (reason) {
-    localError.value =
+    errorLocal.value =
       reason instanceof Error ? reason.message : "No se pudo cerrar la sesión."
   } finally {
-    pending.value = false
+    pendiente.value = false
   }
 }
 
 /** Vue */
-watch(
-  () => props.modelValue,
-  (open) => {
-    if (!import.meta.client) {
-      return
-    }
+watch(abierto, (estaAbierto) => {
+  if (!import.meta.client) {
+    return
+  }
 
-    document.body.style.overflow = open ? "hidden" : ""
-  },
-)
+  document.body.style.overflow = estaAbierto ? "hidden" : ""
+})
 
 onBeforeUnmount(() => {
   if (import.meta.client) {
@@ -76,11 +64,11 @@ onBeforeUnmount(() => {
 
 <template>
   <div
-    v-if="modelValue"
+    v-if="abierto"
     class="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 px-4 backdrop-blur-sm"
     role="dialog"
     aria-modal="true"
-    @click="close"
+    @click="cerrar"
   >
     <div
       class="w-full max-w-md rounded-[28px] border border-white/10 bg-[#101922] p-6 text-slate-100 shadow-2xl"
@@ -98,17 +86,17 @@ onBeforeUnmount(() => {
           type="button"
           class="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/10 text-slate-400 transition hover:text-white"
           aria-label="Cerrar modal"
-          @click="close"
+          @click="cerrar"
         >
           <X class="h-4 w-4" />
         </button>
       </div>
 
       <div
-        v-if="error || localError"
+        v-if="error || errorLocal"
         class="mb-4 rounded-2xl border border-rose-400/20 bg-rose-500/10 px-3 py-2 text-sm text-rose-200"
       >
-        {{ localError || error }}
+        {{ errorLocal || error }}
       </div>
 
       <div
@@ -128,10 +116,10 @@ onBeforeUnmount(() => {
         <button
           type="button"
           class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-semibold text-white transition hover:border-rose-400/40 hover:text-rose-200 disabled:cursor-not-allowed disabled:opacity-60"
-          :disabled="pending"
-          @click="handleLogout"
+          :disabled="pendiente"
+          @click="manejarCierreSesion"
         >
-          <Loader2 v-if="pending" class="h-4 w-4 animate-spin" />
+          <Loader2 v-if="pendiente" class="h-4 w-4 animate-spin" />
           <LogOut v-else class="h-4 w-4" />
           Cerrar sesión
         </button>
@@ -141,10 +129,10 @@ onBeforeUnmount(() => {
         v-else
         type="button"
         class="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl bg-white px-4 py-3 text-sm font-semibold text-slate-900 transition hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
-        :disabled="pending"
-        @click="handleGoogleLogin"
+        :disabled="pendiente"
+        @click="manejarIngresoGoogle"
       >
-        <Loader2 v-if="pending" class="h-4 w-4 animate-spin" />
+        <Loader2 v-if="pendiente" class="h-4 w-4 animate-spin" />
         <Chrome v-else class="h-4 w-4" />
         Continuar con Google
       </button>
