@@ -47,6 +47,7 @@ const { isDark: modoOscuro, toggleTheme: alternarModoTema } = useThemeMode()
 /** DefineModel, Ref, Computed */
 const seccionesAbiertas = ref<Record<string, boolean>>({})
 const redireccionando = ref(false)
+const verificandoSesionServidor = ref(import.meta.client)
 let temporizadorRedireccion: number | null = null
 
 const correoUsuario = computed(
@@ -102,8 +103,9 @@ watch(
     autenticacion.loading.value,
     autenticacion.user.value,
     autenticacion.serverSession.value,
+    verificandoSesionServidor.value,
   ],
-  ([cargando, usuario, sesionServidor]) => {
+  ([cargando, usuario, sesionServidor, verificandoSesion]) => {
     if (!import.meta.client || redireccionando.value) {
       return
     }
@@ -113,7 +115,7 @@ watch(
       temporizadorRedireccion = null
     }
 
-    if (cargando || usuario || sesionServidor) {
+    if (cargando || verificandoSesion || usuario || sesionServidor) {
       return
     }
 
@@ -135,6 +137,19 @@ watch(
   },
   { immediate: true },
 )
+
+onMounted(async () => {
+  if (autenticacion.user.value || autenticacion.serverSession.value) {
+    verificandoSesionServidor.value = false
+    return
+  }
+
+  try {
+    await autenticacion.checkServerSession()
+  } finally {
+    verificandoSesionServidor.value = false
+  }
+})
 
 onBeforeUnmount(() => {
   if (temporizadorRedireccion !== null) {
