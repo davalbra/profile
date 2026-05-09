@@ -1,4 +1,4 @@
-import type { RolUsuario } from "@prisma/client"
+import { RolUsuario } from "@prisma/client"
 import { setHeader } from "h3"
 import {
   AccessDeniedError,
@@ -6,18 +6,28 @@ import {
   requireFirebaseSession,
 } from "@/server/utils/firebase-session"
 
-const VALID_ROLES = new Set<RolUsuario>(["LECTOR", "COLABORADOR", "ADMIN"])
+function parsearRolMinimo(valor: string): RolUsuario | null {
+  if (
+    valor === RolUsuario.LECTOR ||
+    valor === RolUsuario.COLABORADOR ||
+    valor === RolUsuario.ADMIN
+  ) {
+    return valor
+  }
+
+  return null
+}
 
 export default defineEventHandler(async (event) => {
   try {
     const query = getQuery(event)
-    const role =
-      typeof query.rolMinimo === "string" &&
-      VALID_ROLES.has(query.rolMinimo as RolUsuario)
-        ? (query.rolMinimo as RolUsuario)
-        : undefined
+    const rolMinimo =
+      typeof query.rolMinimo === "string"
+        ? parsearRolMinimo(query.rolMinimo)
+        : null
+    const opciones = rolMinimo ? { rolMinimo } : {}
 
-    const session = await requireFirebaseSession(event, { rolMinimo: role })
+    const session = await requireFirebaseSession(event, opciones)
     setHeader(event, "Cache-Control", "no-store")
 
     return {

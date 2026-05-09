@@ -11,15 +11,24 @@ import {
   requireFirebaseSession,
 } from "@/server/utils/firebase-session"
 
+function parsearServicioFacturacion(
+  valor: string | string[] | null,
+): BillingServiceKey | null {
+  if (valor === "firebase" || valor === "gemini") {
+    return valor
+  }
+
+  return null
+}
+
 export default defineEventHandler(async (event) => {
   try {
     await requireFirebaseSession(event, { rolMinimo: "COLABORADOR" })
 
     const query = getQuery(event)
-    const service =
-      query.service === "firebase" || query.service === "gemini"
-        ? (query.service as BillingServiceKey)
-        : null
+    const service = parsearServicioFacturacion(
+      typeof query.service === "string" ? query.service : null,
+    )
 
     if (!service) {
       throw createError({
