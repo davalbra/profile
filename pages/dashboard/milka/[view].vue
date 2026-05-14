@@ -1,7 +1,9 @@
 <script setup lang="ts">
-import { ArrowRight, Music4, WandSparkles } from "lucide-vue-next"
+import { ArrowRight, Cookie, Music4, WandSparkles } from "lucide-vue-next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import MilkaCookiesPanel from "@/components/dashboard/MilkaCookiesPanel.vue"
+import MilkaMusicLibraryPanel from "@/components/dashboard/MilkaMusicLibraryPanel.vue"
 import MilkaMusicTransformPanel from "@/components/dashboard/MilkaMusicTransformPanel.vue"
 import {
   Card,
@@ -28,24 +30,23 @@ const currentView = computed(() => {
     : route.params.view
   if (raw === "cookies") {
     return {
-      title: "Milka: limpieza de cookies",
+      title: "Milka: cookies",
       description:
-        "Base Nuxt lista para volver a montar utilidades de sesion/cookies del flujo privado.",
+        "Procesa cookies exportadas de YouTube Music y genera las variables del servidor.",
     }
   }
 
   if (raw === "transformar") {
     return {
-      title: "Milka: transformar musica",
-      description:
-        "Genera versiones Slow + Reverb desde canciones de YouTube Music usando el cache local de audio.",
+      title: "Milka: transformar archivo",
+      description: "Genera versiones Slow + Reverb desde un archivo de audio.",
     }
   }
 
   return {
-    title: "Milka: musica y lyrics",
+    title: "Milka: canciones",
     description:
-      "Paneles de audio, letras y sincronizacion listos para operacion interna.",
+      "Biblioteca de YouTube Music con seleccion de canciones y reproductor.",
   }
 })
 
@@ -67,21 +68,21 @@ const activeView = computed(() => {
 const viewLinks: EnlaceVistaMilka[] = [
   {
     key: "musica",
-    label: "Musica y lyrics",
+    label: "Canciones",
     to: "/dashboard/milka/musica",
-    description: "Audio, letras y sincronizacion para operar la suite privada.",
+    description: "Listado de canciones y reproductor de YouTube Music.",
   },
   {
     key: "transformar",
     label: "Transformar",
     to: "/dashboard/milka/transformar",
-    description: "Primera opcion: transformar una cancion con Slow + Reverb.",
+    description: "Slow + Reverb desde un archivo cargado.",
   },
   {
     key: "cookies",
     label: "Cookies",
     to: "/dashboard/milka/cookies",
-    description: "Utilidades de sesión y limpieza listas para reconectar.",
+    description: "Parser de cookies para configurar YouTube Music.",
   },
 ]
 
@@ -102,7 +103,13 @@ definePageMeta({
           class="border-rose-300/25 bg-rose-300/10 text-rose-100"
         >
           <component
-            :is="activeView === 'transformar' ? WandSparkles : Music4"
+            :is="
+              activeView === 'transformar'
+                ? WandSparkles
+                : activeView === 'cookies'
+                  ? Cookie
+                  : Music4
+            "
             class="size-3"
           />
           Milka
@@ -116,7 +123,9 @@ definePageMeta({
       </CardHeader>
     </Card>
 
+    <MilkaMusicLibraryPanel v-if="activeView === 'musica'" />
     <MilkaMusicTransformPanel v-if="activeView === 'transformar'" />
+    <MilkaCookiesPanel v-if="activeView === 'cookies'" />
 
     <div class="grid gap-4 md:grid-cols-3">
       <Card
