@@ -2,7 +2,6 @@ import { execFile } from "node:child_process"
 import { mkdir, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { promisify } from "node:util"
-import { ensureCachedYouTubeMusicAudio } from "@/lib/youtube-music-audio"
 
 const execFileAsync = promisify(execFile)
 const TRANSFORM_CACHE_DIR = path.join(
@@ -30,7 +29,7 @@ export type SlowReverbInput = {
 export type MusicTransformResult = {
   filePath: string
   preset: MusicTransformPreset
-  videoId: string
+  sourceKey: string
   speed: number
   reverb: number
 }
@@ -51,8 +50,8 @@ export const slowReverbLimits = {
   },
 }
 
-export function isSafeMusicVideoId(videoId: string) {
-  return /^[A-Za-z0-9_-]{6,64}$/.test(videoId)
+export function isSafeTransformSourceKey(sourceKey: string) {
+  return /^[A-Za-z0-9_-]{6,128}$/.test(sourceKey)
 }
 
 function parseNumber(
@@ -100,8 +99,8 @@ export function normalizeSlowReverbOptions(
   }
 }
 
-function getTransformKey(videoId: string, options: SlowReverbOptions) {
-  return `${videoId}:${SLOW_REVERB_PRESET}:${options.speed.toFixed(2)}:${options.reverb.toFixed(2)}`
+function getTransformKey(sourceKey: string, options: SlowReverbOptions) {
+  return `${sourceKey}:${SLOW_REVERB_PRESET}:${options.speed.toFixed(2)}:${options.reverb.toFixed(2)}`
 }
 
 function getOutputFileName(options: SlowReverbOptions) {
@@ -110,8 +109,8 @@ function getOutputFileName(options: SlowReverbOptions) {
   return `${SLOW_REVERB_PRESET}-speed-${speedKey}-reverb-${reverbKey}.m4a`
 }
 
-async function ensureTransformDir(videoId: string) {
-  const transformDir = path.join(TRANSFORM_CACHE_DIR, videoId)
+async function ensureTransformDir(sourceKey: string) {
+  const transformDir = path.join(TRANSFORM_CACHE_DIR, sourceKey)
   await mkdir(transformDir, { recursive: true })
   return transformDir
 }
@@ -190,11 +189,10 @@ function getProcessErrorDetail(error: unknown) {
 }
 
 async function runSlowReverbTransform(
-  videoId: string,
+  sourceFilePath: string,
   options: SlowReverbOptions,
   outputFilePath: string,
 ) {
-  const sourceFilePath = await ensureCachedYouTubeMusicAudio(videoId)
   const tempOutputPath = getTempOutputPath(outputFilePath)
   const ffmpegCommand = getFfmpegCommand()
   await rm(tempOutputPath, { force: true })
@@ -238,22 +236,23 @@ async function runSlowReverbTransform(
 }
 
 export async function ensureSlowReverbTransform(
-  videoId: string,
+  sourceFilePath: string,
+  sourceKey: string,
   input: SlowReverbInput = {},
 ) {
-  const trimmedVideoId = videoId.trim()
-  if (!isSafeMusicVideoId(trimmedVideoId)) {
-    throw new Error("videoId invalido.")
+  const trimmedSourceKey = sourceKey.trim()
+  if (!isSafeTransformSourceKey(trimmedSourceKey)) {
+    throw new Error("sourceKey invalido.")
   }
 
   const options = normalizeSlowReverbOptions(input)
-  const transformDir = await ensureTransformDir(trimmedVideoId)
+  const transformDir = await ensureTransformDir(trimmedSourceKey)
   const outputFilePath = path.join(transformDir, getOutputFileName(options))
 
   const result: MusicTransformResult = {
     filePath: outputFilePath,
     preset: SLOW_REVERB_PRESET,
-    videoId: trimmedVideoId,
+    sourceKey: trimmedSourceKey,
     speed: options.speed,
     reverb: options.reverb,
   }
@@ -262,13 +261,13 @@ export async function ensureSlowReverbTransform(
     return result
   }
 
-  const transformKey = getTransformKey(trimmedVideoId, options)
+  const transformKey = getTransformKey(trimmedSourceKey, options)
   const existingLock = transformLocks.get(transformKey)
   if (existingLock) {
     return existingLock
   }
 
-  const lock = runSlowReverbTransform(trimmedVideoId, options, outputFilePath)
+  const lock = runSlowReverbTransform(sourceFilePath, options, outputFilePath)
     .then(() => result)
     .finally(() => {
       transformLocks.delete(transformKey)
