@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ArrowRight, Music4 } from "lucide-vue-next"
+import { ArrowRight, Music4, WandSparkles } from "lucide-vue-next"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import MilkaMusicTransformPanel from "@/components/dashboard/MilkaMusicTransformPanel.vue"
 import {
   Card,
   CardDescription,
@@ -25,32 +26,56 @@ const currentView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
     : route.params.view
-  return raw === "cookies"
-    ? {
-        title: "Milka: limpieza de cookies",
-        description:
-          "Base Nuxt lista para volver a montar utilidades de sesión/cookies del flujo privado.",
-      }
-    : {
-        title: "Milka: música y lyrics",
-        description:
-          "Paneles de audio, letras y sincronización listos para operación interna.",
-      }
+  if (raw === "cookies") {
+    return {
+      title: "Milka: limpieza de cookies",
+      description:
+        "Base Nuxt lista para volver a montar utilidades de sesion/cookies del flujo privado.",
+    }
+  }
+
+  if (raw === "transformar") {
+    return {
+      title: "Milka: transformar musica",
+      description:
+        "Genera versiones Slow + Reverb desde canciones de YouTube Music usando el cache local de audio.",
+    }
+  }
+
+  return {
+    title: "Milka: musica y lyrics",
+    description:
+      "Paneles de audio, letras y sincronizacion listos para operacion interna.",
+  }
 })
 
 const activeView = computed(() => {
   const raw = Array.isArray(route.params.view)
     ? route.params.view[0]
     : route.params.view
-  return raw === "cookies" ? "cookies" : "musica"
+  if (raw === "cookies") {
+    return "cookies"
+  }
+
+  if (raw === "transformar") {
+    return "transformar"
+  }
+
+  return "musica"
 })
 
 const viewLinks: EnlaceVistaMilka[] = [
   {
     key: "musica",
-    label: "Música y lyrics",
+    label: "Musica y lyrics",
     to: "/dashboard/milka/musica",
-    description: "Audio, letras y sincronización para operar la suite privada.",
+    description: "Audio, letras y sincronizacion para operar la suite privada.",
+  },
+  {
+    key: "transformar",
+    label: "Transformar",
+    to: "/dashboard/milka/transformar",
+    description: "Primera opcion: transformar una cancion con Slow + Reverb.",
   },
   {
     key: "cookies",
@@ -76,7 +101,10 @@ definePageMeta({
           variant="outline"
           class="border-rose-300/25 bg-rose-300/10 text-rose-100"
         >
-          <Music4 class="size-3" />
+          <component
+            :is="activeView === 'transformar' ? WandSparkles : Music4"
+            class="size-3"
+          />
           Milka
         </Badge>
         <CardTitle class="text-3xl font-bold tracking-tight lg:text-4xl">
@@ -88,7 +116,9 @@ definePageMeta({
       </CardHeader>
     </Card>
 
-    <div class="grid gap-4 md:grid-cols-2">
+    <MilkaMusicTransformPanel v-if="activeView === 'transformar'" />
+
+    <div class="grid gap-4 md:grid-cols-3">
       <Card
         v-for="item in viewLinks"
         :key="item.key"

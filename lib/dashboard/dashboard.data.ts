@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   Sparkles,
   Wallet,
+  WandSparkles,
   Workflow,
   Wrench,
   Zap,
@@ -95,6 +96,11 @@ export const navegacionDashboard: NavegacionDashboard[] = [
         etiqueta: "Musica",
         ruta: "/dashboard/milka/musica",
         icono: Music4,
+      },
+      {
+        etiqueta: "Transformar",
+        ruta: "/dashboard/milka/transformar",
+        icono: WandSparkles,
       },
       {
         etiqueta: "Cookies",
@@ -182,6 +188,7 @@ export const modulosDashboard: ModuloDashboard[] = [
     detalle: "Música + lyrics",
     funciones: [
       "Consulta de audio por video",
+      "Transformacion Slow + Reverb",
       "Letras y sincronización",
       "Base para limpieza de cookies",
     ],
