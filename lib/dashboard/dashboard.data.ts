@@ -93,7 +93,7 @@ export const navegacionDashboard: NavegacionDashboard[] = [
     icono: Headphones,
     subsecciones: [
       {
-        etiqueta: "Musica",
+        etiqueta: "Canciones",
         ruta: "/dashboard/milka/musica",
         icono: Music4,
       },
@@ -179,18 +179,18 @@ export const modulosDashboard: ModuloDashboard[] = [
     titulo: "Milka",
     etiqueta: "Audio privado",
     descripcion:
-      "Área experimental para música, audio, lyrics sincronizadas y utilidades de sesión/cookies.",
+      "Área privada para canciones, reproductor, cookies de YouTube Music y transformaciones de audio.",
     resumen:
-      "Agrupa pruebas internas de audio y letras sincronizadas, junto con utilidades de cookies que pueden reconectarse al flujo privado cuando haga falta.",
+      "Separa biblioteca con reproductor, procesamiento de cookies y Slow + Reverb desde archivos cargados.",
     ruta: "/dashboard/milka/musica",
     icono: Music4,
     estado: EstadoPanelDashboard.BASE,
-    detalle: "Música + lyrics",
+    detalle: "Canciones + audio",
     funciones: [
-      "Consulta de audio por video",
-      "Transformacion Slow + Reverb",
-      "Letras y sincronización",
-      "Base para limpieza de cookies",
+      "Biblioteca de YouTube Music",
+      "Reproductor de canciones",
+      "Transformacion Slow + Reverb por archivo",
+      "Parser de cookies",
     ],
     integraciones: ["YouTube Music", "Lyrics", "Cookies", "Storage local"],
     accion: "Abrir Milka",
