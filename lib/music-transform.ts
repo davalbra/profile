@@ -2,7 +2,6 @@ import { execFile } from "node:child_process"
 import { mkdir, rename, rm, stat } from "node:fs/promises"
 import path from "node:path"
 import { promisify } from "node:util"
-import ffmpegStaticPath from "ffmpeg-static"
 import { ensureCachedYouTubeMusicAudio } from "@/lib/youtube-music-audio"
 
 const execFileAsync = promisify(execFile)
@@ -136,7 +135,7 @@ function getTempOutputPath(outputFilePath: string) {
 }
 
 function getFfmpegCommand() {
-  return process.env.FFMPEG_PATH?.trim() || ffmpegStaticPath || "ffmpeg"
+  return process.env.FFMPEG_PATH?.trim() || "ffmpeg"
 }
 
 function buildReverbFilter(reverb: number) {
@@ -228,7 +227,7 @@ async function runSlowReverbTransform(
 
     if (getErrorCode(error) === "ENOENT") {
       throw new Error(
-        "Falta ffmpeg en el entorno. Instala dependencias de Node, define FFMPEG_PATH o instala ffmpeg.",
+        "Falta ffmpeg en el entorno. Instala ffmpeg del sistema o define FFMPEG_PATH.",
       )
     }
 
