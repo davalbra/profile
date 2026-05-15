@@ -6,6 +6,7 @@ import {
   Rocket,
   Sparkles,
 } from "lucide-vue-next"
+import { computed } from "vue"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
@@ -28,6 +29,8 @@ import { etiquetaEstadoPanelDashboard } from "@/utils/enums/diccionario"
 definePageMeta({
   layout: "dashboard",
 })
+
+const totalModulosDashboard = computed(() => modulosDashboard.length)
 </script>
 
 <template>
@@ -69,41 +72,31 @@ definePageMeta({
             >
               Este dashboard organiza lo que ya existe en la app: billing de
               Firebase y Gemini, herramientas MCP, tratamiento de imágenes,
-              flujos n8n y utilidades privadas de audio/cookies.
+              flujos n8n, scrap geoespacial y utilidades privadas de
+              audio/cookies.
             </CardDescription>
           </div>
 
-          <Card class="border-white/10 bg-white/[0.06] text-white shadow-xl">
+          <div
+            class="rounded-lg border border-white/10 bg-white/[0.06] text-white shadow-xl"
+          >
             <CardHeader class="pb-2">
               <CardDescription class="text-slate-400"
                 >Pulso general</CardDescription
               >
               <CardTitle class="flex items-center gap-2 text-3xl">
                 <Rocket class="size-7 text-cyan-100" />
-                4 módulos
+                {{ totalModulosDashboard }} módulos
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div class="grid grid-cols-2 gap-2 text-sm">
                 <span
+                  v-for="modulo in modulosDashboard"
+                  :key="modulo.titulo"
                   class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
                 >
-                  Billing
-                </span>
-                <span
-                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
-                >
-                  MCP
-                </span>
-                <span
-                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
-                >
-                  Imágenes
-                </span>
-                <span
-                  class="rounded-2xl border border-white/10 bg-white/[0.06] px-3 py-2 text-slate-300"
-                >
-                  Milka
+                  {{ modulo.titulo }}
                 </span>
               </div>
               <p class="mt-4 text-sm leading-relaxed text-slate-300">
@@ -111,7 +104,7 @@ definePageMeta({
                 y una ruta directa para operar sin buscar entre archivos.
               </p>
             </CardContent>
-          </Card>
+          </div>
         </div>
       </CardHeader>
 
@@ -130,7 +123,7 @@ definePageMeta({
       </CardFooter>
     </Card>
 
-    <div class="grid gap-4 md:grid-cols-3">
+    <div class="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
       <Card
         v-for="metrica in metricasDashboard"
         :key="metrica.etiqueta"

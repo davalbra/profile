@@ -4,6 +4,7 @@ import {
   ChartColumn,
   CircleDollarSign,
   Cookie,
+  Database,
   Flame,
   Headphones,
   ImageIcon,
@@ -64,6 +65,11 @@ export const navegacionDashboard: NavegacionDashboard[] = [
         icono: CircleDollarSign,
       },
     ],
+  },
+  {
+    etiqueta: "Scrap",
+    ruta: "/dashboard/scrap",
+    icono: Database,
   },
   {
     etiqueta: "Imágenes",
@@ -176,6 +182,27 @@ export const modulosDashboard: ModuloDashboard[] = [
     claseTarjeta: "from-amber-500/20 via-orange-500/10 to-transparent",
   },
   {
+    titulo: "Scrap",
+    etiqueta: "Places OS",
+    descripcion:
+      "Ventana para analizar la relacion entre websites, contacto y ubicacion geografica de empresas.",
+    resumen:
+      "Documenta las tablas Places OS Data: puntos de interes, categorias y deltas. Sirve como mapa de campos para preparar scraping, enriquecimiento o ingesta geoespacial.",
+    ruta: "/dashboard/scrap",
+    icono: Database,
+    estado: EstadoPanelDashboard.BASE,
+    detalle: "Website + geo",
+    funciones: [
+      "Tabla Places con website y coordenadas",
+      "Jerarquia de categorias Foursquare",
+      "Deltas para sincronizar cambios",
+    ],
+    integraciones: ["Foursquare OS Places", "Iceberg", "DuckDB", "Spark"],
+    accion: "Abrir scrap",
+    claseIcono: "bg-cyan-300/15 text-cyan-100 ring-cyan-200/20",
+    claseTarjeta: "from-cyan-500/20 via-emerald-500/10 to-transparent",
+  },
+  {
     titulo: "Milka",
     etiqueta: "Audio privado",
     descripcion:
@@ -222,6 +249,13 @@ export const metricasDashboard: MetricaDashboard[] = [
     tendencia: "conectado",
     tono: "text-emerald-100",
   },
+  {
+    etiqueta: "Scrap",
+    valor: "3 tablas",
+    detalle: "Places, Categories y Deltas documentados para web + geo.",
+    tendencia: "base lista",
+    tono: "text-cyan-100",
+  },
 ]
 
 export const procesosDashboard: ProcesoDashboard[] = [
@@ -243,13 +277,19 @@ export const procesosDashboard: ProcesoDashboard[] = [
       "Las vistas de Firebase y Gemini reducen la fricción para revisar consumo por servicio.",
     resultado: "Costos visibles sin salir del panel",
   },
+  {
+    titulo: "Scrap geoespacial",
+    descripcion:
+      "La ventana scrap deja listos los campos base para relacionar websites, telefonos, direcciones y coordenadas de Places OS.",
+    resultado: "Modelo de datos listo para ingesta",
+  },
 ]
 
 export const credencialesDashboard = {
   titulo: "davalbra",
   subtitulo: "Project control center",
   descripcion:
-    "Dashboard privado para operar MCP, billing, imágenes, automatizaciones n8n y utilidades Milka.",
+    "Dashboard privado para operar MCP, billing, scrap geoespacial, imágenes, automatizaciones n8n y utilidades Milka.",
   iniciales: "DA",
   sello: "Nuxt + shadcn",
   accionPrimaria: "Abrir billing",
