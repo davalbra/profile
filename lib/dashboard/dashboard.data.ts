@@ -4,6 +4,7 @@ import {
   ChartColumn,
   CircleDollarSign,
   Cookie,
+  Database,
   Flame,
   Headphones,
   ImageIcon,
@@ -12,6 +13,7 @@ import {
   ShieldCheck,
   Sparkles,
   Wallet,
+  WandSparkles,
   Workflow,
   Wrench,
   Zap,
@@ -65,6 +67,11 @@ export const navegacionDashboard: NavegacionDashboard[] = [
     ],
   },
   {
+    etiqueta: "Scrap",
+    ruta: "/dashboard/scrap",
+    icono: Database,
+  },
+  {
     etiqueta: "Imágenes",
     ruta: "/dashboard/images/optimize",
     icono: ImageIcon,
@@ -92,9 +99,14 @@ export const navegacionDashboard: NavegacionDashboard[] = [
     icono: Headphones,
     subsecciones: [
       {
-        etiqueta: "Musica",
+        etiqueta: "Canciones",
         ruta: "/dashboard/milka/musica",
         icono: Music4,
+      },
+      {
+        etiqueta: "Transformar",
+        ruta: "/dashboard/milka/transformar",
+        icono: WandSparkles,
       },
       {
         etiqueta: "Cookies",
@@ -170,20 +182,42 @@ export const modulosDashboard: ModuloDashboard[] = [
     claseTarjeta: "from-amber-500/20 via-orange-500/10 to-transparent",
   },
   {
+    titulo: "Scrap",
+    etiqueta: "Places OS",
+    descripcion:
+      "Ventana para analizar la relacion entre websites, contacto y ubicacion geografica de empresas.",
+    resumen:
+      "Documenta las tablas Places OS Data: puntos de interes, categorias y deltas. Sirve como mapa de campos para preparar scraping, enriquecimiento o ingesta geoespacial.",
+    ruta: "/dashboard/scrap",
+    icono: Database,
+    estado: EstadoPanelDashboard.BASE,
+    detalle: "Website + geo",
+    funciones: [
+      "Tabla Places con website y coordenadas",
+      "Jerarquia de categorias Foursquare",
+      "Deltas para sincronizar cambios",
+    ],
+    integraciones: ["Foursquare OS Places", "Iceberg", "DuckDB", "Spark"],
+    accion: "Abrir scrap",
+    claseIcono: "bg-cyan-300/15 text-cyan-100 ring-cyan-200/20",
+    claseTarjeta: "from-cyan-500/20 via-emerald-500/10 to-transparent",
+  },
+  {
     titulo: "Milka",
     etiqueta: "Audio privado",
     descripcion:
-      "Área experimental para música, audio, lyrics sincronizadas y utilidades de sesión/cookies.",
+      "Área privada para canciones, reproductor, cookies de YouTube Music y transformaciones de audio.",
     resumen:
-      "Agrupa pruebas internas de audio y letras sincronizadas, junto con utilidades de cookies que pueden reconectarse al flujo privado cuando haga falta.",
+      "Separa biblioteca con reproductor, procesamiento de cookies y Slow + Reverb desde archivos cargados.",
     ruta: "/dashboard/milka/musica",
     icono: Music4,
     estado: EstadoPanelDashboard.BASE,
-    detalle: "Música + lyrics",
+    detalle: "Canciones + audio",
     funciones: [
-      "Consulta de audio por video",
-      "Letras y sincronización",
-      "Base para limpieza de cookies",
+      "Biblioteca de YouTube Music",
+      "Reproductor de canciones",
+      "Transformacion Slow + Reverb por archivo",
+      "Parser de cookies",
     ],
     integraciones: ["YouTube Music", "Lyrics", "Cookies", "Storage local"],
     accion: "Abrir Milka",
@@ -215,6 +249,13 @@ export const metricasDashboard: MetricaDashboard[] = [
     tendencia: "conectado",
     tono: "text-emerald-100",
   },
+  {
+    etiqueta: "Scrap",
+    valor: "3 tablas",
+    detalle: "Places, Categories y Deltas documentados para web + geo.",
+    tendencia: "base lista",
+    tono: "text-cyan-100",
+  },
 ]
 
 export const procesosDashboard: ProcesoDashboard[] = [
@@ -236,13 +277,19 @@ export const procesosDashboard: ProcesoDashboard[] = [
       "Las vistas de Firebase y Gemini reducen la fricción para revisar consumo por servicio.",
     resultado: "Costos visibles sin salir del panel",
   },
+  {
+    titulo: "Scrap geoespacial",
+    descripcion:
+      "La ventana scrap deja listos los campos base para relacionar websites, telefonos, direcciones y coordenadas de Places OS.",
+    resultado: "Modelo de datos listo para ingesta",
+  },
 ]
 
 export const credencialesDashboard = {
   titulo: "davalbra",
   subtitulo: "Project control center",
   descripcion:
-    "Dashboard privado para operar MCP, billing, imágenes, automatizaciones n8n y utilidades Milka.",
+    "Dashboard privado para operar MCP, billing, scrap geoespacial, imágenes, automatizaciones n8n y utilidades Milka.",
   iniciales: "DA",
   sello: "Nuxt + shadcn",
   accionPrimaria: "Abrir billing",

@@ -3,15 +3,19 @@
   "version": "0.2.0",
   "private": true,
   "type": "module",
+  "engines": {
+    "node": ">=22.12 <25",
+    "pnpm": "10.33.0"
+  },
   "scripts": {
-    "postinstall": "prisma generate && nuxt prepare",
+    "setup": "prisma generate && nuxt prepare",
     "build": "prisma generate && nuxt build",
-    "dev": "nuxt dev",
-    "start": "node .output/server/index.mjs",
-    "generate": "nuxt generate",
+    "dev": "prisma generate && nuxt dev",
+    "start": "node --disable-proto=throw .output/server/index.mjs",
+    "generate": "prisma generate && nuxt generate",
     "preview": "nuxt preview",
     "lint": "eslint .",
-    "typecheck": "nuxi typecheck",
+    "typecheck": "prisma generate && node scripts/run-clean-npm-config-env.mjs nuxi typecheck",
     "format": "prettier . --write",
     "format:check": "prettier . --check",
     "prisma:validate": "prisma validate",
@@ -19,7 +23,8 @@
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
-    "prisma:studio": "prisma studio"
+    "prisma:studio": "prisma studio",
+    "security:audit": "pnpm audit --audit-level moderate"
   },
   "dependencies": {
     "@internationalized/date": "^3.12.1",
