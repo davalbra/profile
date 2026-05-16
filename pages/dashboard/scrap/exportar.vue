@@ -8,7 +8,7 @@ definePageMeta({
   <section class="space-y-3">
     <DashboardScrapPlacesOsHeader
       titulo="Exportar Places OS"
-      detalle="Neon · tablas por pais y website"
+      detalle="Neon · tabla unica indexada por pais"
       estado="Exportar"
     />
     <DashboardScrapPlacesOsExportPanel />
