@@ -1,5 +1,6 @@
 import pg from "pg"
 import type { FoursquareOsJsonObject } from "@/lib/foursquare/os-places"
+import { nombreTablaDatosPlacesOs } from "@/utils/constants/places-os"
 import { FiltroWebsitePlacesOs } from "@/utils/enums/anums"
 
 export interface FilaExportablePlacesOs {
@@ -206,7 +207,7 @@ function mapearTablaMaestraPlacesOs(
   fila: FilaTablaMaestraPlacesOs,
 ): TablaMaestraPlacesOs {
   return {
-    tableName: fila.table_name,
+    tableName: nombreTablaDatosPlacesOs,
     country: fila.country,
     website: fila.website_filter,
     label: fila.label,
@@ -283,13 +284,19 @@ export async function asegurarTablaMaestraPlacesOs() {
   `)
 }
 
-export async function asegurarTablaDatosPlacesOs(nombreTabla: string) {
-  const tabla = validarIdentificadorTablaPlacesOs(nombreTabla)
+export async function asegurarTablaDatosPlacesOs() {
+  const tabla = validarIdentificadorTablaPlacesOs(nombreTablaDatosPlacesOs)
   const indicePais = validarIdentificadorIndicePlacesOs(
-    `idx_${nombreTabla}_country`,
+    `idx_${nombreTablaDatosPlacesOs}_country`,
   )
   const indiceWebsite = validarIdentificadorIndicePlacesOs(
-    `idx_${nombreTabla}_website`,
+    `idx_${nombreTablaDatosPlacesOs}_website`,
+  )
+  const indicePaisWebsite = validarIdentificadorIndicePlacesOs(
+    `idx_${nombreTablaDatosPlacesOs}_country_website`,
+  )
+  const indicePaisActualizado = validarIdentificadorIndicePlacesOs(
+    `idx_${nombreTablaDatosPlacesOs}_country_updated_at`,
   )
 
   await pool.query(`
@@ -318,15 +325,108 @@ export async function asegurarTablaDatosPlacesOs(nombreTabla: string) {
   await pool.query(
     `CREATE INDEX IF NOT EXISTS ${indiceWebsite} ON ${tabla} (website)`,
   )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS ${indicePaisWebsite} ON ${tabla} (country, website)`,
+  )
+  await pool.query(
+    `CREATE INDEX IF NOT EXISTS ${indicePaisActualizado} ON ${tabla} (country, updated_at DESC)`,
+  )
 }
 
-async function contarFilasTablaPlacesOs(nombreTabla: string) {
-  const tabla = validarIdentificadorTablaPlacesOs(nombreTabla)
+async function contarFilasTablaPlacesOs(input: {
+  country: string
+  website: FiltroWebsitePlacesOs | null
+}) {
+  const tabla = validarIdentificadorTablaPlacesOs(nombreTablaDatosPlacesOs)
+  const condiciones: string[] = []
+  const valores: string[] = []
+  let indiceParametro = 1
+
+  if (input.country) {
+    condiciones.push(`country = $${indiceParametro}`)
+    valores.push(input.country)
+    indiceParametro += 1
+  }
+
+  if (input.website === FiltroWebsitePlacesOs.CON_WEBSITE) {
+    condiciones.push("website IS NOT NULL")
+    condiciones.push("website <> ''")
+  }
+
+  if (input.website === FiltroWebsitePlacesOs.SIN_WEBSITE) {
+    condiciones.push("(website IS NULL OR website = '')")
+  }
+
+  const where = condiciones.length ? `WHERE ${condiciones.join(" AND ")}` : ""
   const resultado = await pool.query<FilaTotalPlacesOs>(
-    `SELECT count(*)::int AS total FROM ${tabla}`,
+    `SELECT count(*)::int AS total FROM ${tabla} ${where}`,
+    valores,
   )
 
   return resultado.rows[0]?.total ?? 0
+}
+
+async function migrarTablaLegadaPlacesOs(input: {
+  nombreTabla: string
+  country: string
+}) {
+  const tablaOrigen = validarIdentificadorTablaPlacesOs(input.nombreTabla)
+  const tablaDestino = validarIdentificadorTablaPlacesOs(nombreTablaDatosPlacesOs)
+
+  await pool.query(
+    `
+      INSERT INTO ${tablaDestino} (
+        fsq_place_id,
+        row_idx,
+        name,
+        latitude,
+        longitude,
+        country,
+        timezone,
+        website,
+        tel,
+        address,
+        locality,
+        region,
+        payload,
+        exported_at,
+        updated_at
+      )
+      SELECT
+        fsq_place_id,
+        row_idx,
+        name,
+        latitude,
+        longitude,
+        COALESCE(NULLIF(country, ''), $1),
+        timezone,
+        website,
+        tel,
+        address,
+        locality,
+        region,
+        payload,
+        exported_at,
+        updated_at
+      FROM ${tablaOrigen}
+      WHERE fsq_place_id IS NOT NULL
+      ON CONFLICT (fsq_place_id) DO UPDATE SET
+        row_idx = EXCLUDED.row_idx,
+        name = EXCLUDED.name,
+        latitude = EXCLUDED.latitude,
+        longitude = EXCLUDED.longitude,
+        country = EXCLUDED.country,
+        timezone = EXCLUDED.timezone,
+        website = EXCLUDED.website,
+        tel = EXCLUDED.tel,
+        address = EXCLUDED.address,
+        locality = EXCLUDED.locality,
+        region = EXCLUDED.region,
+        payload = EXCLUDED.payload,
+        updated_at = EXCLUDED.updated_at
+    `,
+    [input.country],
+  )
 }
 
 async function registrarTablaDescubiertaPlacesOs(input: {
@@ -367,14 +467,21 @@ async function registrarTablaDescubiertaPlacesOs(input: {
 }
 
 export async function actualizarTablaMaestraPlacesOs(input: {
-  nombreTabla: string
   country: string
   website: FiltroWebsitePlacesOs
   filasExportadas: number
 }) {
   await asegurarTablaMaestraPlacesOs()
+  await asegurarTablaDatosPlacesOs()
 
-  const totalRows = await contarFilasTablaPlacesOs(input.nombreTabla)
+  const nombreRegistro = construirNombreTablaPlacesOs({
+    country: input.country,
+    website: input.website,
+  })
+  const totalRows = await contarFilasTablaPlacesOs({
+    country: input.country,
+    website: input.website,
+  })
 
   await pool.query(
     `
@@ -396,7 +503,7 @@ export async function actualizarTablaMaestraPlacesOs(input: {
         updated_at = now()
     `,
     [
-      input.nombreTabla,
+      nombreRegistro,
       input.country,
       input.website,
       construirEtiquetaTablaPlacesOs({
@@ -411,6 +518,7 @@ export async function actualizarTablaMaestraPlacesOs(input: {
 
 export async function sincronizarTablaMaestraPlacesOs() {
   await asegurarTablaMaestraPlacesOs()
+  await asegurarTablaDatosPlacesOs()
 
   const resultado = await pool.query<FilaNombreTablaPlacesOs>(
     `
@@ -420,9 +528,10 @@ export async function sincronizarTablaMaestraPlacesOs() {
         AND table_type = 'BASE TABLE'
         AND table_name LIKE 'places_os_%'
         AND table_name <> $1
+        AND table_name <> $2
       ORDER BY table_name
     `,
-    [tablaMaestraPlacesOs],
+    [tablaMaestraPlacesOs, nombreTablaDatosPlacesOs],
   )
 
   for (const fila of resultado.rows) {
@@ -432,7 +541,15 @@ export async function sincronizarTablaMaestraPlacesOs() {
       continue
     }
 
-    const totalRows = await contarFilasTablaPlacesOs(fila.table_name)
+    await migrarTablaLegadaPlacesOs({
+      nombreTabla: fila.table_name,
+      country: metadatos.country,
+    })
+
+    const totalRows = await contarFilasTablaPlacesOs({
+      country: metadatos.country,
+      website: metadatos.website,
+    })
     await registrarTablaDescubiertaPlacesOs({
       nombreTabla: fila.table_name,
       country: metadatos.country,
@@ -486,10 +603,12 @@ export async function listarTablasPlacesOs(input: {
 }
 
 export async function exportarFilasPlacesOs(input: {
-  nombreTabla: string
+  country: string
   filas: FilaExportablePlacesOs[]
 }) {
-  const tabla = validarIdentificadorTablaPlacesOs(input.nombreTabla)
+  await asegurarTablaDatosPlacesOs()
+
+  const tabla = validarIdentificadorTablaPlacesOs(nombreTablaDatosPlacesOs)
   const ids: string[] = []
 
   for (const fila of input.filas) {
@@ -566,7 +685,8 @@ export async function exportarFilasPlacesOs(input: {
         obtenerTextoPlacesOs(fila.row, "name"),
         obtenerNumeroPlacesOs(fila.row, "latitude"),
         obtenerNumeroPlacesOs(fila.row, "longitude"),
-        obtenerTextoPlacesOs(fila.row, "country") || "",
+        normalizarPaisPlacesOs(obtenerTextoPlacesOs(fila.row, "country")) ||
+          input.country,
         obtenerTextoPlacesOs(fila.row, "timezone"),
         obtenerTextoPlacesOs(fila.row, "website"),
         obtenerTextoPlacesOs(fila.row, "tel"),
@@ -592,42 +712,44 @@ export async function exportarFilasPlacesOs(input: {
 }
 
 async function obtenerTablaMapaPlacesOs(input: {
-  nombreTabla: string
   country: string
   website: FiltroWebsitePlacesOs | null
 }) {
   await sincronizarTablaMaestraPlacesOs()
-
-  if (input.nombreTabla) {
-    const resultado = await pool.query<FilaTablaMaestraPlacesOs>(
-      `
-        SELECT
-          table_name,
-          country,
-          website_filter,
-          label,
-          total_rows,
-          last_exported_rows,
-          created_at,
-          updated_at
-        FROM "${tablaMaestraPlacesOs}"
-        WHERE table_name = $1
-        LIMIT 1
-      `,
-      [input.nombreTabla],
-    )
-
-    return resultado.rows[0]
-      ? mapearTablaMaestraPlacesOs(resultado.rows[0])
-      : null
-  }
 
   const tablas = await listarTablasPlacesOs({
     country: input.country,
     website: input.website,
   })
 
-  return tablas[0] || null
+  if (tablas[0]) {
+    return tablas[0]
+  }
+
+  const totalRows = await contarFilasTablaPlacesOs({
+    country: input.country,
+    website: input.website,
+  })
+
+  if (!totalRows) {
+    return null
+  }
+
+  const fecha = new Date().toISOString()
+
+  return {
+    tableName: nombreTablaDatosPlacesOs,
+    country: input.country,
+    website: input.website || FiltroWebsitePlacesOs.TODOS,
+    label: construirEtiquetaTablaPlacesOs({
+      country: input.country || "Todos",
+      website: input.website || FiltroWebsitePlacesOs.TODOS,
+    }),
+    totalRows,
+    lastExportedRows: 0,
+    createdAt: fecha,
+    updatedAt: fecha,
+  }
 }
 
 function mapearPuntoMapaPlacesOs(input: {
@@ -654,7 +776,6 @@ function mapearPuntoMapaPlacesOs(input: {
 }
 
 export async function consultarPuntosMapaPlacesOs(input: {
-  nombreTabla: string
   country: string
   website: FiltroWebsitePlacesOs | null
   limite: number
@@ -669,7 +790,7 @@ export async function consultarPuntosMapaPlacesOs(input: {
     }
   }
 
-  const tabla = validarIdentificadorTablaPlacesOs(tablaMaestra.tableName)
+  const tabla = validarIdentificadorTablaPlacesOs(nombreTablaDatosPlacesOs)
   const condiciones = ["latitude IS NOT NULL", "longitude IS NOT NULL"]
   const valores: Array<string | number> = []
   let indiceParametro = 1
@@ -727,7 +848,7 @@ export async function consultarPuntosMapaPlacesOs(input: {
     points: resultado.rows.map((fila) =>
       mapearPuntoMapaPlacesOs({
         fila,
-        nombreTabla: tablaMaestra.tableName,
+        nombreTabla: nombreTablaDatosPlacesOs,
       }),
     ),
   }

@@ -16,7 +16,6 @@ type QueryValue =
   | null
 
 interface PlacesOsMapQuery {
-  tableName?: QueryValue
   country?: QueryValue
   website?: QueryValue
   limite?: QueryValue
@@ -63,7 +62,6 @@ export default defineEventHandler(async (event) => {
 
   try {
     const resultado = await consultarPuntosMapaPlacesOs({
-      nombreTabla: parseQueryText(query.tableName || null),
       country,
       website,
       limite,
