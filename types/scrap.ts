@@ -133,7 +133,6 @@ export interface PuntoMapaPlacesOs {
 }
 
 export interface ConsultaMapaPlacesOs {
-  tableName: string
   pais: string
   website: FiltroWebsitePlacesOs
   limite: number

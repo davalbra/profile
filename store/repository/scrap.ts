@@ -63,7 +63,6 @@ export const useScrapRepositorio = defineStore("scrapRepositorio", () => {
       "/api/scrap/foursquare-os/map",
       {
         params: {
-          tableName: entrada.tableName,
           country: entrada.pais,
           website: entrada.website,
           limite: entrada.limite,
