@@ -2,7 +2,6 @@ import { fetchFoursquareOsPreviewRows } from "@/lib/foursquare/os-places"
 import {
   actualizarTablaMaestraPlacesOs,
   asegurarTablaDatosPlacesOs,
-  construirNombreTablaPlacesOs,
   exportarFilasPlacesOs,
   maximoFilasExportacionPlacesOs,
   normalizarLimitePlacesOs,
@@ -10,6 +9,7 @@ import {
   normalizarWebsitePlacesOs,
   type FilaExportablePlacesOs,
 } from "@/server/utils/places-os-neon"
+import { nombreTablaDatosPlacesOs } from "@/utils/constants/places-os"
 import type { FiltroWebsitePlacesOs } from "@/utils/enums/anums"
 import { createError, readBody, setHeader } from "h3"
 
@@ -70,18 +70,15 @@ export default defineEventHandler(async (event) => {
     })
   }
 
-  const tableName = construirNombreTablaPlacesOs({ country, website })
-
   try {
-    await asegurarTablaDatosPlacesOs(tableName)
+    await asegurarTablaDatosPlacesOs()
     const filas = await obtenerFilasExportables({ country, website, limite })
     const resultado = await exportarFilasPlacesOs({
-      nombreTabla: tableName,
+      country,
       filas,
     })
 
     await actualizarTablaMaestraPlacesOs({
-      nombreTabla: tableName,
       country,
       website,
       filasExportadas: filas.length,
@@ -90,7 +87,7 @@ export default defineEventHandler(async (event) => {
     return {
       ok: true,
       data: {
-        tableName,
+        tableName: nombreTablaDatosPlacesOs,
         country,
         website,
         requestedLimit: limite,

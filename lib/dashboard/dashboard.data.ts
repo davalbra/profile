@@ -214,7 +214,7 @@ export const modulosDashboard: ModuloDashboard[] = [
     detalle: "Website + geo",
     funciones: [
       "Tabla Places con website y coordenadas",
-      "Mapa 3D desde tablas guardadas en Neon",
+      "Mapa 3D desde tabla unica indexada por pais",
       "Jerarquia de categorias Foursquare",
     ],
     integraciones: ["Foursquare OS Places", "Neon", "Three.js", "Iceberg"],
