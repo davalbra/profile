@@ -15,11 +15,18 @@ import { Input } from "@/components/ui/input"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { useScrapRepositorio } from "@/store/repository/scrap"
 import type { PuntoMapaPlacesOs, TablaPlacesOsGuardada } from "@/types/scrap"
-import { FiltroWebsitePlacesOs } from "@/utils/enums/anums"
+import { urlCapaMapaPlacesOs } from "@/utils/constants/mapa-places-os"
+import { CapaMapaPlacesOs, FiltroWebsitePlacesOs } from "@/utils/enums/anums"
+import { etiquetaCapaMapaPlacesOs } from "@/utils/enums/diccionario"
 import type { Map, Marker, Popup } from "maplibre-gl"
 
 interface OpcionPaisMapa {
   value: string
+  label: string
+}
+
+interface OpcionCapaMapa {
+  value: CapaMapaPlacesOs
   label: string
 }
 
@@ -38,6 +45,7 @@ const tablas = ref<TablaPlacesOsGuardada[]>([])
 const puntos = ref<PuntoMapaPlacesOs[]>([])
 const tablaActiva = ref<TablaPlacesOsGuardada | null>(null)
 const puntoSeleccionado = ref<PuntoMapaPlacesOs | null>(null)
+const capaMapa = ref<CapaMapaPlacesOs>(CapaMapaPlacesOs.OSCURO)
 const pais = ref("")
 const website = ref<FiltroWebsitePlacesOs>(FiltroWebsitePlacesOs.CON_WEBSITE)
 const tablaSeleccionada = ref("")
@@ -55,9 +63,23 @@ let marcadoresMapa: Marker[] = []
 let popupActivo: Popup | null = null
 let observadorTamanoMapa: ResizeObserver | null = null
 
-const estiloMapa = "https://tiles.openfreemap.org/styles/liberty"
 const fuenteTerreno = "terreno_places_os"
 const terrenoMapterhorn = "https://tiles.mapterhorn.com/tilejson.json"
+
+const opcionesCapaMapa: OpcionCapaMapa[] = [
+  {
+    value: CapaMapaPlacesOs.OSCURO,
+    label: etiquetaCapaMapaPlacesOs[CapaMapaPlacesOs.OSCURO],
+  },
+  {
+    value: CapaMapaPlacesOs.NORMAL,
+    label: etiquetaCapaMapaPlacesOs[CapaMapaPlacesOs.NORMAL],
+  },
+]
+
+const estiloMapaSeleccionado = computed(
+  () => urlCapaMapaPlacesOs[capaMapa.value],
+)
 
 const opcionesPais = computed<OpcionPaisMapa[]>(() => {
   const codigos: string[] = []
@@ -230,6 +252,17 @@ function manejarFiltroTabla() {
   void cargarMapa()
 }
 
+function aplicarCapaMapa() {
+  const mapa = mapaPlacesOs
+
+  if (!mapa) {
+    return
+  }
+
+  mapaListo.value = false
+  mapa.setStyle(estiloMapaSeleccionado.value)
+}
+
 function crearContenidoPopup(punto: PuntoMapaPlacesOs) {
   const contenedor = document.createElement("div")
   contenedor.className = "min-w-[220px] space-y-1 text-slate-900"
@@ -395,7 +428,7 @@ async function inicializarMapa() {
   const modulo = await cargarModuloMapLibre()
   const mapa = new modulo.Map({
     container: contenedor,
-    style: estiloMapa,
+    style: estiloMapaSeleccionado.value,
     center: {
       lng: centroInicial.value.longitude,
       lat: centroInicial.value.latitude,
@@ -418,6 +451,10 @@ async function inicializarMapa() {
     "top-right",
   )
   mapa.addControl(new modulo.FullscreenControl(), "top-right")
+  mapa.on("style.load", () => {
+    mapaListo.value = true
+    configurarTerreno()
+  })
   mapa.on("load", () => {
     mapaListo.value = true
     configurarTerreno()
@@ -452,6 +489,10 @@ watch(tablaSeleccionada, () => {
   void cargarMapa()
 })
 
+watch(capaMapa, () => {
+  aplicarCapaMapa()
+})
+
 onMounted(() => {
   void iniciarMapa()
 })
@@ -464,7 +505,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="space-y-3 text-white">
     <div
-      class="grid gap-2 rounded-lg border border-white/10 bg-black/35 p-3 backdrop-blur-xl xl:grid-cols-[minmax(160px,1fr)_190px_minmax(260px,1.2fr)_130px_minmax(180px,1fr)_auto_auto]"
+      class="grid gap-2 rounded-lg border border-white/10 bg-black/35 p-3 backdrop-blur-xl xl:grid-cols-[minmax(150px,1fr)_150px_190px_minmax(260px,1.2fr)_130px_minmax(180px,1fr)_auto_auto]"
     >
       <NativeSelect v-model="pais" class="w-full" :disabled="cargandoTablas">
         <NativeSelectOption value="">Todos los paises</NativeSelectOption>
@@ -474,6 +515,20 @@ onBeforeUnmount(() => {
           :value="item.value"
         >
           {{ item.label }} ({{ item.value }})
+        </NativeSelectOption>
+      </NativeSelect>
+
+      <NativeSelect
+        v-model="capaMapa"
+        aria-label="Capa del mapa"
+        class="w-full"
+      >
+        <NativeSelectOption
+          v-for="item in opcionesCapaMapa"
+          :key="item.value"
+          :value="item.value"
+        >
+          {{ item.label }}
         </NativeSelectOption>
       </NativeSelect>
 
