@@ -16,6 +16,7 @@ import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { useScrapRepositorio } from "@/store/repository/scrap"
 import type { PuntoMapaPlacesOs, TablaPlacesOsGuardada } from "@/types/scrap"
 import { urlCapaMapaPlacesOs } from "@/utils/constants/mapa-places-os"
+import { nombreTablaDatosPlacesOs } from "@/utils/constants/places-os"
 import { CapaMapaPlacesOs, FiltroWebsitePlacesOs } from "@/utils/enums/anums"
 import { etiquetaCapaMapaPlacesOs } from "@/utils/enums/diccionario"
 import type { Map, Marker, Popup } from "maplibre-gl"
@@ -48,7 +49,6 @@ const puntoSeleccionado = ref<PuntoMapaPlacesOs | null>(null)
 const capaMapa = ref<CapaMapaPlacesOs>(CapaMapaPlacesOs.OSCURO)
 const pais = ref("")
 const website = ref<FiltroWebsitePlacesOs>(FiltroWebsitePlacesOs.CON_WEBSITE)
-const tablaSeleccionada = ref("")
 const limite = ref("250")
 const busqueda = ref("")
 const cargandoTablas = ref(false)
@@ -98,7 +98,7 @@ const opcionesPais = computed<OpcionPaisMapa[]>(() => {
     }))
 })
 
-const tablasFiltradas = computed(() =>
+const registrosFiltrados = computed(() =>
   tablas.value.filter(
     (tabla) =>
       (!pais.value || tabla.country === pais.value) &&
@@ -111,9 +111,7 @@ const totalPuntos = computed(() => puntos.value.length)
 const puntoDestacado = computed(
   () => puntoSeleccionado.value || puntos.value[0] || null,
 )
-const puedeConsultar = computed(
-  () => Boolean(tablaSeleccionada.value) && !cargandoMapa.value,
-)
+const puedeConsultar = computed(() => !cargandoMapa.value)
 const centroInicial = computed<CentroMapaPlacesOs>(() => {
   if (puntos.value.length) {
     const suma = puntos.value.reduce(
@@ -170,14 +168,8 @@ function obtenerPaisInicial(items: OpcionPaisMapa[]) {
   )
 }
 
-function seleccionarTablaDesdeFiltros() {
-  const existeTablaSeleccionada = tablasFiltradas.value.some(
-    (tabla) => tabla.tableName === tablaSeleccionada.value,
-  )
-
-  if (!existeTablaSeleccionada) {
-    tablaSeleccionada.value = tablasFiltradas.value[0]?.tableName || ""
-  }
+function actualizarTablaActiva() {
+  tablaActiva.value = registrosFiltrados.value[0] || null
 }
 
 async function cargarTablas() {
@@ -195,7 +187,7 @@ async function cargarTablas() {
       pais.value = obtenerPaisInicial(opcionesPais.value)
     }
 
-    seleccionarTablaDesdeFiltros()
+    actualizarTablaActiva()
   } catch {
     errorTablas.value = true
   } finally {
@@ -204,20 +196,11 @@ async function cargarTablas() {
 }
 
 async function cargarMapa() {
-  if (!tablaSeleccionada.value) {
-    puntos.value = []
-    tablaActiva.value = null
-    puntoSeleccionado.value = null
-    actualizarMarcadores()
-    return
-  }
-
   cargandoMapa.value = true
   errorMapa.value = false
 
   try {
     const respuesta = await scrapRepositorio.obtenerMapaPlacesOs({
-      tableName: tablaSeleccionada.value,
       pais: pais.value,
       website: website.value,
       limite: limiteNumerico.value,
@@ -243,12 +226,10 @@ function limpiarFiltros() {
   website.value = FiltroWebsitePlacesOs.CON_WEBSITE
   busqueda.value = ""
   limite.value = "250"
-  seleccionarTablaDesdeFiltros()
   void cargarMapa()
 }
 
-function manejarFiltroTabla() {
-  seleccionarTablaDesdeFiltros()
+function manejarFiltros() {
   void cargarMapa()
 }
 
@@ -482,10 +463,7 @@ async function iniciarMapa() {
 
 /** Vue */
 watch([pais, website], () => {
-  seleccionarTablaDesdeFiltros()
-})
-
-watch(tablaSeleccionada, () => {
+  actualizarTablaActiva()
   void cargarMapa()
 })
 
@@ -505,7 +483,7 @@ onBeforeUnmount(() => {
 <template>
   <section class="space-y-3 text-white">
     <div
-      class="grid gap-2 rounded-lg border border-white/10 bg-black/35 p-3 backdrop-blur-xl xl:grid-cols-[minmax(150px,1fr)_150px_190px_minmax(260px,1.2fr)_130px_minmax(180px,1fr)_auto_auto]"
+      class="grid gap-2 rounded-lg border border-white/10 bg-black/35 p-3 backdrop-blur-xl xl:grid-cols-[minmax(150px,1fr)_150px_190px_130px_minmax(180px,1fr)_auto_auto]"
     >
       <NativeSelect v-model="pais" class="w-full" :disabled="cargandoTablas">
         <NativeSelectOption value="">Todos los paises</NativeSelectOption>
@@ -544,21 +522,6 @@ onBeforeUnmount(() => {
         </NativeSelectOption>
       </NativeSelect>
 
-      <NativeSelect
-        v-model="tablaSeleccionada"
-        class="w-full"
-        :disabled="cargandoTablas || !tablasFiltradas.length"
-      >
-        <NativeSelectOption value="">Sin tabla guardada</NativeSelectOption>
-        <NativeSelectOption
-          v-for="tabla in tablasFiltradas"
-          :key="tabla.tableName"
-          :value="tabla.tableName"
-        >
-          {{ tabla.tableName }}
-        </NativeSelectOption>
-      </NativeSelect>
-
       <NativeSelect v-model="limite" class="w-full">
         <NativeSelectOption value="100">100 puntos</NativeSelectOption>
         <NativeSelectOption value="250">250 puntos</NativeSelectOption>
@@ -576,7 +539,7 @@ onBeforeUnmount(() => {
         type="button"
         :disabled="!puedeConsultar"
         class="bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-        @click="manejarFiltroTabla"
+        @click="manejarFiltros"
       >
         <RefreshCw :class="['size-4', cargandoMapa && 'animate-spin']" />
         Filtrar
@@ -615,7 +578,7 @@ onBeforeUnmount(() => {
           class="border-emerald-300/25 bg-emerald-300/10 text-emerald-100 backdrop-blur"
         >
           <Layers3 class="size-3.5" />
-          {{ tablaActiva?.tableName || "sin tabla" }}
+          {{ tablaActiva?.label || nombreTablaDatosPlacesOs }}
         </Badge>
         <Badge
           variant="outline"
@@ -647,9 +610,9 @@ onBeforeUnmount(() => {
 
     <div class="grid gap-2 md:grid-cols-3">
       <div class="rounded-lg border border-white/10 bg-black/25 p-3">
-        <p class="text-xs text-slate-500">Tabla maestra</p>
+        <p class="text-xs text-slate-500">Tabla de datos</p>
         <p class="mt-1 truncate font-mono text-sm text-cyan-100">
-          places_os_tablas_exportadas
+          {{ nombreTablaDatosPlacesOs }}
         </p>
       </div>
       <div class="rounded-lg border border-white/10 bg-black/25 p-3">

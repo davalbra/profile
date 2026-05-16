@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import { useScrapRepositorio } from "@/store/repository/scrap"
 import type { PaisPlacesOs, ResultadoExportacionPlacesOs } from "@/types/scrap"
+import { nombreTablaDatosPlacesOs } from "@/utils/constants/places-os"
 import {
   abrirAlertaProceso,
   cerrarAlertaProceso,
@@ -31,18 +32,6 @@ const errorExportacion = ref<string | null>(null)
 const paisSeleccionado = computed(
   () => paises.value.find((item) => item.value === pais.value) || null,
 )
-const nombreTablaPrevisto = computed(() => {
-  const segmentoWebsite =
-    website.value === FiltroWebsitePlacesOs.CON_WEBSITE
-      ? "con_website"
-      : website.value === FiltroWebsitePlacesOs.SIN_WEBSITE
-        ? "sin_website"
-        : "todos_los_websites"
-
-  return pais.value
-    ? `places_os_${pais.value.toLowerCase()}_${segmentoWebsite}`
-    : "-"
-})
 const puedeExportar = computed(() => Boolean(pais.value) && !exportando.value)
 
 /** Functions */
@@ -120,7 +109,7 @@ onMounted(() => {
           <div class="min-w-0">
             <CardTitle class="text-base">Exportar Places OS a Neon</CardTitle>
             <p class="mt-1 truncate font-mono text-xs text-slate-400">
-              {{ nombreTablaPrevisto }}
+              {{ nombreTablaDatosPlacesOs }}
             </p>
           </div>
         </div>
@@ -209,9 +198,9 @@ onMounted(() => {
       <div
         class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-xs text-slate-400"
       >
-        tabla destino:
+        tabla unica:
         <span class="text-emerald-100">{{
-          resultado?.tableName || nombreTablaPrevisto
+          resultado?.tableName || nombreTablaDatosPlacesOs
         }}</span>
       </div>
 
