@@ -44,3 +44,15 @@ export enum PeriodoFacturacion {
   TREINTA_DIAS = "30d",
   NOVENTA_DIAS = "90d",
 }
+
+export enum FiltroWebsitePlacesOs {
+  TODOS = "all",
+  CON_WEBSITE = "with",
+  SIN_WEBSITE = "without",
+}
+
+export enum VistaScrapPlacesOs {
+  VISTA_PREVIA = "vista_previa",
+  EXPORTAR = "exportar",
+  MAPA = "mapa",
+}
