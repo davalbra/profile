@@ -51,6 +51,11 @@ export enum FiltroWebsitePlacesOs {
   SIN_WEBSITE = "without",
 }
 
+export enum CapaMapaPlacesOs {
+  OSCURO = "oscuro",
+  NORMAL = "normal",
+}
+
 export enum VistaScrapPlacesOs {
   VISTA_PREVIA = "vista_previa",
   EXPORTAR = "exportar",
