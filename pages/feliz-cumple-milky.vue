@@ -35,6 +35,8 @@ const fotoActiva = ref(0)
 const foto = computed(() => fotos[fotoActiva.value]!)
 const tituloCarta = ref<HTMLHeadingElement>()
 const botonAbrir = ref<HTMLButtonElement>()
+const botonSobre = ref<HTMLButtonElement>()
+const origenStickers = ref<{ x: number; y: number } | null>(null)
 let temporizadorApertura: number | undefined
 let temporizadorRecuerdos: number | undefined
 let temporizadorFoto: number | undefined
@@ -77,6 +79,10 @@ function alternarPausa() {
 }
 
 async function mostrarCarta() {
+  const sobre = botonSobre.value?.getBoundingClientRect()
+  origenStickers.value = sobre
+    ? { x: sobre.left + sobre.width / 2, y: sobre.top + sobre.height * 0.42 }
+    : null
   fase.value = "nota"
   temporizadorRecuerdos = window.setTimeout(() => {
     fase.value = "recuerdos"
@@ -143,6 +149,7 @@ onBeforeUnmount(() => {
         <span class="adorno adorno-destello" aria-hidden="true">✧</span>
         <span class="adorno adorno-corazon" aria-hidden="true">♥</span>
         <button
+          ref="botonSobre"
           class="boton-sobre"
           type="button"
           aria-label="Abrir el sobre de Milky"
@@ -168,7 +175,7 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="carta-abierta" aria-labelledby="titulo-carta">
-      <article class="papel">
+      <article class="papel" data-obstaculo-sticker="carta">
         <div class="marca" aria-hidden="true">
           <span />
           <Heart :size="18" fill="currentColor" />
@@ -195,7 +202,7 @@ onBeforeUnmount(() => {
           class="recuerdos"
           aria-label="Fotos de cumpleaños"
         >
-          <div class="album">
+          <div class="album" data-obstaculo-sticker="fotos">
             <Transition
               name="foto"
               mode="out-in"
@@ -245,13 +252,22 @@ onBeforeUnmount(() => {
         </section>
       </Transition>
 
-      <button class="boton-cerrar" type="button" @click="cerrarCarta">
+      <button
+        class="boton-cerrar"
+        type="button"
+        data-obstaculo-sticker="cerrar"
+        @click="cerrarCarta"
+      >
         <RotateCcw :size="15" aria-hidden="true" />
         Volver al sobre
       </button>
     </section>
 
-    <FelizCumpleMilkyStickers v-if="abierta" :imagen="imagenStickersCaida" />
+    <FelizCumpleMilkyStickers
+      v-if="abierta"
+      :imagen="imagenStickersCaida"
+      :origen="origenStickers"
+    />
   </main>
 </template>
 
@@ -468,12 +484,23 @@ onBeforeUnmount(() => {
 }
 
 .carta-abierta {
+  position: relative;
+  z-index: 2;
   display: grid;
   width: min(100%, 65rem);
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
   align-items: center;
   gap: 2rem clamp(2.5rem, 7vw, 6.5rem);
   animation: revelar 500ms ease-out both;
+  pointer-events: none;
+}
+
+.papel,
+.album,
+.boton-foto,
+.boton-pausa,
+.boton-cerrar {
+  pointer-events: auto;
 }
 
 .papel {
