@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ArrowDown, Heart, Pause, Play, RotateCcw } from "lucide-vue-next"
+import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
 
 const DURACION_FOTO_MS = 5000
 const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
+const imagenStickersCaida = "/milky-stickers-caida.webp"
 const imagenRecuerdos = "/milky-recuerdos.webp"
 
 const fotos = [
@@ -22,23 +24,6 @@ const fotos = [
     nota: "Por más días así",
   },
 ]
-
-const coloresConfeti = ["var(--rojo)", "var(--oro)", "var(--blanco)"]
-const confeti = Array.from({ length: 24 }, (_, indice) => {
-  const angulo = (indice / 24) * Math.PI * 2
-  const distancia = 25 + (indice % 4) * 5
-
-  return {
-    simbolo: ["✿", "✦", "♥"][indice % 3],
-    estilo: {
-      "--x": `${Math.cos(angulo) * distancia}vw`,
-      "--y": `${Math.sin(angulo) * distancia}vh`,
-      "--giro": `${(indice % 2 === 0 ? 1 : -1) * (60 + indice * 8)}deg`,
-      "--demora": `${(indice % 5) * 45}ms`,
-      color: coloresConfeti[indice % coloresConfeti.length],
-    },
-  }
-})
 
 const fase = ref<"sobre" | "abriendo" | "nota" | "recuerdos">("sobre")
 const abriendo = computed(() => fase.value === "abriendo")
@@ -61,6 +46,7 @@ useSeoMeta({
 
 useHead({
   link: [
+    { rel: "preload", as: "image", href: imagenStickersCaida },
     { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
     {
       rel: "stylesheet",
@@ -182,16 +168,6 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="carta-abierta" aria-labelledby="titulo-carta">
-      <div class="confeti" aria-hidden="true">
-        <span
-          v-for="(particula, indice) in confeti"
-          :key="indice"
-          :style="particula.estilo"
-        >
-          {{ particula.simbolo }}
-        </span>
-      </div>
-
       <article class="papel">
         <div class="marca" aria-hidden="true">
           <span />
@@ -274,6 +250,8 @@ onBeforeUnmount(() => {
         Volver al sobre
       </button>
     </section>
+
+    <FelizCumpleMilkyStickers v-if="abierta" :imagen="imagenStickersCaida" />
   </main>
 </template>
 
@@ -695,42 +673,10 @@ onBeforeUnmount(() => {
   transform: translate(-12px, -8px) rotate(-4deg) scale(0.96);
 }
 
-.confeti {
-  position: fixed;
-  z-index: 3;
-  inset: 0;
-  pointer-events: none;
-}
-
-.confeti span {
-  position: absolute;
-  top: 48%;
-  left: 50%;
-  font-size: clamp(1rem, 2.6vw, 1.9rem);
-  animation: celebrar 1450ms var(--demora) cubic-bezier(0.12, 0.65, 0.22, 1)
-    both;
-}
-
 @keyframes revelar {
   from {
     opacity: 0;
     transform: translateY(12px);
-  }
-}
-
-@keyframes celebrar {
-  0% {
-    opacity: 0;
-    transform: scale(0.4);
-  }
-
-  19% {
-    opacity: 0.95;
-  }
-
-  100% {
-    opacity: 0;
-    transform: translate(var(--x), var(--y)) rotate(var(--giro)) scale(0.8);
   }
 }
 
@@ -801,10 +747,6 @@ onBeforeUnmount(() => {
 
   .carta-abierta {
     animation: none;
-  }
-
-  .confeti {
-    display: none;
   }
 }
 </style>
