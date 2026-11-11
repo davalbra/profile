@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import {
   avanzarSticker,
+  lanzarHaciaBordeSuperior,
   type CuerpoSticker,
   type EntornoSticker,
+  type ObstaculoSticker,
 } from "@/utils/fisicaStickersMilky"
 
 const props = defineProps<{
@@ -12,6 +14,7 @@ const props = defineProps<{
 
 const MAX_LLUVIA_ACTIVA = 12
 const carriles = [0.08, 0.84, 0.91, 0.52, 0.15, 0.68, 0.31, 0.93, 0.57, 0.06]
+const destinosSuperiores = [0.18, 0.7, 0.34, 0.54, 0.86, 0.28, 0.62, 0.44]
 const disparos = [
   [-620, -300],
   [230, -505],
@@ -41,6 +44,8 @@ const lanzamientos = Array.from(
     carril: carriles[indice % carriles.length]!,
     tamano: 65 + ((indice * 7) % 20),
     disparo: disparos[indice] ?? null,
+    destinoSuperior:
+      indice % 2 === 1 ? destinosSuperiores[Math.floor(indice / 2)] : undefined,
   }),
 )
 
@@ -95,13 +100,15 @@ function medirEntorno() {
   }).filter(({ left, right, top, bottom }) => right > left && bottom > top)
 }
 
-function ajustarSalidaMovil(sticker: Sticker, indice: number) {
-  if (entorno.ancho > 760) return
+function ajustarSalidaMovil(
+  sticker: Sticker,
+  indice: number,
+  carta: ObstaculoSticker | undefined,
+) {
+  if (entorno.ancho > 760 || !carta) return
 
-  const carta = entorno.obstaculos.find((panel) => panel.id === "carta")
   const radio = sticker.tamano * 0.38
   if (
-    !carta ||
     sticker.x < carta.left - radio ||
     sticker.x > carta.right + radio ||
     sticker.y < carta.top - radio ||
@@ -140,7 +147,16 @@ function lanzar(sticker: Sticker, indice: number) {
     sticker.y = limitar(props.origen?.y ?? entorno.alto / 2, 0, entorno.alto)
     sticker.vx = disparo[0] * limitar(entorno.ancho / 800, 0.82, 1.15)
     sticker.vy = disparo[1] * limitar(entorno.alto / 850, 0.74, 1.12)
-    ajustarSalidaMovil(sticker, indice)
+
+    const carta = entorno.obstaculos.find((panel) => panel.id === "carta")
+    const destino = sticker.lanzamiento.destinoSuperior
+    const radio = sticker.tamano * 0.38
+    if (carta && destino !== undefined && carta.top > radio) {
+      const destinoX = carta.left + (carta.right - carta.left) * destino
+      lanzarHaciaBordeSuperior(sticker, carta, radio, destinoX)
+    } else {
+      ajustarSalidaMovil(sticker, indice, carta)
+    }
   } else {
     const carril = sticker.lanzamiento.carril + (Math.random() - 0.5) * 0.07
     sticker.x = limitar(carril * entorno.ancho, 0, entorno.ancho)

@@ -756,6 +756,7 @@ onBeforeUnmount(() => {
   .carta-abierta {
     max-width: 30rem;
     grid-template-columns: minmax(0, 1fr);
+    align-self: start;
     gap: 2.65rem;
   }
 

@@ -24,8 +24,31 @@ export interface EntornoSticker {
 }
 
 const gravedad = 280
+const friccionHorizontal = 0.7
 const esperaRebote = 0.85
-const esperaReboteMovil = 1.15
+const esperaReboteFuerte = 1.15
+
+export function lanzarHaciaBordeSuperior(
+  cuerpo: CuerpoSticker,
+  carta: ObstaculoSticker,
+  radio: number,
+  destinoX: number,
+): void {
+  const bordeSuperior = carta.top - radio
+  // Cerca del límite de la pantalla, un arco más bajo mantiene el sticker visible.
+  const despeje = bordeSuperior < 56 ? 30 : 56
+  const apice = Math.min(cuerpo.y - 18, bordeSuperior - despeje)
+  const tiempoSubida = Math.sqrt((2 * (cuerpo.y - apice)) / gravedad)
+  const tiempoBajada = Math.sqrt((2 * (bordeSuperior - apice)) / gravedad)
+  const recorridoPorUnidadDeVelocidad =
+    -Math.expm1(-friccionHorizontal * (tiempoSubida + tiempoBajada)) /
+    friccionHorizontal
+
+  cuerpo.vx = (destinoX - cuerpo.x) / recorridoPorUnidadDeVelocidad
+  cuerpo.vy = -gravedad * tiempoSubida
+  cuerpo.ultimoImpacto = carta.id
+  cuerpo.esperaImpacto = tiempoSubida
+}
 
 export function avanzarSticker(
   cuerpo: CuerpoSticker,
@@ -43,7 +66,7 @@ export function avanzarSticker(
   const xAnterior = cuerpo.x
   const yAnterior = cuerpo.y
 
-  cuerpo.vx *= Math.exp(-0.7 * delta)
+  cuerpo.vx *= Math.exp(-friccionHorizontal * delta)
   cuerpo.vy = Math.min(velocidadTerminal, cuerpo.vy + gravedad * delta)
   cuerpo.giro += cuerpo.velocidadGiro * delta
   cuerpo.esperaImpacto = Math.max(0, cuerpo.esperaImpacto - delta)
@@ -113,6 +136,8 @@ export function avanzarSticker(
   cuerpo.y += dy * instanteImpacto
   const haciaIzquierda = cuerpo.x < (impacto.left + impacto.right) / 2
   const direccion = haciaIzquierda ? -1 : 1
+  const bordeSuperiorCarta =
+    !impactoLateral && cuerpo.vy > 0 && impacto.id === "carta"
 
   if (impactoLateral) {
     const rebote = esMovil
@@ -131,12 +156,15 @@ export function avanzarSticker(
     cuerpo.vy = cuerpo.vy > 0 ? -rebote : Math.min(velocidadTerminal, rebote)
   } else {
     cuerpo.vx = cuerpo.vx * 0.4 + direccion * 49
-    cuerpo.vy *= -0.37
+    cuerpo.vy = bordeSuperiorCarta
+      ? -Math.max(102, cuerpo.vy * 0.62)
+      : cuerpo.vy * -0.37
   }
 
   cuerpo.velocidadGiro =
     cuerpo.velocidadGiro * 0.35 + (cuerpo.vx < 0 ? -1 : 1) * 86
   cuerpo.ultimoImpacto = impacto.id
-  cuerpo.esperaImpacto = esMovil ? esperaReboteMovil : esperaRebote
+  cuerpo.esperaImpacto =
+    bordeSuperiorCarta || esMovil ? esperaReboteFuerte : esperaRebote
   return true
 }
