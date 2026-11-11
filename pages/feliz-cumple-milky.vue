@@ -23,7 +23,7 @@ const fotos = [
   },
 ]
 
-const coloresConfeti = ["#bc456c", "#e77f97", "#a65337", "#a13d61"]
+const coloresConfeti = ["var(--rojo)", "var(--oro)", "var(--blanco)"]
 const confeti = Array.from({ length: 24 }, (_, indice) => {
   const angulo = (indice / 24) * Math.PI * 2
   const distancia = 25 + (indice % 4) * 5
@@ -279,10 +279,14 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .cumple {
-  --tinta: #711e3a;
-  --tinta-suave: #6e3f4d;
-  --rosa: #bd5274;
-  --papel: #fffaf4;
+  --carbon: #100d0f;
+  --tinta: #21181b;
+  --tinta-suave: #493a3b;
+  --rojo: #ff414e;
+  --rojo-tinta: #a80e24;
+  --oro: #ffda7d;
+  --blanco: #ffffff;
+  --papel: #fffcf6;
   --serif: "Cormorant Garamond", Georgia, serif;
 
   position: relative;
@@ -292,10 +296,10 @@ onBeforeUnmount(() => {
   padding: clamp(2.75rem, 6vw, 5rem) clamp(1.25rem, 6vw, 5rem);
   overflow: clip;
   place-items: center;
-  color: var(--tinta);
+  color: var(--blanco);
   background:
-    radial-gradient(ellipse at 76% 49%, #f7cdd6 0, transparent 54%),
-    radial-gradient(ellipse at 9% 0%, #fffdf7 0, transparent 57%), #fff3ed;
+    radial-gradient(ellipse at 75% 48%, #521522, transparent 55%),
+    radial-gradient(ellipse at 8% 0%, #2f2118, transparent 48%), var(--carbon);
   font-family: "DM Sans", sans-serif;
 }
 
@@ -304,11 +308,21 @@ onBeforeUnmount(() => {
   z-index: -1;
   inset: 0;
   background-image:
-    radial-gradient(circle at 25% 25%, #8b3f4a18 0.45px, transparent 0.8px),
-    radial-gradient(circle at 70% 70%, #a35d3e18 0.4px, transparent 0.85px);
+    radial-gradient(circle at 25% 25%, #ffda7d19 0.45px, transparent 0.8px),
+    radial-gradient(circle at 70% 70%, #ffffff0d 0.4px, transparent 0.85px);
   background-size:
     5px 7px,
     7px 5px;
+  content: "";
+  pointer-events: none;
+}
+
+.cumple::after {
+  position: absolute;
+  z-index: -1;
+  inset: clamp(0.6rem, 1.6vw, 1.35rem);
+  border: 1px solid #ffda7d42;
+  border-radius: 0.75rem;
   content: "";
   pointer-events: none;
 }
@@ -332,7 +346,7 @@ onBeforeUnmount(() => {
   display: flex;
   align-items: center;
   gap: 0.65rem;
-  color: var(--rosa);
+  color: var(--oro);
 }
 
 .marca span {
@@ -351,14 +365,12 @@ onBeforeUnmount(() => {
 }
 
 .portada h1 {
-  font-size: clamp(4.15rem, 8.15vw, 8.2rem);
-  line-height: 0.83;
+  font-size: clamp(4.15rem, 7.2vw, 6.45rem);
+  line-height: 0.9;
 }
 
-.portada h1 em,
-.papel h1 em {
-  color: #a33457;
-  font-weight: 600;
+.portada h1 em {
+  color: var(--rojo);
 }
 
 .portada-sticker {
@@ -380,17 +392,17 @@ onBeforeUnmount(() => {
   align-items: center;
   gap: 0.85rem;
   padding: 0.75rem 1.35rem;
-  border: 1px solid #711e3a;
+  border: 1px solid #ffe8a9;
   border-radius: 100vw;
-  color: #fff9f5;
-  background: var(--tinta);
-  box-shadow: 0 8px 16px #731e3a29;
+  color: var(--tinta);
+  background: linear-gradient(135deg, #ffe89d, #edb64b);
+  box-shadow: 0 8px 28px #eab75036;
   font-size: 0.95rem;
   font-weight: 600;
 }
 
 .boton-abrir:hover {
-  background: #8c2e4c;
+  background: #ffe89d;
 }
 
 .cumple button {
@@ -402,7 +414,7 @@ onBeforeUnmount(() => {
 }
 
 .cumple button:focus-visible {
-  outline: 2px solid var(--tinta);
+  outline: 2px solid var(--oro);
   outline-offset: 5px;
 }
 
@@ -418,7 +430,7 @@ onBeforeUnmount(() => {
 .orbita {
   position: absolute;
   inset: 12% -6% 10%;
-  border: 1px dashed #a334573b;
+  border: 1px dashed #ffda7d6b;
   border-radius: 50%;
   transform: rotate(-18deg);
   pointer-events: none;
@@ -450,14 +462,14 @@ onBeforeUnmount(() => {
 .adorno-estrella {
   top: 6%;
   left: 12%;
-  color: #b54a68;
+  color: var(--oro);
   font-size: clamp(1.6rem, 3vw, 2.6rem);
 }
 
 .adorno-flor {
   right: 5%;
   bottom: 8%;
-  color: #bd5274;
+  color: var(--rojo);
   font-size: clamp(1.8rem, 3.5vw, 3.1rem);
   rotate: 14deg;
 }
@@ -465,14 +477,14 @@ onBeforeUnmount(() => {
 .adorno-destello {
   top: 16%;
   right: 4%;
-  color: #9d522d;
+  color: var(--blanco);
   font-size: clamp(1.4rem, 2.7vw, 2.4rem);
 }
 
 .adorno-corazon {
   bottom: 5%;
   left: 12%;
-  color: #c36d84;
+  color: var(--oro);
   font-size: 1.1rem;
   rotate: -17deg;
 }
@@ -489,18 +501,19 @@ onBeforeUnmount(() => {
 .papel {
   position: relative;
   padding: clamp(2rem, 5vw, 3.65rem);
-  border: 1px solid #edc8c9;
+  border: 1px solid #e0b455;
   border-radius: 3px;
-  background: var(--papel);
+  color: var(--tinta);
+  background: linear-gradient(145deg, var(--blanco), var(--papel));
   box-shadow:
-    0 21px 64px #721c3121,
-    0 2px 4px #721c310d;
+    0 21px 64px #00000070,
+    0 2px 4px #00000036;
 }
 
 .papel::before {
   position: absolute;
   inset: 0.6rem;
-  border: 1px solid #edd2cf;
+  border: 1px solid #c8903e8a;
   border-radius: 2px;
   content: "";
   pointer-events: none;
@@ -509,6 +522,12 @@ onBeforeUnmount(() => {
 .papel h1 {
   font-size: clamp(3.1rem, 6.35vw, 6rem);
   line-height: 0.98;
+}
+
+.papel .marca,
+.papel h1 em,
+.firma em {
+  color: var(--rojo-tinta);
 }
 
 .papel h1:focus {
@@ -553,10 +572,10 @@ onBeforeUnmount(() => {
   position: absolute;
   z-index: -1;
   inset: 0;
-  border: 1px solid #e9a9b8;
+  border: 1px solid #ecb75e;
   border-radius: 3px;
-  background: #f4c3d0;
-  box-shadow: 0 12px 28px #84234e15;
+  background: linear-gradient(145deg, #b51029, #6e0a1b);
+  box-shadow: 0 12px 28px #00000050;
   rotate: -11deg;
   content: "";
 }
@@ -566,16 +585,16 @@ onBeforeUnmount(() => {
   grid-area: foto;
   margin: 0;
   padding: 0.85rem 0.85rem 0.6rem;
-  border: 1px solid #eed4d0;
+  border: 1px solid #f1d693;
   border-radius: 3px;
-  background: #fffcf7;
-  box-shadow: 0 14px 38px #651d352b;
+  background: var(--blanco);
+  box-shadow: 0 14px 38px #00000063;
 }
 
 .ventana-foto {
   overflow: hidden;
   aspect-ratio: 1;
-  background: #e9bcc8;
+  background: #321820;
 }
 
 .ventana-foto img {
@@ -588,7 +607,7 @@ onBeforeUnmount(() => {
 
 .polaroid figcaption {
   padding: 0.5rem 0.4rem 0.2rem;
-  color: var(--tinta);
+  color: var(--rojo-tinta);
   font-family: var(--serif);
   font-size: clamp(1.4rem, 3vw, 1.95rem);
   font-style: italic;
@@ -611,25 +630,25 @@ onBeforeUnmount(() => {
   place-items: center;
   border: 0;
   border-radius: 100vw;
-  color: var(--tinta);
+  color: var(--oro);
   background: transparent;
 }
 
 .boton-foto span {
   width: 0.65rem;
   height: 0.65rem;
-  border: 1px solid #9e405e;
+  border: 1px solid currentColor;
   border-radius: 50%;
 }
 
 .boton-foto[aria-current="true"] span {
-  background: var(--tinta);
+  background: currentColor;
 }
 
 .boton-foto:hover,
 .boton-pausa:hover,
 .boton-cerrar:hover {
-  background: #b43f6315;
+  background: #ffda7d24;
 }
 
 .boton-cerrar {
@@ -640,9 +659,9 @@ onBeforeUnmount(() => {
   justify-self: center;
   gap: 0.5rem;
   padding: 0.5rem 0.9rem;
-  border: 1px solid #b9607b66;
+  border: 1px solid #ffda7d73;
   border-radius: 100vw;
-  color: var(--tinta);
+  color: var(--oro);
   background: transparent;
   font-size: 0.9rem;
   font-weight: 600;
@@ -718,7 +737,8 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .cumple {
     background:
-      radial-gradient(ellipse at 62% 54%, #f7cdd6 0, transparent 68%), #fff6ef;
+      radial-gradient(ellipse at 65% 50%, #46131f, transparent 64%),
+      var(--carbon);
   }
 
   .portada {
@@ -731,7 +751,7 @@ onBeforeUnmount(() => {
   }
 
   .portada h1 {
-    font-size: clamp(3.65rem, 11.7vw, 5.5rem);
+    font-size: clamp(3.4rem, 11.7vw, 5.5rem);
   }
 
   .portada .marca {
