@@ -10,6 +10,7 @@ defineProps<{ opening: boolean }>()
 
     <span class="envelope__note">
       <Heart class="envelope__note-heart" />
+      <span class="envelope__note-greeting">Querida Milky,</span>
     </span>
 
     <span class="envelope__fold envelope__fold--left"></span>
@@ -60,13 +61,23 @@ defineProps<{ opening: boolean }>()
   display: grid;
   align-content: start;
   justify-items: center;
+  gap: 0.25rem;
   padding-top: 8%;
   border: 1px solid #ead4c4;
   border-radius: 3% / 4%;
   background: linear-gradient(160deg, #fffbef, #f6e7d8);
   box-shadow: 0 4px 10px rgb(113 30 58 / 15%);
   color: #bd5274;
-  transition: transform 580ms 280ms cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 650ms 540ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.envelope__note-greeting {
+  color: #711e3a;
+  font-family: "Cormorant Garamond", Georgia, serif;
+  font-size: clamp(1.1rem, 8cqi, 2.4rem);
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .envelope__note-heart {
@@ -208,7 +219,7 @@ defineProps<{ opening: boolean }>()
 }
 
 .is-opening .envelope__note {
-  transform: translateY(-48%);
+  transform: translateY(-58%);
 }
 
 @media (prefers-reduced-motion: reduce) {

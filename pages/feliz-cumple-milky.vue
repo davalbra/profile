@@ -3,7 +3,8 @@ import { ArrowDown, Heart, Pause, Play, RotateCcw } from "lucide-vue-next"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
 
 const DURACION_FOTO_MS = 5000
-const DURACION_APERTURA_MS = 920
+const DURACION_APERTURA_MS = 1450
+const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenRecuerdos = "/milky-recuerdos.webp"
 
 const fotos = [
@@ -38,14 +39,18 @@ const confeti = Array.from({ length: 24 }, (_, indice) => {
   }
 })
 
-const abriendo = ref(false)
-const abierta = ref(false)
+const fase = ref<"sobre" | "abriendo" | "nota" | "recuerdos">("sobre")
+const abriendo = computed(() => fase.value === "abriendo")
+const abierta = computed(
+  () => fase.value === "nota" || fase.value === "recuerdos",
+)
 const pausada = ref(false)
 const fotoActiva = ref(0)
 const foto = computed(() => fotos[fotoActiva.value]!)
 const tituloCarta = ref<HTMLHeadingElement>()
 const botonAbrir = ref<HTMLButtonElement>()
 let temporizadorApertura: number | undefined
+let temporizadorRecuerdos: number | undefined
 let temporizadorFoto: number | undefined
 
 useSeoMeta({
@@ -65,7 +70,7 @@ useHead({
 
 function programarSiguienteFoto() {
   window.clearTimeout(temporizadorFoto)
-  if (!abierta.value || pausada.value) return
+  if (fase.value !== "recuerdos" || pausada.value) return
 
   temporizadorFoto = window.setTimeout(() => {
     mostrarFoto((fotoActiva.value + 1) % fotos.length)
@@ -85,28 +90,31 @@ function alternarPausa() {
 }
 
 async function mostrarCarta() {
-  abriendo.value = false
-  abierta.value = true
+  fase.value = "nota"
+  temporizadorRecuerdos = window.setTimeout(() => {
+    fase.value = "recuerdos"
+  }, ESPERA_ANTES_DE_FOTOS_MS)
+
   await nextTick()
   tituloCarta.value?.focus()
-  programarSiguienteFoto()
 }
 
 function abrirCarta() {
-  if (abriendo.value || abierta.value) return
+  if (fase.value !== "sobre") return
 
   if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
     void mostrarCarta()
     return
   }
 
-  abriendo.value = true
+  fase.value = "abriendo"
   temporizadorApertura = window.setTimeout(mostrarCarta, DURACION_APERTURA_MS)
 }
 
 async function cerrarCarta() {
+  window.clearTimeout(temporizadorRecuerdos)
   window.clearTimeout(temporizadorFoto)
-  abierta.value = false
+  fase.value = "sobre"
   pausada.value = false
   fotoActiva.value = 0
   await nextTick()
@@ -116,6 +124,7 @@ async function cerrarCarta() {
 onBeforeUnmount(() => {
   if (import.meta.client) {
     window.clearTimeout(temporizadorApertura)
+    window.clearTimeout(temporizadorRecuerdos)
     window.clearTimeout(temporizadorFoto)
   }
 })
@@ -197,55 +206,61 @@ onBeforeUnmount(() => {
         <p class="firma">Con mucho cariño,<br /><em>David</em></p>
       </article>
 
-      <section class="recuerdos" aria-label="Fotos de cumpleaños">
-        <div class="album">
-          <Transition
-            name="foto"
-            mode="out-in"
-            @after-enter="programarSiguienteFoto"
-          >
-            <figure :key="fotoActiva" class="polaroid">
-              <div
-                class="ventana-foto"
-                role="img"
-                :aria-label="foto.descripcion"
-              >
-                <img
-                  :src="imagenRecuerdos"
-                  alt=""
-                  :style="{
-                    translate: `${(-100 * fotoActiva) / fotos.length}%`,
-                  }"
-                />
-              </div>
-              <figcaption>{{ foto.nota }}</figcaption>
-            </figure>
-          </Transition>
-        </div>
+      <Transition name="galeria" @after-enter="programarSiguienteFoto">
+        <section
+          v-if="fase === 'recuerdos'"
+          class="recuerdos"
+          aria-label="Fotos de cumpleaños"
+        >
+          <div class="album">
+            <Transition
+              name="foto"
+              mode="out-in"
+              @after-enter="programarSiguienteFoto"
+            >
+              <figure :key="fotoActiva" class="polaroid">
+                <div
+                  class="ventana-foto"
+                  role="img"
+                  :aria-label="foto.descripcion"
+                >
+                  <img
+                    :src="imagenRecuerdos"
+                    alt=""
+                    :style="{
+                      translate: `${(-100 * fotoActiva) / fotos.length}%`,
+                    }"
+                  />
+                </div>
+                <figcaption>{{ foto.nota }}</figcaption>
+              </figure>
+            </Transition>
+          </div>
 
-        <div class="controles-fotos">
-          <button
-            v-for="(elemento, indice) in fotos"
-            :key="elemento.nota"
-            class="boton-foto"
-            type="button"
-            :aria-label="`Ver foto: ${elemento.nota}`"
-            :aria-current="fotoActiva === indice ? 'true' : undefined"
-            @click="mostrarFoto(indice)"
-          >
-            <span />
-          </button>
-          <button
-            class="boton-pausa"
-            type="button"
-            :aria-label="pausada ? 'Reanudar fotos' : 'Pausar fotos'"
-            @click="alternarPausa"
-          >
-            <Play v-if="pausada" :size="17" aria-hidden="true" />
-            <Pause v-else :size="17" aria-hidden="true" />
-          </button>
-        </div>
-      </section>
+          <div class="controles-fotos">
+            <button
+              v-for="(elemento, indice) in fotos"
+              :key="elemento.nota"
+              class="boton-foto"
+              type="button"
+              :aria-label="`Ver foto: ${elemento.nota}`"
+              :aria-current="fotoActiva === indice ? 'true' : undefined"
+              @click="mostrarFoto(indice)"
+            >
+              <span />
+            </button>
+            <button
+              class="boton-pausa"
+              type="button"
+              :aria-label="pausada ? 'Reanudar fotos' : 'Pausar fotos'"
+              @click="alternarPausa"
+            >
+              <Play v-if="pausada" :size="17" aria-hidden="true" />
+              <Pause v-else :size="17" aria-hidden="true" />
+            </button>
+          </div>
+        </section>
+      </Transition>
 
       <button class="boton-cerrar" type="button" @click="cerrarCarta">
         <RotateCcw :size="15" aria-hidden="true" />
@@ -625,6 +640,17 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+.galeria-enter-active {
+  transition:
+    opacity 650ms ease,
+    transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.galeria-enter-from {
+  opacity: 0;
+  transform: translateY(26px) rotate(-7deg) scale(0.92);
+}
+
 .foto-enter-active,
 .foto-leave-active {
   transition:
@@ -739,6 +765,7 @@ onBeforeUnmount(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .boton-sobre,
+  .galeria-enter-active,
   .foto-enter-active,
   .foto-leave-active {
     transition: none;
