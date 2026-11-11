@@ -5,6 +5,7 @@ import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
 const DURACION_FOTO_MS = 5000
 const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
+const imagenStickerPortada = "/milky-sticker.webp"
 const imagenRecuerdos = "/milky-recuerdos.webp"
 
 const fotos = [
@@ -140,7 +141,13 @@ onBeforeUnmount(() => {
           <span />
         </div>
         <h1 id="titulo-portada">Feliz cumple,<br /><em>Milky</em></h1>
-        <p>Una cartita para ti, con todo mi cariño.</p>
+        <img
+          class="portada-sticker"
+          :src="imagenStickerPortada"
+          alt=""
+          width="160"
+          height="160"
+        />
       </div>
 
       <div class="escena-sobre">
@@ -354,11 +361,12 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.portada p {
-  margin-block: 1.65rem 0;
-  color: var(--tinta-suave);
-  font-size: clamp(1rem, 1.5vw, 1.15rem);
-  line-height: 1.55;
+.portada-sticker {
+  display: block;
+  width: clamp(3.65rem, 5.2vw, 4.8rem);
+  height: auto;
+  margin-top: 1.05rem;
+  rotate: -9deg;
 }
 
 .portada-accion {
@@ -730,8 +738,8 @@ onBeforeUnmount(() => {
     justify-content: center;
   }
 
-  .portada p {
-    margin-top: 1.05rem;
+  .portada-sticker {
+    margin-inline: auto;
   }
 
   .escena-sobre {
