@@ -10,19 +10,39 @@ const props = defineProps<{
   origen: { x: number; y: number } | null
 }>()
 
-const lanzamientos = [
-  { motivo: 0, carril: 0.08, tamano: 82, disparo: [-445, -250] },
-  { motivo: 1, carril: 0.84, tamano: 84, disparo: [145, -410] },
-  { motivo: 2, carril: 0.91, tamano: 74, disparo: [350, -290] },
-  { motivo: 3, carril: 0.52, tamano: 77, disparo: [-245, -450] },
-  { motivo: 4, carril: 0.15, tamano: 78, disparo: [-365, -110] },
-  { motivo: 5, carril: 0.68, tamano: 68, disparo: [-70, -530] },
-  { motivo: 6, carril: 0.31, tamano: 75, disparo: [290, -130] },
-  { motivo: 7, carril: 0.93, tamano: 70, disparo: [80, -330] },
-  { motivo: 0, carril: 0.57, tamano: 66, disparo: null },
-  { motivo: 4, carril: 0.06, tamano: 72, disparo: null },
-  { motivo: 3, carril: 0.92, tamano: 74, disparo: null },
+const MAX_LLUVIA_ACTIVA = 12
+const carriles = [0.08, 0.84, 0.91, 0.52, 0.15, 0.68, 0.31, 0.93, 0.57, 0.06]
+const disparos = [
+  [-620, -300],
+  [230, -505],
+  [525, -345],
+  [-355, -475],
+  [-520, -150],
+  [-100, -570],
+  [460, -145],
+  [115, -390],
+  [-675, -410],
+  [645, -230],
+  [-250, -535],
+  [320, -580],
+  [-430, -320],
+  [390, -315],
+  [-170, -230],
+  [170, -190],
+  [-565, -500],
+  [580, -450],
+  [-65, -445],
+  [65, -310],
 ] as const
+const lanzamientos = Array.from(
+  { length: disparos.length + 4 },
+  (_, indice) => ({
+    motivo: indice % 8,
+    carril: carriles[indice % carriles.length]!,
+    tamano: 65 + ((indice * 7) % 20),
+    disparo: disparos[indice] ?? null,
+  }),
+)
 
 type Arrastre = { puntero: number; desfaseX: number; desfaseY: number }
 type Sticker = CuerpoSticker & {
@@ -75,6 +95,36 @@ function medirEntorno() {
   }).filter(({ left, right, top, bottom }) => right > left && bottom > top)
 }
 
+function ajustarSalidaMovil(sticker: Sticker, indice: number) {
+  if (entorno.ancho > 760) return
+
+  const carta = entorno.obstaculos.find((panel) => panel.id === "carta")
+  const radio = sticker.tamano * 0.38
+  if (
+    !carta ||
+    sticker.x < carta.left - radio ||
+    sticker.x > carta.right + radio ||
+    sticker.y < carta.top - radio ||
+    sticker.y > carta.bottom + radio
+  ) {
+    return
+  }
+
+  // Un origen tapado se proyecta al borde que tiene más espacio visible.
+  const margen = radio + 9
+  const espacioInferior = entorno.alto - carta.bottom
+  const salePorAbajo = espacioInferior >= Math.max(carta.top, margen + radio)
+  sticker.y = salePorAbajo
+    ? carta.bottom + margen
+    : Math.max(8, carta.top - margen)
+
+  const haciaCarta = salePorAbajo ? -1 : 1
+  sticker.vy =
+    indice % 4 === 3
+      ? -haciaCarta * 62
+      : haciaCarta * limitar(Math.abs(sticker.vy) * 0.66, 135, 250)
+}
+
 function lanzar(sticker: Sticker, indice: number) {
   const disparo = sticker.primerVuelo && sticker.lanzamiento.disparo
   const direccion = indice % 2 === 0 ? 1 : -1
@@ -86,11 +136,11 @@ function lanzar(sticker: Sticker, indice: number) {
   sticker.velocidadGiro = direccion * (disparo ? 115 : 25)
 
   if (disparo) {
-    const escala = limitar(entorno.ancho / 900, 0.55, 1)
     sticker.x = limitar(props.origen?.x ?? entorno.ancho / 2, 0, entorno.ancho)
     sticker.y = limitar(props.origen?.y ?? entorno.alto / 2, 0, entorno.alto)
-    sticker.vx = disparo[0] * escala
-    sticker.vy = disparo[1] * escala
+    sticker.vx = disparo[0] * limitar(entorno.ancho / 800, 0.82, 1.15)
+    sticker.vy = disparo[1] * limitar(entorno.alto / 850, 0.74, 1.12)
+    ajustarSalidaMovil(sticker, indice)
   } else {
     const carril = sticker.lanzamiento.carril + (Math.random() - 0.5) * 0.07
     sticker.x = limitar(carril * entorno.ancho, 0, entorno.ancho)
@@ -112,10 +162,21 @@ function animar(ahora: number) {
     siguienteMedicion = ahora + 110
   }
 
+  let enVuelo = stickers.reduce(
+    (total, sticker) => total + Number(sticker.activo),
+    0,
+  )
   for (const [indice, sticker] of stickers.entries()) {
     if (!sticker.activo) {
       sticker.espera -= delta
-      if (sticker.espera <= 0) lanzar(sticker, indice)
+      const saleEnEstallido = sticker.primerVuelo && sticker.lanzamiento.disparo
+      if (
+        sticker.espera <= 0 &&
+        (saleEnEstallido || enVuelo < MAX_LLUVIA_ACTIVA)
+      ) {
+        lanzar(sticker, indice)
+        enVuelo++
+      }
       continue
     }
     if (sticker.arrastre) continue
@@ -123,6 +184,7 @@ function animar(ahora: number) {
     avanzarSticker(sticker, delta, sticker.tamano * 0.38, entorno)
     if (sticker.y > entorno.alto + sticker.tamano) {
       sticker.activo = false
+      enVuelo--
       sticker.espera = 0.32 + Math.random() * 0.7
       sticker.elemento.hidden = true
     } else {
@@ -214,7 +276,9 @@ onMounted(() => {
       lanzamiento,
       activo: false,
       primerVuelo: true,
-      espera: lanzamiento.disparo ? indice * 0.028 : 0.6 + (indice - 8) * 0.55,
+      espera: lanzamiento.disparo
+        ? indice * 0.016
+        : 0.6 + (indice - disparos.length) * 0.55,
       tamano: lanzamiento.tamano,
       x: 0,
       y: 0,

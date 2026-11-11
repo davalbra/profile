@@ -25,6 +25,7 @@ export interface EntornoSticker {
 
 const gravedad = 280
 const esperaRebote = 0.85
+const esperaReboteMovil = 1.15
 
 export function avanzarSticker(
   cuerpo: CuerpoSticker,
@@ -35,6 +36,7 @@ export function avanzarSticker(
   if (delta <= 0) return false
 
   const { ancho, alto, obstaculos } = entorno
+  const esMovil = ancho <= 760
   const limiteIzquierdo = Math.min(radio, ancho / 2)
   const limiteDerecho = ancho - limiteIzquierdo
   const velocidadTerminal = Math.max(150, Math.min(225, alto * 0.23))
@@ -113,8 +115,20 @@ export function avanzarSticker(
   const direccion = haciaIzquierda ? -1 : 1
 
   if (impactoLateral) {
-    cuerpo.vx = -Math.sign(dx) * (Math.abs(cuerpo.vx) * 0.43 + 27)
+    const rebote = esMovil
+      ? Math.abs(cuerpo.vx) * 0.62 + 38
+      : Math.abs(cuerpo.vx) * 0.43 + 27
+    cuerpo.vx = -Math.sign(dx) * rebote
     cuerpo.vy *= 0.8
+  } else if (esMovil) {
+    const impulso = cuerpo.vx * 0.68 + direccion * 64
+    cuerpo.vx = Math.abs(impulso) >= 54 ? impulso : direccion * 54
+    const espacioLateral =
+      cuerpo.vx < 0 ? cuerpo.x - limiteIzquierdo : limiteDerecho - cuerpo.x
+    if (espacioLateral < 42) cuerpo.vx *= -1
+
+    const rebote = Math.max(102, Math.abs(cuerpo.vy) * 0.64)
+    cuerpo.vy = cuerpo.vy > 0 ? -rebote : Math.min(velocidadTerminal, rebote)
   } else {
     cuerpo.vx = cuerpo.vx * 0.4 + direccion * 49
     cuerpo.vy *= -0.37
@@ -123,6 +137,6 @@ export function avanzarSticker(
   cuerpo.velocidadGiro =
     cuerpo.velocidadGiro * 0.35 + (cuerpo.vx < 0 ? -1 : 1) * 86
   cuerpo.ultimoImpacto = impacto.id
-  cuerpo.esperaImpacto = esperaRebote
+  cuerpo.esperaImpacto = esMovil ? esperaReboteMovil : esperaRebote
   return true
 }
