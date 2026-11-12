@@ -1,13 +1,5 @@
 <script setup lang="ts">
-import {
-  ArrowDown,
-  ChevronLeft,
-  ChevronRight,
-  Heart,
-  Pause,
-  Play,
-  RotateCcw,
-} from "lucide-vue-next"
+import { ArrowDown, Heart, RotateCcw } from "lucide-vue-next"
 import FelizCumpleMilkyFoto from "@/components/FelizCumpleMilkyFoto.vue"
 import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
@@ -43,19 +35,15 @@ const abierta = computed(
   () => fase.value === "nota" || fase.value === "recuerdos",
 )
 const {
-  pausada,
   fotosVisibles,
   video,
-  posicion,
-  total,
   videoActual,
   iniciar: iniciarGaleria,
   cerrar: cerrarGaleria,
-  mover: moverRecuerdo,
-  alternarPausa,
   programarSiguienteRecuerdo,
   terminarVideo,
-  iniciarArrastre,
+  iniciarInteraccion,
+  finalizarInteraccion,
   desprenderFoto,
   descartarFoto,
 } = useGaleriaMilky(recuerdos)
@@ -187,25 +175,22 @@ onBeforeUnmount(() => {
     </section>
 
     <section v-else class="carta-abierta" aria-labelledby="titulo-carta">
-      <article class="papel" data-obstaculo-sticker="carta">
-        <div class="marca" aria-hidden="true">
-          <span />
-          <Heart :size="18" fill="currentColor" />
-          <span />
-        </div>
-        <h1 id="titulo-carta" ref="tituloCarta" tabindex="-1">
-          Querida <em>Milky,</em>
-        </h1>
-        <p>
-          Feliz cumpleaños. Ojalá hoy te sobren las razones para sonreír, los
-          abrazos duren un poquito más y te guardes la mejor parte del pastel.
-        </p>
-        <p>
-          Deseo que este año te traiga planes que te ilusionen, días tranquilos
-          cuando los necesites y un montón de momentos que quieras volver a
-          vivir.
-        </p>
-        <p class="firma">Con mucho cariño,<br /><em>David</em></p>
+      <div class="soporte-carta">
+        <article class="papel" data-obstaculo-sticker="carta">
+          <h1 id="titulo-carta" ref="tituloCarta" tabindex="-1">
+            Querida <em>Milky,</em>
+          </h1>
+          <p>
+            Feliz cumpleaños. Ojalá hoy te sobren las razones para sonreír, los
+            abrazos duren un poquito más y te guardes la mejor parte del pastel.
+          </p>
+          <p>
+            Deseo que este año te traiga planes que te ilusionen, días
+            tranquilos cuando los necesites y un montón de momentos que quieras
+            volver a vivir.
+          </p>
+          <p class="firma">Con mucho cariño,<br /><em>David</em></p>
+        </article>
 
         <TransitionGroup
           name="foto-pegada"
@@ -221,31 +206,22 @@ onBeforeUnmount(() => {
             :posicion="foto.posicion"
             :lado="foto.posicion === 1 ? 'izquierda' : 'derecha'"
             :data-numero-foto="foto.numero"
-            @arrastre="iniciarArrastre(foto.src)"
+            @interaccion="iniciarInteraccion(foto.src)"
+            @finalizar="finalizarInteraccion(foto.src)"
             @desprendida="desprenderFoto(foto.src)"
             @descartar="descartarFoto(foto.src)"
           />
         </TransitionGroup>
-      </article>
+      </div>
 
-      <section
-        v-if="fase === 'recuerdos'"
-        class="recuerdos"
-        :class="{ 'recuerdos--foto': !video }"
-        aria-label="Recuerdos de Milky"
-      >
-        <Transition
-          name="galeria"
-          mode="out-in"
-          appear
-          @after-enter="programarSiguienteRecuerdo"
+      <Transition name="galeria" mode="out-in">
+        <section
+          v-if="fase === 'recuerdos' && video"
+          :key="video"
+          class="recuerdos"
+          aria-label="Video de Milky"
         >
-          <div
-            v-if="video"
-            :key="video"
-            class="album"
-            data-obstaculo-sticker="video"
-          >
+          <div class="album" data-obstaculo-sticker="video">
             <figure class="polaroid">
               <div class="ventana-recuerdo">
                 <video
@@ -262,37 +238,8 @@ onBeforeUnmount(() => {
               </div>
             </figure>
           </div>
-        </Transition>
-
-        <div class="controles-fotos">
-          <button
-            class="boton-recuerdo"
-            type="button"
-            aria-label="Recuerdo anterior"
-            @click="moverRecuerdo(-1)"
-          >
-            <ChevronLeft :size="19" aria-hidden="true" />
-          </button>
-          <button
-            class="boton-recuerdo"
-            type="button"
-            :aria-label="pausada ? 'Reanudar galería' : 'Pausar galería'"
-            @click="alternarPausa"
-          >
-            <Play v-if="pausada" :size="17" aria-hidden="true" />
-            <Pause v-else :size="17" aria-hidden="true" />
-          </button>
-          <button
-            class="boton-recuerdo"
-            type="button"
-            aria-label="Recuerdo siguiente"
-            @click="moverRecuerdo(1)"
-          >
-            <ChevronRight :size="19" aria-hidden="true" />
-          </button>
-          <span class="posicion-recuerdo"> {{ posicion }} / {{ total }} </span>
-        </div>
-      </section>
+        </section>
+      </Transition>
 
       <button
         class="boton-cerrar"
@@ -541,15 +488,18 @@ onBeforeUnmount(() => {
 
 .papel,
 .album,
-.boton-recuerdo,
 .boton-cerrar {
   pointer-events: auto;
 }
 
-.papel {
+.soporte-carta {
   position: relative;
   grid-area: 1 / 2;
-  min-height: calc(var(--tamano-foto-pegada) * 2.3 + 3.6rem);
+  min-width: 0;
+}
+
+.papel {
+  position: relative;
   padding: clamp(2rem, 5vw, 3.65rem);
   border: 1px solid #e0b455;
   border-radius: 3px;
@@ -570,11 +520,11 @@ onBeforeUnmount(() => {
 }
 
 .papel h1 {
+  margin-top: 0;
   font-size: clamp(3.1rem, 6.35vw, 6rem);
   line-height: 0.98;
 }
 
-.papel .marca,
 .papel h1 em,
 .firma em {
   color: var(--rojo-tinta);
@@ -603,18 +553,10 @@ onBeforeUnmount(() => {
 }
 
 .recuerdos {
-  display: grid;
   min-width: 0;
   width: min(100%, 21rem);
   grid-area: 1 / 3;
   justify-self: center;
-  gap: 1.05rem;
-}
-
-.recuerdos--foto {
-  width: var(--tamano-foto-pegada);
-  justify-self: start;
-  margin-inline-start: calc(-0.7rem - var(--separacion-paneles));
 }
 
 .album {
@@ -661,34 +603,6 @@ onBeforeUnmount(() => {
   object-fit: contain;
 }
 
-.controles-fotos {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--oro);
-}
-
-.posicion-recuerdo {
-  padding-inline: 0.25rem;
-  font-size: 0.82rem;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.boton-recuerdo {
-  display: grid;
-  width: 2.75rem;
-  min-height: 2.75rem;
-  place-items: center;
-  border: 0;
-  border-radius: 100vw;
-  color: var(--oro);
-  background: transparent;
-  touch-action: manipulation;
-}
-
-.boton-recuerdo:hover,
 .boton-cerrar:hover {
   background: #ffda7d24;
 }
@@ -728,7 +642,7 @@ onBeforeUnmount(() => {
 }
 
 @media (min-width: 761px) and (max-width: 960px) {
-  .recuerdos:not(.recuerdos--foto) {
+  .recuerdos {
     grid-area: 2 / 2;
   }
 }
@@ -785,41 +699,16 @@ onBeforeUnmount(() => {
     grid-template-columns: minmax(0, 1fr);
     align-self: start;
     gap: 2.65rem;
+    padding-block-start: calc(var(--tamano-foto-pegada) * 1.06 + 0.35rem);
   }
 
-  .papel {
+  .soporte-carta {
     grid-area: 1 / 1;
-    min-height: 0;
-    padding-top: calc(var(--tamano-foto-pegada) * 1.06 + 3.6rem);
   }
 
   .recuerdos {
     width: min(85%, 19rem);
     grid-area: 2 / 1;
-  }
-
-  .recuerdos--foto {
-    position: absolute;
-    z-index: 3;
-    top: calc(var(--tamano-foto-pegada) * 1.06 + 0.4rem);
-    left: 50%;
-    width: max-content;
-    grid-area: auto;
-    margin: 0;
-    translate: -50% 0;
-  }
-
-  .recuerdos--foto .controles-fotos,
-  .recuerdos--foto .boton-recuerdo {
-    color: var(--rojo-tinta);
-  }
-
-  .recuerdos--foto .boton-recuerdo:focus-visible {
-    outline-color: var(--rojo-tinta);
-  }
-
-  .recuerdos--foto .posicion-recuerdo {
-    padding-inline: 0.125rem;
   }
 }
 

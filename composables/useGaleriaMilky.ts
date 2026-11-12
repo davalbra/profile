@@ -48,13 +48,12 @@ function agruparRecuerdos(recuerdos: readonly string[], capacidad: number) {
 
 export function useGaleriaMilky(recuerdos: readonly string[]) {
   const activa = ref(false)
-  const pausada = ref(false)
   const movil = ref(false)
   const ordenActivo = ref<number>()
   const videoActual = ref<HTMLVideoElement>()
   const descartadas = ref(new Set<string>())
   const desprendidas = ref(new Set<string>())
-  const arrastres = new Set<string>()
+  const interacciones = new Set<string>()
   let consulta: MediaQueryList | undefined
   let temporizador: ReturnType<typeof setTimeout> | undefined
 
@@ -79,21 +78,10 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
       ) ?? [],
   )
   const video = computed(() => grupoActivo.value?.video)
-  const posicion = computed(
-    () =>
-      navegables.value.findIndex(({ orden }) => orden === ordenActivo.value) +
-      1,
-  )
-  const total = computed(() => navegables.value.length)
 
   function cancelarTemporizador() {
     clearTimeout(temporizador)
     temporizador = undefined
-  }
-
-  function limpiarArrastres() {
-    arrastres.clear()
-    desprendidas.value.clear()
   }
 
   function iniciar() {
@@ -106,41 +94,29 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
     activa.value = false
     cancelarTemporizador()
     videoActual.value?.pause()
-    limpiarArrastres()
+    interacciones.clear()
+    desprendidas.value.clear()
     ordenActivo.value = undefined
-    pausada.value = false
   }
 
-  function mover(pasos: number) {
-    if (!activa.value || pasos === 0) return
-
+  function avanzar() {
     const anterior = ordenActivo.value
-    const indice = posicion.value - 1
-    const gruposDisponibles = navegables.value
-    const cantidad = gruposDisponibles.length
-    let origen = indice
-
-    if (indice === -1 && anterior !== undefined) {
-      origen = gruposDisponibles.filter(({ orden }) => orden < anterior).length
-      if (pasos > 0) origen--
-    }
+    if (!activa.value || anterior === undefined) return
 
     cancelarTemporizador()
-    const siguiente = cantidad
-      ? gruposDisponibles[(((origen + pasos) % cantidad) + cantidad) % cantidad]
-          ?.orden
-      : undefined
+    const siguiente = (
+      navegables.value.find(({ orden }) => orden > anterior) ??
+      navegables.value[0]
+    )?.orden
     if (anterior !== siguiente) videoActual.value?.pause()
-    limpiarArrastres()
+    interacciones.clear()
+    desprendidas.value.clear()
     ordenActivo.value = siguiente
-    if (anterior === siguiente && fotosVisibles.value.length > 0) {
-      programarSiguienteRecuerdo()
-    }
   }
 
   function programarSiguienteRecuerdo() {
     cancelarTemporizador()
-    if (!activa.value || pausada.value || arrastres.size > 0) return
+    if (!activa.value || interacciones.size > 0) return
 
     if (video.value) {
       const elemento = videoActual.value
@@ -148,7 +124,7 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
 
       if (!elemento.error) {
         if (elemento.ended) {
-          mover(1)
+          avanzar()
         } else {
           // Los controles siguen disponibles si el navegador exige un gesto.
           void elemento.play().catch(() => {})
@@ -159,40 +135,35 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
       return
     }
 
-    temporizador = setTimeout(() => mover(1), DURACION_FOTO_MS)
-  }
-
-  function alternarPausa() {
-    if (!activa.value) return
-
-    pausada.value = !pausada.value
-    if (pausada.value) videoActual.value?.pause()
-    programarSiguienteRecuerdo()
+    temporizador = setTimeout(avanzar, DURACION_FOTO_MS)
   }
 
   function terminarVideo(evento: Event) {
     if (
-      !pausada.value &&
       evento.currentTarget === videoActual.value &&
       videoActual.value?.getAttribute("src") === video.value
     ) {
-      mover(1)
+      avanzar()
     }
   }
 
-  function iniciarArrastre(src: string) {
+  function iniciarInteraccion(src: string) {
     if (!activa.value || !fotosVisibles.value.some((foto) => foto.src === src))
       return
 
-    arrastres.add(src)
+    interacciones.add(src)
     cancelarTemporizador()
   }
 
+  function finalizarInteraccion(src: string) {
+    if (interacciones.delete(src)) programarSiguienteRecuerdo()
+  }
+
   function continuarTrasQuitarFoto(src: string) {
-    arrastres.delete(src)
     if (fotosVisibles.value.length === 0) {
-      mover(1)
+      avanzar()
     } else {
+      interacciones.delete(src)
       programarSiguienteRecuerdo()
     }
   }
@@ -224,9 +195,12 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
   }
 
   function ajustarCapacidad(evento: MediaQueryListEvent) {
-    const ancla = video.value ?? fotosVisibles.value[0]?.src
+    const ancla =
+      video.value ??
+      fotosVisibles.value.find(({ src }) => interacciones.has(src))?.src ??
+      fotosVisibles.value[0]?.src
     cancelarTemporizador()
-    limpiarArrastres()
+    desprendidas.value.clear()
     movil.value = evento.matches
 
     if (activa.value) {
@@ -237,6 +211,10 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
             grupo.fotos.some(({ src }) => src === ancla),
         ) ?? navegables.value[0]
       )?.orden
+      const visibles = new Set(fotosVisibles.value.map(({ src }) => src))
+      for (const src of interacciones) {
+        if (!visibles.has(src)) interacciones.delete(src)
+      }
       programarSiguienteRecuerdo()
     }
   }
@@ -275,19 +253,15 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
   })
 
   return {
-    pausada,
     fotosVisibles,
     video,
-    posicion,
-    total,
     videoActual,
     iniciar,
     cerrar,
-    mover,
-    alternarPausa,
     programarSiguienteRecuerdo,
     terminarVideo,
-    iniciarArrastre,
+    iniciarInteraccion,
+    finalizarInteraccion,
     desprenderFoto,
     descartarFoto,
   }

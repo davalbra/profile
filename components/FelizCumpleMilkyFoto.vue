@@ -10,19 +10,22 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  arrastre: []
   descartar: []
   desprendida: []
+  finalizar: []
+  interaccion: []
 }>()
 
 const foto = ref<HTMLElement>()
+const ampliada = ref(false)
 const arrastrando = ref(false)
 const cayendo = ref(false)
 let puntero: { id: number; x: number; y: number } | undefined
 let desplazamiento = { x: 0, y: 0 }
+let esperaAmpliacion: ReturnType<typeof setTimeout> | undefined
 let caida: Animation | undefined
 
-function prepararArrastre(evento: PointerEvent) {
+function iniciarInteraccion(evento: PointerEvent) {
   const elemento = foto.value
 
   if (!elemento || puntero || cayendo.value || evento.button !== 0) return
@@ -30,12 +33,16 @@ function prepararArrastre(evento: PointerEvent) {
   evento.preventDefault()
   puntero = { id: evento.pointerId, x: evento.clientX, y: evento.clientY }
   elemento.setPointerCapture(evento.pointerId)
+  emit("interaccion")
+  esperaAmpliacion = setTimeout(() => {
+    ampliada.value = true
+  }, 340)
 }
 
 function moverFoto(evento: PointerEvent) {
   const elemento = foto.value
 
-  if (!elemento || puntero?.id !== evento.pointerId) return
+  if (!elemento || puntero?.id !== evento.pointerId || ampliada.value) return
 
   const x = evento.clientX - puntero.x
   const y = evento.clientY - puntero.y
@@ -43,9 +50,9 @@ function moverFoto(evento: PointerEvent) {
   if (!arrastrando.value) {
     if (Math.hypot(x, y) < 8) return
 
+    clearTimeout(esperaAmpliacion)
     arrastrando.value = true
     elemento.removeAttribute("data-obstaculo-sticker")
-    emit("arrastre")
   }
 
   desplazamiento = { x, y }
@@ -57,11 +64,16 @@ function soltarFoto(evento: PointerEvent) {
 
   if (!elemento || puntero?.id !== evento.pointerId) return
 
+  clearTimeout(esperaAmpliacion)
   puntero = undefined
   if (elemento.hasPointerCapture(evento.pointerId)) {
     elemento.releasePointerCapture(evento.pointerId)
   }
-  if (!arrastrando.value) return
+  if (!arrastrando.value) {
+    ampliada.value = false
+    emit("finalizar")
+    return
+  }
 
   arrastrando.value = false
   cayendo.value = true
@@ -95,7 +107,10 @@ function soltarFoto(evento: PointerEvent) {
   caida.onfinish = () => emit("desprendida")
 }
 
-onBeforeUnmount(() => caida?.cancel())
+onBeforeUnmount(() => {
+  clearTimeout(esperaAmpliacion)
+  caida?.cancel()
+})
 </script>
 
 <template>
@@ -107,12 +122,13 @@ onBeforeUnmount(() => caida?.cancel())
       `foto-pegada--posicion-${posicion}`,
       { 'foto-pegada--suelta': arrastrando || cayendo },
     ]"
-    @pointerdown="prepararArrastre"
+    @pointerdown="iniciarInteraccion"
     @pointermove="moverFoto"
     @pointerup="soltarFoto"
     @pointercancel="soltarFoto"
     @lostpointercapture="soltarFoto"
     @touchstart.prevent
+    @contextmenu.prevent
   >
     <NuxtImg
       class="foto-pegada__imagen"
@@ -127,13 +143,27 @@ onBeforeUnmount(() => caida?.cancel())
       type="button"
       class="foto-pegada__quitar"
       :aria-label="`Quitar ${alt.toLowerCase()} de esta sesión`"
-      :disabled="arrastrando || cayendo"
+      :disabled="ampliada || arrastrando || cayendo"
       @pointerdown.stop
       @touchstart.stop
       @click.stop="emit('descartar')"
     >
       <Trash2 :size="14" aria-hidden="true" />
     </button>
+
+    <Teleport to="body">
+      <div v-if="ampliada" class="foto-ampliada" aria-hidden="true">
+        <NuxtImg
+          class="foto-ampliada__imagen"
+          :src="src"
+          alt=""
+          width="960"
+          format="webp"
+          :draggable="false"
+          :modifiers="giro === undefined ? undefined : { rotate: giro }"
+        />
+      </div>
+    </Teleport>
   </figure>
 </template>
 
@@ -160,8 +190,10 @@ onBeforeUnmount(() => caida?.cancel())
   background: #fffdfa;
   box-shadow: 0 0.5rem 1.1rem rgb(36 8 12 / 27%);
   cursor: grab;
+  pointer-events: auto;
   touch-action: none;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .foto-pegada--izquierda {
@@ -179,7 +211,7 @@ onBeforeUnmount(() => caida?.cancel())
 .foto-pegada--posicion-2 {
   --giro-foto: -5deg;
   top: auto;
-  bottom: 0.4rem;
+  bottom: -0.4rem;
 }
 
 .foto-pegada::before {
@@ -265,6 +297,28 @@ onBeforeUnmount(() => caida?.cancel())
   visibility: hidden;
 }
 
+.foto-ampliada {
+  position: fixed;
+  z-index: 100;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgb(16 13 15 / 83%);
+  pointer-events: none;
+}
+
+.foto-ampliada__imagen {
+  box-sizing: border-box;
+  width: auto;
+  height: auto;
+  max-width: min(85vw, 56rem);
+  max-height: min(80dvh, 50rem);
+  padding: clamp(0.3rem, 1vw, 0.65rem);
+  border-radius: 0.25rem;
+  background: #fffdfa;
+  object-fit: contain;
+}
+
 .foto-pegada-enter-active {
   animation: pegar-foto 760ms both;
   pointer-events: none;
@@ -303,8 +357,9 @@ onBeforeUnmount(() => caida?.cancel())
 @media (max-width: 760px) {
   .foto-pegada {
     --giro-foto: 5deg;
-    top: -0.5rem;
+    top: auto;
     right: 0.75rem;
+    bottom: calc(100% - 0.55rem);
     left: auto;
   }
 
@@ -315,14 +370,17 @@ onBeforeUnmount(() => caida?.cancel())
   }
 
   .foto-pegada::before {
-    top: 0;
+    top: auto;
+    bottom: 0;
     left: 40%;
     width: 45%;
+    transform: translate(-50%, 42%) rotate(-13deg);
   }
 
   .foto-pegada--posicion-1::before {
     right: 40%;
     left: auto;
+    transform: translate(50%, 42%) rotate(13deg);
   }
 }
 
