@@ -8,10 +8,11 @@ import {
   Play,
   RotateCcw,
 } from "lucide-vue-next"
+import FelizCumpleMilkyFoto from "@/components/FelizCumpleMilkyFoto.vue"
 import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
 
-const DURACION_FOTO_MS = 5000
+const DURACION_FOTO_MS = 4000
 const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
@@ -92,6 +93,15 @@ function programarSiguienteRecuerdo() {
   temporizadorRecuerdo = window.setTimeout(() => {
     moverRecuerdo(1)
   }, DURACION_FOTO_MS)
+}
+
+function alPegarFoto(elemento: Element) {
+  elemento.setAttribute("data-obstaculo-sticker", "foto-pegada")
+  programarSiguienteRecuerdo()
+}
+
+function alDespegarFoto(elemento: Element) {
+  elemento.removeAttribute("data-obstaculo-sticker")
 }
 
 function moverRecuerdo(pasos: number) {
@@ -231,79 +241,91 @@ onBeforeUnmount(() => {
           vivir.
         </p>
         <p class="firma">Con mucho cariño,<br /><em>David</em></p>
+
+        <Transition
+          name="foto-pegada"
+          mode="out-in"
+          @after-enter="alPegarFoto"
+          @before-leave="alDespegarFoto"
+        >
+          <FelizCumpleMilkyFoto
+            v-if="fase === 'recuerdos' && !esVideo"
+            :key="recuerdo"
+            :src="recuerdo"
+            :alt="`Foto de Milky, recuerdo ${recuerdoActivo + 1}`"
+            :giro="girosFotos[recuerdo]"
+            :lado="recuerdoActivo % 2 === 0 ? 'izquierda' : 'derecha'"
+          />
+        </Transition>
       </article>
 
-      <Transition name="galeria" @after-enter="programarSiguienteRecuerdo">
-        <section
-          v-if="fase === 'recuerdos'"
-          class="recuerdos"
-          aria-label="Recuerdos de Milky"
+      <section
+        v-if="fase === 'recuerdos'"
+        class="recuerdos"
+        :class="{ 'recuerdos--foto': !esVideo }"
+        aria-label="Recuerdos de Milky"
+      >
+        <Transition
+          name="galeria"
+          mode="out-in"
+          appear
+          @after-enter="programarSiguienteRecuerdo"
         >
-          <div class="album" data-obstaculo-sticker="fotos">
-            <Transition
-              name="foto"
-              mode="out-in"
-              @after-enter="programarSiguienteRecuerdo"
-            >
-              <figure :key="recuerdo" class="polaroid">
-                <div class="ventana-recuerdo">
-                  <video
-                    v-if="esVideo"
-                    ref="videoActual"
-                    :src="recuerdo"
-                    :aria-label="`Video de Milky, recuerdo ${recuerdoActivo + 1}`"
-                    controls
-                    muted
-                    playsinline
-                    preload="metadata"
-                    @ended="terminarVideo"
-                    @error="programarSiguienteRecuerdo"
-                  />
-                  <NuxtImg
-                    v-else
-                    :src="recuerdo"
-                    :alt="`Foto de Milky, recuerdo ${recuerdoActivo + 1}`"
-                    width="720"
-                    format="webp"
-                    :modifiers="{ rotate: girosFotos[recuerdo] }"
-                  />
-                </div>
-                <figcaption>
-                  {{ recuerdoActivo + 1 }} / {{ recuerdos.length }}
-                </figcaption>
-              </figure>
-            </Transition>
+          <div
+            v-if="esVideo"
+            :key="recuerdo"
+            class="album"
+            data-obstaculo-sticker="video"
+          >
+            <figure class="polaroid">
+              <div class="ventana-recuerdo">
+                <video
+                  ref="videoActual"
+                  :src="recuerdo"
+                  :aria-label="`Video de Milky, recuerdo ${recuerdoActivo + 1}`"
+                  controls
+                  muted
+                  playsinline
+                  preload="metadata"
+                  @ended="terminarVideo"
+                  @error="programarSiguienteRecuerdo"
+                />
+              </div>
+            </figure>
           </div>
+        </Transition>
 
-          <div class="controles-fotos">
-            <button
-              class="boton-recuerdo"
-              type="button"
-              aria-label="Recuerdo anterior"
-              @click="moverRecuerdo(-1)"
-            >
-              <ChevronLeft :size="19" aria-hidden="true" />
-            </button>
-            <button
-              class="boton-recuerdo"
-              type="button"
-              :aria-label="pausada ? 'Reanudar galería' : 'Pausar galería'"
-              @click="alternarPausa"
-            >
-              <Play v-if="pausada" :size="17" aria-hidden="true" />
-              <Pause v-else :size="17" aria-hidden="true" />
-            </button>
-            <button
-              class="boton-recuerdo"
-              type="button"
-              aria-label="Recuerdo siguiente"
-              @click="moverRecuerdo(1)"
-            >
-              <ChevronRight :size="19" aria-hidden="true" />
-            </button>
-          </div>
-        </section>
-      </Transition>
+        <div class="controles-fotos">
+          <button
+            class="boton-recuerdo"
+            type="button"
+            aria-label="Recuerdo anterior"
+            @click="moverRecuerdo(-1)"
+          >
+            <ChevronLeft :size="19" aria-hidden="true" />
+          </button>
+          <button
+            class="boton-recuerdo"
+            type="button"
+            :aria-label="pausada ? 'Reanudar galería' : 'Pausar galería'"
+            @click="alternarPausa"
+          >
+            <Play v-if="pausada" :size="17" aria-hidden="true" />
+            <Pause v-else :size="17" aria-hidden="true" />
+          </button>
+          <button
+            class="boton-recuerdo"
+            type="button"
+            aria-label="Recuerdo siguiente"
+            @click="moverRecuerdo(1)"
+          >
+            <ChevronRight :size="19" aria-hidden="true" />
+          </button>
+          <span class="posicion-recuerdo">
+            {{ recuerdoActivo + 1 }} / {{ recuerdos.length }}
+          </span>
+        </div>
+      </section>
 
       <button
         class="boton-cerrar"
@@ -537,13 +559,15 @@ onBeforeUnmount(() => {
 }
 
 .carta-abierta {
+  --tamano-foto-pegada: clamp(8rem, 13vw, 11rem);
+  --separacion-paneles: clamp(2.5rem, 7vw, 6.5rem);
   position: relative;
   z-index: 2;
   display: grid;
   width: min(100%, 65rem);
   grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.85fr);
   align-items: center;
-  gap: 2rem clamp(2.5rem, 7vw, 6.5rem);
+  gap: 2rem var(--separacion-paneles);
   animation: revelar 500ms ease-out both;
   pointer-events: none;
 }
@@ -617,6 +641,14 @@ onBeforeUnmount(() => {
   gap: 1.05rem;
 }
 
+.recuerdos--foto {
+  width: max-content;
+  align-self: start;
+  justify-self: start;
+  margin-top: calc(var(--tamano-foto-pegada) * 1.06 + 1rem);
+  margin-inline-start: calc(-0.7rem - var(--separacion-paneles));
+}
+
 .album {
   position: relative;
   isolation: isolate;
@@ -654,7 +686,6 @@ onBeforeUnmount(() => {
   background: #321820;
 }
 
-.ventana-recuerdo img,
 .ventana-recuerdo video {
   display: block;
   width: 100%;
@@ -662,21 +693,19 @@ onBeforeUnmount(() => {
   object-fit: contain;
 }
 
-.polaroid figcaption {
-  padding: 0.5rem 0.4rem 0.2rem;
-  color: var(--rojo-tinta);
-  font-family: var(--serif);
-  font-size: clamp(1.4rem, 3vw, 1.95rem);
-  font-style: italic;
-  font-weight: 600;
-  line-height: 1.2;
-  text-align: center;
-}
-
 .controles-fotos {
   display: flex;
   align-items: center;
   justify-content: center;
+  color: var(--oro);
+}
+
+.posicion-recuerdo {
+  padding-inline: 0.25rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .boton-recuerdo {
@@ -720,23 +749,6 @@ onBeforeUnmount(() => {
 .galeria-enter-from {
   opacity: 0;
   transform: translateY(26px) rotate(-7deg) scale(0.92);
-}
-
-.foto-enter-active,
-.foto-leave-active {
-  transition:
-    opacity 300ms ease,
-    transform 300ms ease;
-}
-
-.foto-enter-from {
-  opacity: 0;
-  transform: translate(12px, 8px) rotate(4deg) scale(0.96);
-}
-
-.foto-leave-to {
-  opacity: 0;
-  transform: translate(-12px, -8px) rotate(-4deg) scale(0.96);
 }
 
 @keyframes revelar {
@@ -793,22 +805,47 @@ onBeforeUnmount(() => {
   }
 
   .carta-abierta {
+    --tamano-foto-pegada: clamp(4.65rem, 22vw, 5.65rem);
     max-width: 30rem;
     grid-template-columns: minmax(0, 1fr);
     align-self: start;
     gap: 2.65rem;
   }
 
+  .papel {
+    padding-top: calc(var(--tamano-foto-pegada) + 1.2rem);
+  }
+
   .recuerdos {
     width: min(85%, 19rem);
+  }
+
+  .recuerdos--foto {
+    position: absolute;
+    z-index: 3;
+    top: 0.8rem;
+    left: 0.65rem;
+    width: max-content;
+    margin: 0;
+  }
+
+  .recuerdos--foto .controles-fotos,
+  .recuerdos--foto .boton-recuerdo {
+    color: var(--rojo-tinta);
+  }
+
+  .recuerdos--foto .boton-recuerdo:focus-visible {
+    outline-color: var(--rojo-tinta);
+  }
+
+  .recuerdos--foto .posicion-recuerdo {
+    padding-inline: 0.125rem;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .boton-sobre,
-  .galeria-enter-active,
-  .foto-enter-active,
-  .foto-leave-active {
+  .galeria-enter-active {
     transition: none;
   }
 
