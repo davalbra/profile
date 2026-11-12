@@ -6,7 +6,6 @@ defineProps<{
   alt: string
   tipo: "foto" | "video"
   poster?: string
-  giro?: number
   lado: "izquierda" | "derecha"
   borde: "superior" | "inferior" | "izquierdo" | "derecho"
 }>()
@@ -151,15 +150,12 @@ onBeforeUnmount(() => {
     @touchstart.prevent
     @contextmenu.prevent
   >
-    <NuxtImg
+    <img
       v-if="tipo === 'foto'"
       class="foto-pegada__imagen"
-      :src="src"
+      :src="`${src}?ancho=420`"
       :alt="alt"
-      width="420"
-      format="webp"
       :draggable="false"
-      :modifiers="giro === undefined ? undefined : { rotate: giro }"
     />
     <template v-else>
       <img
@@ -205,15 +201,12 @@ onBeforeUnmount(() => {
     </button>
 
     <div v-if="ampliada" class="foto-ampliada" aria-hidden="true">
-      <NuxtImg
+      <img
         v-if="tipo === 'foto'"
         class="foto-ampliada__imagen"
-        :src="src"
+        :src="`${src}?ancho=960`"
         alt=""
-        width="960"
-        format="webp"
         :draggable="false"
-        :modifiers="giro === undefined ? undefined : { rotate: giro }"
       />
       <img
         v-else-if="!mostrarVideo && poster"

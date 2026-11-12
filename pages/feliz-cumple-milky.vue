@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Heart, RotateCcw } from "lucide-vue-next"
+import { Heart, LockKeyhole, RotateCcw } from "lucide-vue-next"
 import FelizCumpleMilkyFoto from "@/components/FelizCumpleMilkyFoto.vue"
 import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
@@ -10,24 +10,39 @@ const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
 const imagenStickersCaida = "/milky-stickers-caida.webp"
 const recuerdos = [
-  "/milky/fotos/IMG-20261107-WA0016.jpg",
-  "/milky/fotos/IMG-20261107-WA0039.jpg",
-  "/milky/fotos/20260224_214339.jpg",
-  "/milky/fotos/IMG_20260109_160406.jpg",
-  "/milky/fotos/20260726_170146.jpg",
-  "/milky/videos/VID-20261108-WA0002_1.mp4",
-  "/milky/fotos/20260224_231154.jpg",
-  "/milky/fotos/IMG_20260125_232003.jpg",
-  "/milky/videos/VID_20260125_232007.mp4",
-  "/milky/fotos/IMG_20260109_165155.jpg",
-  "/milky/fotos/IMG_20260116_225728.jpg",
-  "/milky/fotos/IMG_20260205_003010.jpg",
-]
-const girosFotos: Record<string, number> = {
-  "/milky/fotos/20260224_214339.jpg": 90,
-  "/milky/fotos/20260726_170146.jpg": 90,
-  "/milky/fotos/20260224_231154.jpg": 270,
+  "fotos/IMG-20261107-WA0016.jpg",
+  "fotos/IMG-20261107-WA0039.jpg",
+  "fotos/20260224_214339.jpg",
+  "fotos/IMG_20260109_160406.jpg",
+  "fotos/20260726_170146.jpg",
+  "videos/VID-20261108-WA0002_1.mp4",
+  "fotos/20260224_231154.jpg",
+  "fotos/IMG_20260125_232003.jpg",
+  "videos/VID_20260125_232007.mp4",
+  "fotos/IMG_20260109_165155.jpg",
+  "fotos/IMG_20260116_225728.jpg",
+  "fotos/IMG_20260205_003010.jpg",
+].map((archivo) => `/api/milky/media/${archivo}`)
+
+type AccesoMilky =
+  | { autorizado: false }
+  | {
+      autorizado: true
+      nota: { parrafos: string[]; despedida: string; firma: string }
+    }
+
+if (import.meta.server) {
+  useResponseHeader("Cache-Control").value = "private, no-store"
 }
+
+const { data: acceso } = await useFetch<AccesoMilky>("/api/milky/access")
+const nota = computed(() =>
+  acceso.value?.autorizado ? acceso.value.nota : null,
+)
+const password = ref("")
+const comprobando = ref(false)
+const errorAcceso = ref("")
+const campoPassword = ref<HTMLInputElement>()
 
 const fase = ref<"sobre" | "abriendo" | "nota" | "recuerdos">("sobre")
 const abriendo = computed(() => fase.value === "abriendo")
@@ -56,18 +71,49 @@ let temporizadorRecuerdos: number | undefined
 useSeoMeta({
   title: "Feliz cumple, Milky",
   description: "Una carta de cumpleaños para Milky.",
+  robots: "noindex, nofollow",
 })
 
-useHead({
+useHead(() => ({
   link: [
-    { rel: "preload", as: "image", href: imagenStickersCaida },
+    ...(nota.value
+      ? [{ rel: "preload", as: "image" as const, href: imagenStickersCaida }]
+      : []),
     { rel: "preconnect", href: "https://fonts.gstatic.com", crossorigin: "" },
     {
       rel: "stylesheet",
       href: "https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,600;1,600&family=DM+Sans:wght@400;600&display=swap",
     },
   ],
-})
+}))
+
+async function validarAcceso() {
+  if (comprobando.value || !password.value) return
+
+  comprobando.value = true
+  errorAcceso.value = ""
+  try {
+    acceso.value = await $fetch<AccesoMilky>("/api/milky/access", {
+      method: "POST",
+      body: { password: password.value },
+    })
+    password.value = ""
+    await nextTick()
+    botonSobre.value?.focus()
+  } catch (error) {
+    const incorrecta =
+      typeof error === "object" &&
+      error !== null &&
+      "statusCode" in error &&
+      error.statusCode === 401
+    errorAcceso.value = incorrecta
+      ? "La contraseña es incorrecta."
+      : "No pudimos comprobar la contraseña. Intenta de nuevo."
+    campoPassword.value?.select()
+  } finally {
+    comprobando.value = false
+  }
+}
 
 function alPegarFoto(elemento: Element) {
   const numero = elemento.getAttribute("data-numero-foto")
@@ -124,7 +170,41 @@ onBeforeUnmount(() => {
 
 <template>
   <main class="cumple" :class="{ 'cumple--abierta': abierta }">
-    <section v-if="!abierta" class="portada" aria-labelledby="titulo-portada">
+    <section v-if="!nota" class="acceso" aria-labelledby="titulo-acceso">
+      <LockKeyhole class="acceso-icono" :size="26" aria-hidden="true" />
+      <h1 id="titulo-acceso">Carta para <em>Milky</em></h1>
+      <form
+        method="post"
+        :aria-busy="comprobando"
+        @submit.prevent="validarAcceso"
+      >
+        <label for="clave-carta">Contraseña</label>
+        <input
+          id="clave-carta"
+          ref="campoPassword"
+          v-model="password"
+          type="password"
+          name="password"
+          autocomplete="current-password"
+          maxlength="256"
+          required
+          :aria-invalid="Boolean(errorAcceso)"
+          :aria-describedby="errorAcceso ? 'error-acceso' : undefined"
+        />
+        <p v-if="errorAcceso" id="error-acceso" role="alert">
+          {{ errorAcceso }}
+        </p>
+        <button type="submit" :disabled="comprobando">
+          {{ comprobando ? "Comprobando…" : "Entrar" }}
+        </button>
+      </form>
+    </section>
+
+    <section
+      v-else-if="!abierta"
+      class="portada"
+      aria-labelledby="titulo-portada"
+    >
       <div class="portada-texto">
         <div class="marca" aria-hidden="true">
           <span />
@@ -166,16 +246,10 @@ onBeforeUnmount(() => {
           <h1 id="titulo-carta" ref="tituloCarta" tabindex="-1">
             Querida <em>Milky,</em>
           </h1>
-          <p>
-            Feliz cumpleaños. Ojalá hoy te sobren las razones para sonreír, los
-            abrazos duren un poquito más y te guardes la mejor parte del pastel.
+          <p v-for="parrafo in nota.parrafos" :key="parrafo">{{ parrafo }}</p>
+          <p class="firma">
+            {{ nota.despedida }}<br /><em>{{ nota.firma }}</em>
           </p>
-          <p>
-            Deseo que este año te traiga planes que te ilusionen, días
-            tranquilos cuando los necesites y un montón de momentos que quieras
-            volver a vivir.
-          </p>
-          <p class="firma">Con mucho cariño,<br /><em>David</em></p>
         </article>
 
         <TransitionGroup
@@ -194,7 +268,6 @@ onBeforeUnmount(() => {
                 : undefined
             "
             :alt="`${medio.tipo === 'video' ? 'Video' : 'Foto'} de Milky, recuerdo ${medio.numero}`"
-            :giro="girosFotos[medio.src]"
             :borde="medio.borde"
             :lado="
               medio.borde === 'izquierdo' || medio.borde === 'superior'
@@ -225,7 +298,7 @@ onBeforeUnmount(() => {
     </section>
 
     <FelizCumpleMilkyStickers
-      v-if="abierta"
+      v-if="nota && abierta"
       :imagen="imagenStickersCaida"
       :origen="origenStickers"
     />
@@ -284,6 +357,73 @@ onBeforeUnmount(() => {
   border-radius: 0.75rem;
   content: "";
   pointer-events: none;
+}
+
+.acceso {
+  display: grid;
+  width: min(100%, 24rem);
+  gap: 1.25rem;
+  padding: clamp(1.35rem, 5vw, 2.65rem);
+  border: 1px solid #ffda7d73;
+  border-radius: 0.75rem;
+  background: #210e15;
+  box-shadow: 0 20px 56px #0007;
+}
+
+.acceso-icono {
+  justify-self: center;
+  color: var(--oro);
+}
+
+.acceso h1 {
+  margin: 0;
+  font: 600 clamp(2.4rem, 7vw, 3.4rem) / 1 var(--serif);
+  text-align: center;
+}
+
+.acceso h1 em {
+  color: var(--rojo);
+}
+
+.acceso form {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.acceso input,
+.acceso button {
+  min-height: 2.85rem;
+  padding: 0.55rem 0.9rem;
+  border: 1px solid #ffda7d73;
+  border-radius: 0.45rem;
+}
+
+.acceso input {
+  width: 100%;
+  color: var(--blanco);
+  background: var(--carbon);
+}
+
+.acceso input:focus-visible {
+  outline: 2px solid var(--oro);
+  outline-offset: 2px;
+}
+
+.acceso button {
+  color: var(--tinta);
+  background: var(--oro);
+  font-weight: 600;
+}
+
+.acceso button:disabled {
+  cursor: wait;
+  opacity: 0.7;
+}
+
+.acceso p {
+  margin: 0;
+  color: #ffadb9;
+  font-size: 0.9rem;
 }
 
 .portada {
