@@ -1,5 +1,13 @@
 <script setup lang="ts">
-import { ArrowDown, Heart, Pause, Play, RotateCcw } from "lucide-vue-next"
+import {
+  ArrowDown,
+  ChevronLeft,
+  ChevronRight,
+  Heart,
+  Pause,
+  Play,
+  RotateCcw,
+} from "lucide-vue-next"
 import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
 
@@ -8,22 +16,25 @@ const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
 const imagenStickersCaida = "/milky-stickers-caida.webp"
-const imagenRecuerdos = "/milky-recuerdos.webp"
-
-const fotos = [
-  {
-    descripcion: "Pastel de cumpleaños con velas rosas encendidas",
-    nota: "Pide un deseo",
-  },
-  {
-    descripcion: "Ramo de flores rosadas y margaritas al sol",
-    nota: "Flores para ti",
-  },
-  {
-    descripcion: "Atardecer rosa sobre las montañas",
-    nota: "Por más días así",
-  },
+const recuerdos = [
+  "/milky/fotos/IMG-20261107-WA0016.jpg",
+  "/milky/fotos/IMG-20261107-WA0039.jpg",
+  "/milky/fotos/20260224_214339.jpg",
+  "/milky/fotos/IMG_20260109_160406.jpg",
+  "/milky/fotos/20260726_170146.jpg",
+  "/milky/videos/VID-20261108-WA0002_1.mp4",
+  "/milky/fotos/20260224_231154.jpg",
+  "/milky/fotos/IMG_20260125_232003.jpg",
+  "/milky/videos/VID_20260125_232007.mp4",
+  "/milky/fotos/IMG_20260109_165155.jpg",
+  "/milky/fotos/IMG_20260116_225728.jpg",
+  "/milky/fotos/IMG_20260205_003010.jpg",
 ]
+const girosFotos: Record<string, number> = {
+  "/milky/fotos/20260224_214339.jpg": 90,
+  "/milky/fotos/20260726_170146.jpg": 90,
+  "/milky/fotos/20260224_231154.jpg": 270,
+}
 
 const fase = ref<"sobre" | "abriendo" | "nota" | "recuerdos">("sobre")
 const abriendo = computed(() => fase.value === "abriendo")
@@ -31,15 +42,17 @@ const abierta = computed(
   () => fase.value === "nota" || fase.value === "recuerdos",
 )
 const pausada = ref(false)
-const fotoActiva = ref(0)
-const foto = computed(() => fotos[fotoActiva.value]!)
+const recuerdoActivo = ref(0)
+const recuerdo = computed(() => recuerdos[recuerdoActivo.value]!)
+const esVideo = computed(() => recuerdo.value.endsWith(".mp4"))
+const videoActual = ref<HTMLVideoElement>()
 const tituloCarta = ref<HTMLHeadingElement>()
 const botonAbrir = ref<HTMLButtonElement>()
 const botonSobre = ref<HTMLButtonElement>()
 const origenStickers = ref<{ x: number; y: number } | null>(null)
 let temporizadorApertura: number | undefined
 let temporizadorRecuerdos: number | undefined
-let temporizadorFoto: number | undefined
+let temporizadorRecuerdo: number | undefined
 
 useSeoMeta({
   title: "Feliz cumple, Milky",
@@ -57,25 +70,47 @@ useHead({
   ],
 })
 
-function programarSiguienteFoto() {
-  window.clearTimeout(temporizadorFoto)
+function programarSiguienteRecuerdo() {
+  window.clearTimeout(temporizadorRecuerdo)
   if (fase.value !== "recuerdos" || pausada.value) return
 
-  temporizadorFoto = window.setTimeout(() => {
-    mostrarFoto((fotoActiva.value + 1) % fotos.length)
+  if (esVideo.value) {
+    const video = videoActual.value
+    if (!video || video.getAttribute("src") !== recuerdo.value) return
+
+    if (!video.error) {
+      if (video.ended) {
+        moverRecuerdo(1)
+      } else {
+        // Los controles nativos siguen disponibles si el navegador exige un gesto.
+        void video.play().catch(() => {})
+      }
+      return
+    }
+  }
+
+  temporizadorRecuerdo = window.setTimeout(() => {
+    moverRecuerdo(1)
   }, DURACION_FOTO_MS)
 }
 
-function mostrarFoto(indice: number) {
-  if (indice === fotoActiva.value) return
-
-  window.clearTimeout(temporizadorFoto)
-  fotoActiva.value = indice
+function moverRecuerdo(pasos: number) {
+  window.clearTimeout(temporizadorRecuerdo)
+  videoActual.value?.pause()
+  recuerdoActivo.value =
+    (recuerdoActivo.value + pasos + recuerdos.length) % recuerdos.length
 }
 
 function alternarPausa() {
   pausada.value = !pausada.value
-  programarSiguienteFoto()
+  if (pausada.value) videoActual.value?.pause()
+  programarSiguienteRecuerdo()
+}
+
+function terminarVideo(evento: Event) {
+  if (pausada.value || evento.currentTarget !== videoActual.value) return
+  if (videoActual.value?.getAttribute("src") === recuerdo.value)
+    moverRecuerdo(1)
 }
 
 async function mostrarCarta() {
@@ -106,10 +141,11 @@ function abrirCarta() {
 
 async function cerrarCarta() {
   window.clearTimeout(temporizadorRecuerdos)
-  window.clearTimeout(temporizadorFoto)
+  window.clearTimeout(temporizadorRecuerdo)
+  videoActual.value?.pause()
   fase.value = "sobre"
   pausada.value = false
-  fotoActiva.value = 0
+  recuerdoActivo.value = 0
   await nextTick()
   botonAbrir.value?.focus()
 }
@@ -118,7 +154,8 @@ onBeforeUnmount(() => {
   if (import.meta.client) {
     window.clearTimeout(temporizadorApertura)
     window.clearTimeout(temporizadorRecuerdos)
-    window.clearTimeout(temporizadorFoto)
+    window.clearTimeout(temporizadorRecuerdo)
+    videoActual.value?.pause()
   }
 })
 </script>
@@ -196,57 +233,73 @@ onBeforeUnmount(() => {
         <p class="firma">Con mucho cariño,<br /><em>David</em></p>
       </article>
 
-      <Transition name="galeria" @after-enter="programarSiguienteFoto">
+      <Transition name="galeria" @after-enter="programarSiguienteRecuerdo">
         <section
           v-if="fase === 'recuerdos'"
           class="recuerdos"
-          aria-label="Fotos de cumpleaños"
+          aria-label="Recuerdos de Milky"
         >
           <div class="album" data-obstaculo-sticker="fotos">
             <Transition
               name="foto"
               mode="out-in"
-              @after-enter="programarSiguienteFoto"
+              @after-enter="programarSiguienteRecuerdo"
             >
-              <figure :key="fotoActiva" class="polaroid">
-                <div
-                  class="ventana-foto"
-                  role="img"
-                  :aria-label="foto.descripcion"
-                >
-                  <img
-                    :src="imagenRecuerdos"
-                    alt=""
-                    :style="{
-                      translate: `${(-100 * fotoActiva) / fotos.length}%`,
-                    }"
+              <figure :key="recuerdo" class="polaroid">
+                <div class="ventana-recuerdo">
+                  <video
+                    v-if="esVideo"
+                    ref="videoActual"
+                    :src="recuerdo"
+                    :aria-label="`Video de Milky, recuerdo ${recuerdoActivo + 1}`"
+                    controls
+                    muted
+                    playsinline
+                    preload="metadata"
+                    @ended="terminarVideo"
+                    @error="programarSiguienteRecuerdo"
+                  />
+                  <NuxtImg
+                    v-else
+                    :src="recuerdo"
+                    :alt="`Foto de Milky, recuerdo ${recuerdoActivo + 1}`"
+                    width="720"
+                    format="webp"
+                    :modifiers="{ rotate: girosFotos[recuerdo] }"
                   />
                 </div>
-                <figcaption>{{ foto.nota }}</figcaption>
+                <figcaption>
+                  {{ recuerdoActivo + 1 }} / {{ recuerdos.length }}
+                </figcaption>
               </figure>
             </Transition>
           </div>
 
           <div class="controles-fotos">
             <button
-              v-for="(elemento, indice) in fotos"
-              :key="elemento.nota"
-              class="boton-foto"
+              class="boton-recuerdo"
               type="button"
-              :aria-label="`Ver foto: ${elemento.nota}`"
-              :aria-current="fotoActiva === indice ? 'true' : undefined"
-              @click="mostrarFoto(indice)"
+              aria-label="Recuerdo anterior"
+              @click="moverRecuerdo(-1)"
             >
-              <span />
+              <ChevronLeft :size="19" aria-hidden="true" />
             </button>
             <button
-              class="boton-pausa"
+              class="boton-recuerdo"
               type="button"
-              :aria-label="pausada ? 'Reanudar fotos' : 'Pausar fotos'"
+              :aria-label="pausada ? 'Reanudar galería' : 'Pausar galería'"
               @click="alternarPausa"
             >
               <Play v-if="pausada" :size="17" aria-hidden="true" />
               <Pause v-else :size="17" aria-hidden="true" />
+            </button>
+            <button
+              class="boton-recuerdo"
+              type="button"
+              aria-label="Recuerdo siguiente"
+              @click="moverRecuerdo(1)"
+            >
+              <ChevronRight :size="19" aria-hidden="true" />
             </button>
           </div>
         </section>
@@ -497,8 +550,7 @@ onBeforeUnmount(() => {
 
 .papel,
 .album,
-.boton-foto,
-.boton-pausa,
+.boton-recuerdo,
 .boton-cerrar {
   pointer-events: auto;
 }
@@ -596,18 +648,18 @@ onBeforeUnmount(() => {
   box-shadow: 0 14px 38px #00000063;
 }
 
-.ventana-foto {
+.ventana-recuerdo {
   overflow: hidden;
   aspect-ratio: 1;
   background: #321820;
 }
 
-.ventana-foto img {
+.ventana-recuerdo img,
+.ventana-recuerdo video {
   display: block;
-  width: 300%;
-  max-width: none;
+  width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 
 .polaroid figcaption {
@@ -627,10 +679,9 @@ onBeforeUnmount(() => {
   justify-content: center;
 }
 
-.boton-foto,
-.boton-pausa {
+.boton-recuerdo {
   display: grid;
-  width: 2rem;
+  width: 2.75rem;
   min-height: 2.75rem;
   place-items: center;
   border: 0;
@@ -639,19 +690,7 @@ onBeforeUnmount(() => {
   background: transparent;
 }
 
-.boton-foto span {
-  width: 0.65rem;
-  height: 0.65rem;
-  border: 1px solid currentColor;
-  border-radius: 50%;
-}
-
-.boton-foto[aria-current="true"] span {
-  background: currentColor;
-}
-
-.boton-foto:hover,
-.boton-pausa:hover,
+.boton-recuerdo:hover,
 .boton-cerrar:hover {
   background: #ffda7d24;
 }
