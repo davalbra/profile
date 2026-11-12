@@ -1,22 +1,139 @@
 <script setup lang="ts">
+import { Trash2 } from "lucide-vue-next"
+
 defineProps<{
   src: string
   alt: string
   giro?: number
   lado: "izquierda" | "derecha"
+  posicion: number
 }>()
+
+const emit = defineEmits<{
+  arrastre: []
+  descartar: []
+  desprendida: []
+}>()
+
+const foto = ref<HTMLElement>()
+const arrastrando = ref(false)
+const cayendo = ref(false)
+let puntero: { id: number; x: number; y: number } | undefined
+let desplazamiento = { x: 0, y: 0 }
+let caida: Animation | undefined
+
+function prepararArrastre(evento: PointerEvent) {
+  const elemento = foto.value
+
+  if (!elemento || puntero || cayendo.value || evento.button !== 0) return
+
+  evento.preventDefault()
+  puntero = { id: evento.pointerId, x: evento.clientX, y: evento.clientY }
+  elemento.setPointerCapture(evento.pointerId)
+}
+
+function moverFoto(evento: PointerEvent) {
+  const elemento = foto.value
+
+  if (!elemento || puntero?.id !== evento.pointerId) return
+
+  const x = evento.clientX - puntero.x
+  const y = evento.clientY - puntero.y
+
+  if (!arrastrando.value) {
+    if (Math.hypot(x, y) < 8) return
+
+    arrastrando.value = true
+    elemento.removeAttribute("data-obstaculo-sticker")
+    emit("arrastre")
+  }
+
+  desplazamiento = { x, y }
+  elemento.style.translate = `${x}px ${y}px`
+}
+
+function soltarFoto(evento: PointerEvent) {
+  const elemento = foto.value
+
+  if (!elemento || puntero?.id !== evento.pointerId) return
+
+  puntero = undefined
+  if (elemento.hasPointerCapture(evento.pointerId)) {
+    elemento.releasePointerCapture(evento.pointerId)
+  }
+  if (!arrastrando.value) return
+
+  arrastrando.value = false
+  cayendo.value = true
+
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    elemento.style.opacity = "0"
+    emit("desprendida")
+    return
+  }
+
+  const { x, y } = desplazamiento
+  const marco = elemento.getBoundingClientRect()
+  const distancia = Math.max(window.innerHeight - marco.top + marco.height, 120)
+  const direccion = x < 0 ? -1 : 1
+
+  caida = elemento.animate(
+    [
+      { translate: `${x}px ${y}px`, rotate: "0deg", opacity: 1 },
+      {
+        translate: `${x + 48 * direccion}px ${y + distancia}px`,
+        rotate: `${55 * direccion}deg`,
+        opacity: 0,
+      },
+    ],
+    {
+      duration: 570,
+      easing: "cubic-bezier(0.5, 0, 0.9, 0.65)",
+      fill: "forwards",
+    },
+  )
+  caida.onfinish = () => emit("desprendida")
+}
+
+onBeforeUnmount(() => caida?.cancel())
 </script>
 
 <template>
-  <figure class="foto-pegada" :class="`foto-pegada--${lado}`">
+  <figure
+    ref="foto"
+    class="foto-pegada"
+    :class="[
+      `foto-pegada--${lado}`,
+      `foto-pegada--posicion-${posicion}`,
+      { 'foto-pegada--suelta': arrastrando || cayendo },
+    ]"
+    @pointerdown="prepararArrastre"
+    @pointermove="moverFoto"
+    @pointerup="soltarFoto"
+    @pointercancel="soltarFoto"
+    @lostpointercapture="soltarFoto"
+    @touchstart.prevent
+  >
     <NuxtImg
       class="foto-pegada__imagen"
       :src="src"
       :alt="alt"
       width="420"
       format="webp"
+      :draggable="false"
       :modifiers="giro === undefined ? undefined : { rotate: giro }"
     />
+    <button
+      type="button"
+      class="foto-pegada__quitar"
+      :aria-label="`Quitar ${alt.toLowerCase()} de esta sesión`"
+      :disabled="arrastrando || cayendo"
+      @pointerdown.stop
+      @touchstart.stop
+      @click.stop="emit('descartar')"
+    >
+      <Trash2 :size="14" aria-hidden="true" />
+    </button>
   </figure>
 </template>
 
@@ -28,7 +145,7 @@ defineProps<{
   position: absolute;
   z-index: 2;
   top: 0.4rem;
-  left: calc(100% - 0.7rem);
+  left: calc(100% - 0.8rem);
   box-sizing: border-box;
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
@@ -42,11 +159,27 @@ defineProps<{
   border-radius: 0.2rem;
   background: #fffdfa;
   box-shadow: 0 0.5rem 1.1rem rgb(36 8 12 / 27%);
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
 .foto-pegada--izquierda {
   --entrada-x: -100vw;
   --entrada-giro: -20deg;
+}
+
+.foto-pegada--posicion-1 {
+  --giro-foto: -7deg;
+  top: clamp(2.5rem, 22%, 8rem);
+  right: calc(100% - 0.8rem);
+  left: auto;
+}
+
+.foto-pegada--posicion-2 {
+  --giro-foto: -5deg;
+  top: auto;
+  bottom: 0.4rem;
 }
 
 .foto-pegada::before {
@@ -73,6 +206,21 @@ defineProps<{
   content: "";
 }
 
+.foto-pegada--posicion-1::before {
+  right: 2%;
+  left: auto;
+  transform: translate(50%, -42%) rotate(13deg);
+}
+
+.foto-pegada--suelta {
+  z-index: 6;
+  cursor: grabbing;
+}
+
+.foto-pegada--suelta::before {
+  opacity: 0;
+}
+
 .foto-pegada__imagen {
   display: block;
   width: 100%;
@@ -82,12 +230,49 @@ defineProps<{
   object-fit: contain;
 }
 
+.foto-pegada__quitar {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  display: grid;
+  width: 2.75rem;
+  height: 2.75rem;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #fffdfa;
+  cursor: pointer;
+}
+
+.foto-pegada__quitar svg {
+  box-sizing: content-box;
+  padding: 0.27rem;
+  border-radius: 50%;
+  background: rgb(16 13 15 / 76%);
+}
+
+.foto-pegada__quitar:is(:hover, :focus-visible) svg {
+  background: #100d0f;
+}
+
+.foto-pegada__quitar:focus-visible {
+  outline: 2px solid #711321;
+  outline-offset: -2px;
+}
+
+.foto-pegada__quitar:disabled {
+  visibility: hidden;
+}
+
 .foto-pegada-enter-active {
   animation: pegar-foto 760ms both;
+  pointer-events: none;
 }
 
 .foto-pegada-leave-active {
   transition: opacity 200ms ease;
+  pointer-events: none;
 }
 
 .foto-pegada-leave-to {
@@ -123,16 +308,28 @@ defineProps<{
     left: auto;
   }
 
+  .foto-pegada--posicion-1 {
+    --giro-foto: -5deg;
+    right: auto;
+    left: 0.75rem;
+  }
+
   .foto-pegada::before {
     top: 0;
     left: 40%;
     width: 45%;
+  }
+
+  .foto-pegada--posicion-1::before {
+    right: 40%;
+    left: auto;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .foto-pegada-enter-active {
     animation: none;
+    pointer-events: auto;
   }
 
   .foto-pegada-leave-active {
