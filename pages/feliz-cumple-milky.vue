@@ -9,16 +9,14 @@ const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
 const imagenStickersCaida = "/milky-stickers-caida.webp"
-const recuerdos = [
+const fotos = [
   "/milky/fotos/IMG-20261107-WA0016.jpg",
   "/milky/fotos/IMG-20261107-WA0039.jpg",
   "/milky/fotos/20260224_214339.jpg",
   "/milky/fotos/IMG_20260109_160406.jpg",
   "/milky/fotos/20260726_170146.jpg",
-  "/milky/videos/VID-20261108-WA0002_1.mp4",
   "/milky/fotos/20260224_231154.jpg",
   "/milky/fotos/IMG_20260125_232003.jpg",
-  "/milky/videos/VID_20260125_232007.mp4",
   "/milky/fotos/IMG_20260109_165155.jpg",
   "/milky/fotos/IMG_20260116_225728.jpg",
   "/milky/fotos/IMG_20260205_003010.jpg",
@@ -36,17 +34,14 @@ const abierta = computed(
 )
 const {
   fotosVisibles,
-  video,
-  videoActual,
   iniciar: iniciarGaleria,
   cerrar: cerrarGaleria,
   programarSiguienteRecuerdo,
-  terminarVideo,
   iniciarInteraccion,
   finalizarInteraccion,
   desprenderFoto,
   descartarFoto,
-} = useGaleriaMilky(recuerdos)
+} = useGaleriaMilky(fotos)
 const tituloCarta = ref<HTMLHeadingElement>()
 const botonAbrir = ref<HTMLButtonElement>()
 const botonSobre = ref<HTMLButtonElement>()
@@ -217,33 +212,6 @@ onBeforeUnmount(() => {
           />
         </TransitionGroup>
       </div>
-
-      <Transition name="galeria" mode="out-in">
-        <section
-          v-if="fase === 'recuerdos' && video"
-          :key="video"
-          class="recuerdos"
-          aria-label="Video de Milky"
-        >
-          <div class="album" data-obstaculo-sticker="video">
-            <figure class="polaroid">
-              <div class="ventana-recuerdo">
-                <video
-                  ref="videoActual"
-                  :src="video"
-                  :aria-label="`Video de Milky, recuerdo ${recuerdos.indexOf(video) + 1}`"
-                  controls
-                  muted
-                  playsinline
-                  preload="metadata"
-                  @ended="terminarVideo"
-                  @error="programarSiguienteRecuerdo"
-                />
-              </div>
-            </figure>
-          </div>
-        </section>
-      </Transition>
 
       <button
         class="boton-cerrar"
@@ -500,7 +468,6 @@ onBeforeUnmount(() => {
 }
 
 .papel,
-.album,
 .boton-cerrar {
   pointer-events: auto;
 }
@@ -566,57 +533,6 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.recuerdos {
-  min-width: 0;
-  width: min(100%, 21rem);
-  grid-area: 1 / 3;
-  justify-self: center;
-}
-
-.album {
-  position: relative;
-  isolation: isolate;
-  display: grid;
-  grid-template-areas: "foto";
-  rotate: 4deg;
-}
-
-.album::before {
-  position: absolute;
-  z-index: -1;
-  inset: 0;
-  border: 1px solid #ecb75e;
-  border-radius: 3px;
-  background: linear-gradient(145deg, #b51029, #6e0a1b);
-  box-shadow: 0 12px 28px #00000050;
-  rotate: -11deg;
-  content: "";
-}
-
-.polaroid {
-  z-index: 1;
-  grid-area: foto;
-  margin: 0;
-  padding: 0.85rem 0.85rem 0.6rem;
-  border: 1px solid #f1d693;
-  border-radius: 3px;
-  background: var(--blanco);
-  box-shadow: 0 14px 38px #00000063;
-}
-
-.ventana-recuerdo {
-  overflow: hidden;
-  aspect-ratio: 1;
-  background: #321820;
-}
-
-.ventana-recuerdo video {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
 .boton-cerrar:hover {
   background: #ffda7d24;
 }
@@ -637,27 +553,10 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
-.galeria-enter-active {
-  transition:
-    opacity 650ms ease,
-    transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
-}
-
-.galeria-enter-from {
-  opacity: 0;
-  transform: translateY(26px) rotate(-7deg) scale(0.92);
-}
-
 @keyframes revelar {
   from {
     opacity: 0;
     transform: translateY(12px);
-  }
-}
-
-@media (min-width: 761px) and (max-width: 960px) {
-  .recuerdos {
-    grid-area: 2 / 2;
   }
 }
 
@@ -726,16 +625,10 @@ onBeforeUnmount(() => {
   .papel {
     padding-inline: clamp(1.4rem, 5vw, 2rem);
   }
-
-  .recuerdos {
-    width: min(85%, 19rem);
-    grid-area: 2 / 1;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .boton-sobre,
-  .galeria-enter-active {
+  .boton-sobre {
     transition: none;
   }
 
