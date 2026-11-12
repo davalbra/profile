@@ -48,6 +48,7 @@ El runtime también acepta los aliases `NUXT_PUBLIC_FIREBASE_*` y `NEXT_FIREBASE
 - `YTMUSIC_ACCOUNT_ID`
 - `MILKY_PASSWORD` para habilitar el acceso a `/feliz-cumple-milky`
 - `MILKY_SESSION_SECRET` para firmar la sesión de la carta. Genera un valor aleatorio con `openssl rand -hex 32`.
+- `MILKY_LETTER` para el texto de la carta. Separa los párrafos con una línea en blanco.
 
 ### Infra no secreta
 
