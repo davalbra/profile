@@ -184,8 +184,7 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
 
   function programarSiguienteRecuerdo() {
     entradaLista = true
-    if (!activa || interacciones.size > 0 || mediosVisibles.value.length === 0)
-      return
+    if (!activa || mediosVisibles.value.length === 0) return
 
     const video = videoVisible.value
     if (video && !videoFallido) {
@@ -211,6 +210,8 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
       return
     }
 
+    if (interacciones.size > 0) return
+
     cancelarTemporizador()
     if (hayOtraTanda()) {
       temporizador = setTimeout(avanzar, DURACION_FOTO_MS)
@@ -229,6 +230,7 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
   function terminarVideo(src: string) {
     if (videoVisible.value?.src !== src || videoFallido) return
 
+    reproduciendo = false
     cancelarTemporizador()
     if (interacciones.size === 0 && hayOtraTanda()) avanzar()
   }
@@ -247,8 +249,7 @@ export function useGaleriaMilky(recuerdos: readonly string[]) {
     if (!mediosVisibles.value.some((medio) => medio.src === src)) return
 
     interacciones.add(src)
-    cancelarTemporizador()
-    if (videoVisible.value) detenerVideo()
+    if (!reproduciendo) cancelarTemporizador()
   }
 
   function finalizarInteraccion(src: string) {

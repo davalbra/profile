@@ -24,7 +24,6 @@ const emit = defineEmits<{
 const foto = ref<HTMLElement>()
 const video = ref<HTMLVideoElement | null>(null)
 const mostrarVideo = ref(false)
-const fotograma = ref<string>()
 const ampliada = ref(false)
 const arrastrando = ref(false)
 const cayendo = ref(false)
@@ -34,38 +33,6 @@ let esperaAmpliacion: ReturnType<typeof setTimeout> | undefined
 let caida: Animation | undefined
 
 watch(video, (elemento) => emit("videoListo", elemento), { flush: "post" })
-
-function capturarFotograma() {
-  const elemento = video.value
-  if (
-    !elemento?.videoWidth ||
-    elemento.readyState < elemento.HAVE_CURRENT_DATA
-  ) {
-    return
-  }
-
-  const lienzo = document.createElement("canvas")
-  const escala = Math.min(
-    1,
-    1280 / Math.max(elemento.videoWidth, elemento.videoHeight),
-  )
-  lienzo.width = Math.round(elemento.videoWidth * escala)
-  lienzo.height = Math.round(elemento.videoHeight * escala)
-  const contexto = lienzo.getContext("2d")
-  if (!contexto) return
-
-  try {
-    contexto.drawImage(elemento, 0, 0, lienzo.width, lienzo.height)
-    return lienzo.toDataURL("image/jpeg", 0.9)
-  } catch {
-    return
-  }
-}
-
-function terminarVideo() {
-  mostrarVideo.value = false
-  emit("videoTerminado")
-}
 
 function fallarVideo() {
   mostrarVideo.value = false
@@ -82,7 +49,6 @@ function iniciarInteraccion(evento: PointerEvent) {
   elemento.setPointerCapture(evento.pointerId)
   emit("interaccion")
   esperaAmpliacion = setTimeout(() => {
-    fotograma.value = capturarFotograma()
     ampliada.value = true
   }, 340)
 }
@@ -119,7 +85,6 @@ function soltarFoto(evento: PointerEvent) {
   }
   if (!arrastrando.value) {
     ampliada.value = false
-    fotograma.value = undefined
     emit("finalizar")
     return
   }
@@ -173,7 +138,10 @@ onBeforeUnmount(() => {
     :data-borde="borde"
     :class="[
       `foto-pegada--${lado}`,
-      { 'foto-pegada--suelta': arrastrando || cayendo },
+      {
+        'foto-pegada--suelta': arrastrando || cayendo,
+        'foto-pegada--ampliada': ampliada,
+      },
     ]"
     @pointerdown="iniciarInteraccion"
     @pointermove="moverFoto"
@@ -203,8 +171,13 @@ onBeforeUnmount(() => {
       />
       <video
         ref="video"
-        class="foto-pegada__imagen foto-pegada__video"
-        :class="{ 'foto-pegada__video--visible': mostrarVideo }"
+        class="video-recuerdo"
+        :class="[
+          ampliada
+            ? 'foto-ampliada__imagen foto-ampliada__video'
+            : 'foto-pegada__imagen',
+          { 'video-recuerdo--visible': mostrarVideo },
+        ]"
         :src="src"
         :poster="poster"
         :aria-label="alt"
@@ -215,7 +188,7 @@ onBeforeUnmount(() => {
         disableremoteplayback
         @playing="mostrarVideo = true"
         @emptied="mostrarVideo = false"
-        @ended="terminarVideo"
+        @ended="emit('videoTerminado')"
         @error="fallarVideo"
       />
     </template>
@@ -231,27 +204,25 @@ onBeforeUnmount(() => {
       <Trash2 :size="14" aria-hidden="true" />
     </button>
 
-    <Teleport to="body">
-      <div v-if="ampliada" class="foto-ampliada" aria-hidden="true">
-        <NuxtImg
-          v-if="tipo === 'foto'"
-          class="foto-ampliada__imagen"
-          :src="src"
-          alt=""
-          width="960"
-          format="webp"
-          :draggable="false"
-          :modifiers="giro === undefined ? undefined : { rotate: giro }"
-        />
-        <img
-          v-else-if="fotograma || poster"
-          class="foto-ampliada__imagen"
-          :src="fotograma || poster"
-          alt=""
-          draggable="false"
-        />
-      </div>
-    </Teleport>
+    <div v-if="ampliada" class="foto-ampliada" aria-hidden="true">
+      <NuxtImg
+        v-if="tipo === 'foto'"
+        class="foto-ampliada__imagen"
+        :src="src"
+        alt=""
+        width="960"
+        format="webp"
+        :draggable="false"
+        :modifiers="giro === undefined ? undefined : { rotate: giro }"
+      />
+      <img
+        v-else-if="!mostrarVideo && poster"
+        class="foto-ampliada__imagen"
+        :src="poster"
+        alt=""
+        draggable="false"
+      />
+    </div>
   </figure>
 </template>
 
@@ -376,6 +347,12 @@ onBeforeUnmount(() => {
   opacity: 0;
 }
 
+.foto-pegada--ampliada {
+  z-index: 7;
+  /* El marco fijo de la vista ampliada se posiciona respecto a la ventana. */
+  transform: none;
+}
+
 .foto-pegada__imagen {
   display: block;
   grid-area: 1 / 1;
@@ -386,12 +363,12 @@ onBeforeUnmount(() => {
   object-fit: contain;
 }
 
-.foto-pegada__video {
+.video-recuerdo {
   opacity: 0;
   pointer-events: none;
 }
 
-.foto-pegada__video--visible {
+.video-recuerdo--visible {
   opacity: 1;
 }
 
@@ -450,6 +427,13 @@ onBeforeUnmount(() => {
   border-radius: 0.25rem;
   background: #fffdfa;
   object-fit: contain;
+}
+
+.foto-ampliada__video {
+  position: fixed;
+  z-index: 101;
+  inset: 0;
+  margin: auto;
 }
 
 .foto-pegada-enter-active {

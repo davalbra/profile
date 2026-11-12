@@ -438,7 +438,7 @@ onBeforeUnmount(() => {
   grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr);
   align-items: center;
   gap: 2rem var(--separacion-paneles);
-  animation: revelar 500ms ease-out both;
+  animation: revelar 500ms ease-out;
   pointer-events: none;
 }
 
