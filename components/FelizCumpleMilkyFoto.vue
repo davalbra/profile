@@ -6,7 +6,7 @@ defineProps<{
   alt: string
   giro?: number
   lado: "izquierda" | "derecha"
-  posicion: number
+  borde: "superior" | "inferior" | "izquierdo" | "derecho"
 }>()
 
 const emit = defineEmits<{
@@ -117,9 +117,9 @@ onBeforeUnmount(() => {
   <figure
     ref="foto"
     class="foto-pegada"
+    :data-borde="borde"
     :class="[
       `foto-pegada--${lado}`,
-      `foto-pegada--posicion-${posicion}`,
       { 'foto-pegada--suelta': arrastrando || cayendo },
     ]"
     @pointerdown="iniciarInteraccion"
@@ -172,14 +172,12 @@ onBeforeUnmount(() => {
   --entrada-x: 100vw;
   --entrada-giro: 20deg;
   --giro-foto: 7deg;
+  --solape-foto: 0.65rem;
   position: absolute;
   z-index: 2;
-  top: 0.4rem;
-  left: calc(100% - 0.8rem);
   box-sizing: border-box;
   display: grid;
   grid-template: minmax(0, 1fr) / minmax(0, 1fr);
-  width: var(--tamano-foto-pegada);
   aspect-ratio: 1 / 1.06;
   margin: 0;
   padding: clamp(0.22rem, 0.6vw, 0.48rem);
@@ -201,27 +199,42 @@ onBeforeUnmount(() => {
   --entrada-giro: -20deg;
 }
 
-.foto-pegada--posicion-1 {
-  --giro-foto: -7deg;
-  top: clamp(2.5rem, 22%, 8rem);
-  right: calc(100% - 0.8rem);
-  left: auto;
+.foto-pegada:is([data-borde="superior"], [data-borde="inferior"]) {
+  inset-inline: 0;
+  width: var(--tamano-foto-horizontal);
+  margin-inline: auto;
 }
 
-.foto-pegada--posicion-2 {
+.foto-pegada[data-borde="superior"] {
   --giro-foto: -5deg;
-  top: auto;
-  bottom: -0.4rem;
+  bottom: calc(100% - var(--solape-foto));
+}
+
+.foto-pegada[data-borde="inferior"] {
+  --giro-foto: 5deg;
+  top: calc(100% - var(--solape-foto));
+}
+
+.foto-pegada:is([data-borde="izquierdo"], [data-borde="derecho"]) {
+  top: 27%;
+  width: var(--tamano-foto-lateral);
+}
+
+.foto-pegada[data-borde="izquierdo"] {
+  --giro-foto: -7deg;
+  right: calc(100% - var(--solape-foto));
+}
+
+.foto-pegada[data-borde="derecho"] {
+  left: calc(100% - var(--solape-foto));
 }
 
 .foto-pegada::before {
   position: absolute;
   z-index: 1;
-  top: 1.05rem;
-  left: 2%;
-  width: 35%;
+  width: max(1.5rem, 40%);
   height: 14%;
-  transform: translate(-50%, -42%) rotate(-13deg);
+  pointer-events: none;
   border-block: 1px solid rgb(255 245 212 / 42%);
   background: linear-gradient(105deg, #a57937, #f2d48d 55%, #c69c53);
   box-shadow: 0 1px 2px rgb(49 26 3 / 18%);
@@ -238,10 +251,32 @@ onBeforeUnmount(() => {
   content: "";
 }
 
-.foto-pegada--posicion-1::before {
-  right: 2%;
-  left: auto;
-  transform: translate(50%, -42%) rotate(13deg);
+.foto-pegada[data-borde="superior"]::before {
+  bottom: 0;
+  left: 50%;
+  transform: translate(-50%, 50%) rotate(74deg);
+}
+
+.foto-pegada[data-borde="inferior"]::before {
+  top: 0;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(104deg);
+}
+
+.foto-pegada:is([data-borde="izquierdo"], [data-borde="derecho"])::before {
+  width: min(40%, 3.25rem);
+}
+
+.foto-pegada[data-borde="izquierdo"]::before {
+  top: 50%;
+  right: 0;
+  transform: translate(50%, -50%) rotate(13deg);
+}
+
+.foto-pegada[data-borde="derecho"]::before {
+  top: 50%;
+  left: 0;
+  transform: translate(-50%, -50%) rotate(-13deg);
 }
 
 .foto-pegada--suelta {
@@ -355,32 +390,8 @@ onBeforeUnmount(() => {
 }
 
 @media (max-width: 760px) {
-  .foto-pegada {
-    --giro-foto: 5deg;
-    top: auto;
-    right: 0.75rem;
-    bottom: calc(100% - 0.55rem);
-    left: auto;
-  }
-
-  .foto-pegada--posicion-1 {
-    --giro-foto: -5deg;
-    right: auto;
-    left: 0.75rem;
-  }
-
-  .foto-pegada::before {
-    top: auto;
-    bottom: 0;
-    left: 40%;
-    width: 45%;
-    transform: translate(-50%, 42%) rotate(-13deg);
-  }
-
-  .foto-pegada--posicion-1::before {
-    right: 40%;
-    left: auto;
-    transform: translate(50%, 42%) rotate(13deg);
+  .foto-pegada:is([data-borde="izquierdo"], [data-borde="derecho"])::before {
+    width: 1.25rem;
   }
 }
 

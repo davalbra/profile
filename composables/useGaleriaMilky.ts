@@ -4,9 +4,19 @@ const DURACION_FOTO_MS = 4000
 const CLAVE_DESCARTES = "milky:fotos-descartadas"
 const descartesEnMemoria = new Set<string>()
 
+type Borde = "superior" | "inferior" | "izquierdo" | "derecho"
+
+const BORDES_POR_TANDA: readonly (readonly Borde[])[] = [
+  ["izquierdo", "derecho", "superior"],
+  ["superior", "inferior", "izquierdo"],
+  ["derecho", "inferior", "superior"],
+  ["inferior", "izquierdo", "derecho"],
+  ["superior", "derecho", "inferior"],
+]
+
 type Foto = {
   src: string
-  posicion: number
+  borde: Borde
   numero: number
 }
 
@@ -17,7 +27,7 @@ type Grupo = {
 }
 
 function agruparRecuerdos(recuerdos: readonly string[], capacidad: number) {
-  const fotos: Omit<Foto, "posicion">[] = []
+  const fotos: Omit<Foto, "borde">[] = []
   const grupos: Grupo[] = []
 
   recuerdos.forEach((src, orden) => {
@@ -29,15 +39,14 @@ function agruparRecuerdos(recuerdos: readonly string[], capacidad: number) {
   })
 
   let inicio = 0
-  for (
-    let restantes = Math.ceil(fotos.length / capacidad);
-    restantes > 0;
-    restantes--
-  ) {
+  const totalTandas = Math.ceil(fotos.length / capacidad)
+  for (let indice = 0; indice < totalTandas; indice++) {
+    const restantes = totalTandas - indice
     const cantidad = Math.ceil((fotos.length - inicio) / restantes)
+    const bordes = BORDES_POR_TANDA[indice % BORDES_POR_TANDA.length]!
     const tanda = fotos
       .slice(inicio, inicio + cantidad)
-      .map((foto, posicion) => ({ ...foto, posicion }))
+      .map((foto, posicion) => ({ ...foto, borde: bordes[posicion]! }))
 
     grupos.push({ orden: tanda[0]!.numero - 1, fotos: tanda })
     inicio += cantidad

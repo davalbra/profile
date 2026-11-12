@@ -124,7 +124,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <main class="cumple">
+  <main class="cumple" :class="{ 'cumple--abierta': abierta }">
     <section v-if="!abierta" class="portada" aria-labelledby="titulo-portada">
       <div class="portada-texto">
         <div class="marca" aria-hidden="true">
@@ -203,8 +203,12 @@ onBeforeUnmount(() => {
             :src="foto.src"
             :alt="`Foto de Milky, recuerdo ${foto.numero}`"
             :giro="girosFotos[foto.src]"
-            :posicion="foto.posicion"
-            :lado="foto.posicion === 1 ? 'izquierda' : 'derecha'"
+            :borde="foto.borde"
+            :lado="
+              foto.borde === 'izquierdo' || foto.borde === 'superior'
+                ? 'izquierda'
+                : 'derecha'
+            "
             :data-numero-foto="foto.numero"
             @interaccion="iniciarInteraccion(foto.src)"
             @finalizar="finalizarInteraccion(foto.src)"
@@ -284,6 +288,10 @@ onBeforeUnmount(() => {
     radial-gradient(ellipse at 75% 48%, #521522, transparent 55%),
     radial-gradient(ellipse at 8% 0%, #2f2118, transparent 48%), var(--carbon);
   font-family: "DM Sans", sans-serif;
+}
+
+.cumple--abierta {
+  padding-block: clamp(1.35rem, 3.5vw, 3rem);
 }
 
 .cumple::before {
@@ -473,12 +481,17 @@ onBeforeUnmount(() => {
 }
 
 .carta-abierta {
-  --tamano-foto-pegada: clamp(9rem, 13.5vw, 12.25rem);
+  --tamano-foto-lateral: clamp(9rem, 13.5vw, 12.25rem);
+  --tamano-foto-horizontal: clamp(7rem, 11vw, 10rem);
+  --espacio-foto-horizontal: calc(
+    var(--tamano-foto-horizontal) * 1.13 + 0.5rem
+  );
   --separacion-paneles: clamp(1.3rem, 3vw, 3rem);
   position: relative;
   z-index: 2;
   display: grid;
   width: min(100%, 74rem);
+  padding-block-start: var(--espacio-foto-horizontal);
   grid-template-columns: minmax(0, 1fr) minmax(0, 2.4fr) minmax(0, 1fr);
   align-items: center;
   gap: 2rem var(--separacion-paneles);
@@ -496,6 +509,7 @@ onBeforeUnmount(() => {
   position: relative;
   grid-area: 1 / 2;
   min-width: 0;
+  margin-block-end: var(--espacio-foto-horizontal);
 }
 
 .papel {
@@ -694,16 +708,23 @@ onBeforeUnmount(() => {
   }
 
   .carta-abierta {
-    --tamano-foto-pegada: clamp(7rem, 33vw, 9.25rem);
+    --margen-foto-lateral: clamp(3.4rem, 17vw, 5rem);
+    --tamano-foto-lateral: calc(var(--margen-foto-lateral) + 0.25rem);
+    --tamano-foto-horizontal: clamp(7rem, 33vw, 9.25rem);
     max-width: 30rem;
     grid-template-columns: minmax(0, 1fr);
     align-self: start;
     gap: 2.65rem;
-    padding-block-start: calc(var(--tamano-foto-pegada) * 1.06 + 0.35rem);
   }
 
   .soporte-carta {
+    width: min(100%, calc(100vw - 2 * var(--margen-foto-lateral)));
     grid-area: 1 / 1;
+    justify-self: center;
+  }
+
+  .papel {
+    padding-inline: clamp(1.4rem, 5vw, 2rem);
   }
 
   .recuerdos {
