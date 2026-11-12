@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ArrowDown, Heart, RotateCcw } from "lucide-vue-next"
+import { Heart, RotateCcw } from "lucide-vue-next"
 import FelizCumpleMilkyFoto from "@/components/FelizCumpleMilkyFoto.vue"
 import FelizCumpleMilkyStickers from "@/components/FelizCumpleMilkyStickers.vue"
 import FelizCumpleMilkySobre from "@/components/FelizCumpleMilkySobre.vue"
@@ -48,7 +48,6 @@ const {
   fallarVideo,
 } = useGaleriaMilky(recuerdos)
 const tituloCarta = ref<HTMLHeadingElement>()
-const botonAbrir = ref<HTMLButtonElement>()
 const botonSobre = ref<HTMLButtonElement>()
 const origenStickers = ref<{ x: number; y: number } | null>(null)
 let temporizadorApertura: number | undefined
@@ -112,7 +111,7 @@ async function cerrarCarta() {
   cerrarGaleria()
   fase.value = "sobre"
   await nextTick()
-  botonAbrir.value?.focus()
+  botonSobre.value?.focus()
 }
 
 onBeforeUnmount(() => {
@@ -157,19 +156,6 @@ onBeforeUnmount(() => {
           @click="abrirCarta"
         >
           <FelizCumpleMilkySobre :opening="abriendo" />
-        </button>
-      </div>
-
-      <div class="portada-accion">
-        <button
-          ref="botonAbrir"
-          class="boton-abrir"
-          type="button"
-          :aria-disabled="abriendo"
-          @click="abrirCarta"
-        >
-          Abrir la carta
-          <ArrowDown :size="17" aria-hidden="true" />
         </button>
       </div>
     </section>
@@ -304,7 +290,7 @@ onBeforeUnmount(() => {
   display: grid;
   width: min(100%, 70rem);
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  grid-template-areas: "texto sobre" "accion sobre";
+  grid-template-areas: "texto sobre";
   align-content: center;
   align-items: center;
   gap: 1.9rem clamp(1.5rem, 6vw, 6rem);
@@ -312,7 +298,6 @@ onBeforeUnmount(() => {
 
 .portada-texto {
   grid-area: texto;
-  align-self: end;
 }
 
 .marca {
@@ -352,30 +337,6 @@ onBeforeUnmount(() => {
   height: auto;
   margin-top: 1.05rem;
   rotate: -9deg;
-}
-
-.portada-accion {
-  grid-area: accion;
-  align-self: start;
-}
-
-.boton-abrir {
-  display: inline-flex;
-  min-height: 3.25rem;
-  align-items: center;
-  gap: 0.85rem;
-  padding: 0.75rem 1.35rem;
-  border: 1px solid #ffe8a9;
-  border-radius: 100vw;
-  color: var(--tinta);
-  background: linear-gradient(135deg, #ffe89d, #edb64b);
-  box-shadow: 0 8px 28px #eab75036;
-  font-size: 0.95rem;
-  font-weight: 600;
-}
-
-.boton-abrir:hover {
-  background: #ffe89d;
 }
 
 .cumple button {
@@ -463,8 +424,8 @@ onBeforeUnmount(() => {
 }
 
 .carta-abierta {
-  --tamano-foto-lateral: clamp(9rem, 13.5vw, 12.25rem);
-  --tamano-foto-horizontal: clamp(7rem, 11vw, 10rem);
+  --tamano-foto-lateral: clamp(10.5rem, 15.5vw, 14rem);
+  --tamano-foto-horizontal: clamp(8.75rem, 13vw, 12rem);
   --espacio-foto-horizontal: calc(
     var(--tamano-foto-horizontal) * 1.13 + 0.5rem
   );
@@ -584,7 +545,7 @@ onBeforeUnmount(() => {
   .portada {
     max-width: 29rem;
     grid-template-columns: minmax(0, 1fr);
-    grid-template-areas: "texto" "sobre" "accion";
+    grid-template-areas: "texto" "sobre";
     justify-items: center;
     gap: 1.1rem;
     text-align: center;
@@ -621,9 +582,9 @@ onBeforeUnmount(() => {
   }
 
   .carta-abierta {
-    --margen-foto-lateral: clamp(3.4rem, 17vw, 5rem);
+    --margen-foto-lateral: clamp(3.8rem, 19vw, 6.25rem);
     --tamano-foto-lateral: calc(var(--margen-foto-lateral) + 0.25rem);
-    --tamano-foto-horizontal: clamp(7rem, 33vw, 9.25rem);
+    --tamano-foto-horizontal: clamp(8.5rem, 38vw, 11.5rem);
     max-width: 30rem;
     grid-template-columns: minmax(0, 1fr);
     align-self: start;
