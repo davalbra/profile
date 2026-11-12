@@ -4,6 +4,8 @@ import { Trash2 } from "lucide-vue-next"
 defineProps<{
   src: string
   alt: string
+  tipo: "foto" | "video"
+  poster?: string
   giro?: number
   lado: "izquierda" | "derecha"
   borde: "superior" | "inferior" | "izquierdo" | "derecho"
@@ -14,9 +16,15 @@ const emit = defineEmits<{
   desprendida: []
   finalizar: []
   interaccion: []
+  videoListo: [elemento: HTMLVideoElement | null]
+  videoTerminado: []
+  videoError: []
 }>()
 
 const foto = ref<HTMLElement>()
+const video = ref<HTMLVideoElement | null>(null)
+const mostrarVideo = ref(false)
+const fotograma = ref<string>()
 const ampliada = ref(false)
 const arrastrando = ref(false)
 const cayendo = ref(false)
@@ -24,6 +32,45 @@ let puntero: { id: number; x: number; y: number } | undefined
 let desplazamiento = { x: 0, y: 0 }
 let esperaAmpliacion: ReturnType<typeof setTimeout> | undefined
 let caida: Animation | undefined
+
+watch(video, (elemento) => emit("videoListo", elemento), { flush: "post" })
+
+function capturarFotograma() {
+  const elemento = video.value
+  if (
+    !elemento?.videoWidth ||
+    elemento.readyState < elemento.HAVE_CURRENT_DATA
+  ) {
+    return
+  }
+
+  const lienzo = document.createElement("canvas")
+  const escala = Math.min(
+    1,
+    1280 / Math.max(elemento.videoWidth, elemento.videoHeight),
+  )
+  lienzo.width = Math.round(elemento.videoWidth * escala)
+  lienzo.height = Math.round(elemento.videoHeight * escala)
+  const contexto = lienzo.getContext("2d")
+  if (!contexto) return
+
+  try {
+    contexto.drawImage(elemento, 0, 0, lienzo.width, lienzo.height)
+    return lienzo.toDataURL("image/jpeg", 0.9)
+  } catch {
+    return
+  }
+}
+
+function terminarVideo() {
+  mostrarVideo.value = false
+  emit("videoTerminado")
+}
+
+function fallarVideo() {
+  mostrarVideo.value = false
+  emit("videoError")
+}
 
 function iniciarInteraccion(evento: PointerEvent) {
   const elemento = foto.value
@@ -35,6 +82,7 @@ function iniciarInteraccion(evento: PointerEvent) {
   elemento.setPointerCapture(evento.pointerId)
   emit("interaccion")
   esperaAmpliacion = setTimeout(() => {
+    fotograma.value = capturarFotograma()
     ampliada.value = true
   }, 340)
 }
@@ -71,6 +119,7 @@ function soltarFoto(evento: PointerEvent) {
   }
   if (!arrastrando.value) {
     ampliada.value = false
+    fotograma.value = undefined
     emit("finalizar")
     return
   }
@@ -110,6 +159,10 @@ function soltarFoto(evento: PointerEvent) {
 onBeforeUnmount(() => {
   clearTimeout(esperaAmpliacion)
   caida?.cancel()
+  if (video.value) {
+    video.value.pause()
+    emit("videoListo", null)
+  }
 })
 </script>
 
@@ -131,6 +184,7 @@ onBeforeUnmount(() => {
     @contextmenu.prevent
   >
     <NuxtImg
+      v-if="tipo === 'foto'"
       class="foto-pegada__imagen"
       :src="src"
       :alt="alt"
@@ -139,6 +193,32 @@ onBeforeUnmount(() => {
       :draggable="false"
       :modifiers="giro === undefined ? undefined : { rotate: giro }"
     />
+    <template v-else>
+      <img
+        v-if="poster"
+        class="foto-pegada__imagen"
+        :src="poster"
+        alt=""
+        draggable="false"
+      />
+      <video
+        ref="video"
+        class="foto-pegada__imagen foto-pegada__video"
+        :class="{ 'foto-pegada__video--visible': mostrarVideo }"
+        :src="src"
+        :poster="poster"
+        :aria-label="alt"
+        muted
+        playsinline
+        preload="metadata"
+        disablepictureinpicture
+        disableremoteplayback
+        @playing="mostrarVideo = true"
+        @emptied="mostrarVideo = false"
+        @ended="terminarVideo"
+        @error="fallarVideo"
+      />
+    </template>
     <button
       type="button"
       class="foto-pegada__quitar"
@@ -154,6 +234,7 @@ onBeforeUnmount(() => {
     <Teleport to="body">
       <div v-if="ampliada" class="foto-ampliada" aria-hidden="true">
         <NuxtImg
+          v-if="tipo === 'foto'"
           class="foto-ampliada__imagen"
           :src="src"
           alt=""
@@ -161,6 +242,13 @@ onBeforeUnmount(() => {
           format="webp"
           :draggable="false"
           :modifiers="giro === undefined ? undefined : { rotate: giro }"
+        />
+        <img
+          v-else-if="fotograma || poster"
+          class="foto-ampliada__imagen"
+          :src="fotograma || poster"
+          alt=""
+          draggable="false"
         />
       </div>
     </Teleport>
@@ -290,11 +378,21 @@ onBeforeUnmount(() => {
 
 .foto-pegada__imagen {
   display: block;
+  grid-area: 1 / 1;
   width: 100%;
   height: 100%;
   min-height: 0;
   background: #f5f0e6;
   object-fit: contain;
+}
+
+.foto-pegada__video {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.foto-pegada__video--visible {
+  opacity: 1;
 }
 
 .foto-pegada__quitar {
@@ -392,6 +490,13 @@ onBeforeUnmount(() => {
 @media (max-width: 760px) {
   .foto-pegada:is([data-borde="izquierdo"], [data-borde="derecho"])::before {
     width: 1.25rem;
+  }
+
+  .foto-pegada:is([data-borde="izquierdo"], [data-borde="derecho"])
+    .foto-pegada__quitar {
+    bottom: -0.9rem;
+    width: 2rem;
+    height: 2rem;
   }
 }
 

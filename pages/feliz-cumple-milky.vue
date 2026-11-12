@@ -9,14 +9,16 @@ const DURACION_APERTURA_MS = 1450
 const ESPERA_ANTES_DE_FOTOS_MS = 2100
 const imagenStickerPortada = "/milky-sticker.webp"
 const imagenStickersCaida = "/milky-stickers-caida.webp"
-const fotos = [
+const recuerdos = [
   "/milky/fotos/IMG-20261107-WA0016.jpg",
   "/milky/fotos/IMG-20261107-WA0039.jpg",
   "/milky/fotos/20260224_214339.jpg",
   "/milky/fotos/IMG_20260109_160406.jpg",
   "/milky/fotos/20260726_170146.jpg",
+  "/milky/videos/VID-20261108-WA0002_1.mp4",
   "/milky/fotos/20260224_231154.jpg",
   "/milky/fotos/IMG_20260125_232003.jpg",
+  "/milky/videos/VID_20260125_232007.mp4",
   "/milky/fotos/IMG_20260109_165155.jpg",
   "/milky/fotos/IMG_20260116_225728.jpg",
   "/milky/fotos/IMG_20260205_003010.jpg",
@@ -33,7 +35,7 @@ const abierta = computed(
   () => fase.value === "nota" || fase.value === "recuerdos",
 )
 const {
-  fotosVisibles,
+  mediosVisibles,
   iniciar: iniciarGaleria,
   cerrar: cerrarGaleria,
   programarSiguienteRecuerdo,
@@ -41,7 +43,10 @@ const {
   finalizarInteraccion,
   desprenderFoto,
   descartarFoto,
-} = useGaleriaMilky(fotos)
+  registrarVideo,
+  terminarVideo,
+  fallarVideo,
+} = useGaleriaMilky(recuerdos)
 const tituloCarta = ref<HTMLHeadingElement>()
 const botonAbrir = ref<HTMLButtonElement>()
 const botonSobre = ref<HTMLButtonElement>()
@@ -193,22 +198,31 @@ onBeforeUnmount(() => {
           @before-leave="alDespegarFoto"
         >
           <FelizCumpleMilkyFoto
-            v-for="foto in fase === 'recuerdos' ? fotosVisibles : []"
-            :key="foto.src"
-            :src="foto.src"
-            :alt="`Foto de Milky, recuerdo ${foto.numero}`"
-            :giro="girosFotos[foto.src]"
-            :borde="foto.borde"
+            v-for="medio in fase === 'recuerdos' ? mediosVisibles : []"
+            :key="medio.src"
+            :src="medio.src"
+            :tipo="medio.tipo"
+            :poster="
+              medio.tipo === 'video'
+                ? medio.src.replace(/\.mp4$/i, '.webp')
+                : undefined
+            "
+            :alt="`${medio.tipo === 'video' ? 'Video' : 'Foto'} de Milky, recuerdo ${medio.numero}`"
+            :giro="girosFotos[medio.src]"
+            :borde="medio.borde"
             :lado="
-              foto.borde === 'izquierdo' || foto.borde === 'superior'
+              medio.borde === 'izquierdo' || medio.borde === 'superior'
                 ? 'izquierda'
                 : 'derecha'
             "
-            :data-numero-foto="foto.numero"
-            @interaccion="iniciarInteraccion(foto.src)"
-            @finalizar="finalizarInteraccion(foto.src)"
-            @desprendida="desprenderFoto(foto.src)"
-            @descartar="descartarFoto(foto.src)"
+            :data-numero-foto="medio.numero"
+            @interaccion="iniciarInteraccion(medio.src)"
+            @finalizar="finalizarInteraccion(medio.src)"
+            @desprendida="desprenderFoto(medio.src)"
+            @descartar="descartarFoto(medio.src)"
+            @video-listo="registrarVideo(medio.src, $event)"
+            @video-terminado="terminarVideo(medio.src)"
+            @video-error="fallarVideo(medio.src)"
           />
         </TransitionGroup>
       </div>
