@@ -28,7 +28,7 @@ type AccesoMilky =
   | { autorizado: false }
   | {
       autorizado: true
-      nota: { parrafos: string[]; despedida: string; firma: string }
+      nota: { parrafos: string[] }
     }
 
 if (import.meta.server) {
@@ -243,13 +243,10 @@ onBeforeUnmount(() => {
     <section v-else class="carta-abierta" aria-labelledby="titulo-carta">
       <div class="soporte-carta">
         <article class="papel" data-obstaculo-sticker="carta">
-          <h1 id="titulo-carta" ref="tituloCarta" tabindex="-1">
-            Querida <em>Milky,</em>
+          <h1 id="titulo-carta" ref="tituloCarta" class="sr-only" tabindex="-1">
+            Carta para Milky
           </h1>
           <p v-for="parrafo in nota.parrafos" :key="parrafo">{{ parrafo }}</p>
-          <p class="firma">
-            {{ nota.despedida }}<br /><em>{{ nota.firma }}</em>
-          </p>
         </article>
 
         <TransitionGroup
@@ -311,7 +308,6 @@ onBeforeUnmount(() => {
   --tinta: #21181b;
   --tinta-suave: #493a3b;
   --rojo: #ff414e;
-  --rojo-tinta: #a80e24;
   --oro: #ffda7d;
   --blanco: #ffffff;
   --papel: #fffcf6;
@@ -454,15 +450,11 @@ onBeforeUnmount(() => {
   opacity: 0.55;
 }
 
-.portada h1,
-.papel h1 {
+.portada h1 {
   margin-block: 0.9rem 0;
   font-family: var(--serif);
   font-weight: 600;
   letter-spacing: -0.055em;
-}
-
-.portada h1 {
   font-size: clamp(4.15rem, 7.2vw, 6.45rem);
   line-height: 0.9;
 }
@@ -615,17 +607,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-.papel h1 {
-  margin-top: 0;
-  font-size: clamp(3.1rem, 6.35vw, 6rem);
-  line-height: 0.98;
-}
-
-.papel h1 em,
-.firma em {
-  color: var(--rojo-tinta);
-}
-
 .papel h1:focus {
   outline: none;
 }
@@ -637,15 +618,8 @@ onBeforeUnmount(() => {
   line-height: 1.7;
 }
 
-.papel .firma {
-  color: var(--tinta);
-  line-height: 1.2;
-}
-
-.firma em {
-  font-family: var(--serif);
-  font-size: 2.4rem;
-  font-weight: 600;
+.papel p:first-of-type {
+  margin-top: 0;
 }
 
 .boton-cerrar:hover {
