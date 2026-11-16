@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /storage-test
+
+Sitemap: https://www.davalbra.cloud/sitemap.xml

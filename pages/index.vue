@@ -141,6 +141,7 @@ function abrirModalAuth() {
 /** Vue */
 useHead({
   title: "davalbra | Control center Nuxt para MCP, billing e imágenes",
+  link: [{ rel: "canonical", href: "https://www.davalbra.cloud/" }],
   meta: [
     {
       name: "description",
