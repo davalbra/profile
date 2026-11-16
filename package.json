@@ -43,6 +43,8 @@
     "@tanstack/vue-table": "^8.21.3",
     "@unovis/ts": "1.6.5",
     "@unovis/vue": "^1.6.5",
+    "@vercel/analytics": "2.0.1",
+    "@vercel/speed-insights": "2.1.0",
     "@vueuse/core": "^14.3.0",
     "axios": "^1.16.0",
     "class-variance-authority": "^0.7.1",
