@@ -7,12 +7,12 @@ import {
   Rows3,
   Search,
 } from "lucide-vue-next"
-import {computed, ref, watch} from "vue"
-import {Badge} from "@/components/ui/badge"
-import {Button} from "@/components/ui/button"
-import {Card, CardContent, CardHeader, CardTitle} from "@/components/ui/card"
-import {Input} from "@/components/ui/input"
-import {NativeSelect, NativeSelectOption} from "@/components/ui/native-select"
+import { computed, onMounted, ref, watch } from "vue"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { NativeSelect, NativeSelectOption } from "@/components/ui/native-select"
 import {
   Table,
   TableBody,
@@ -22,228 +22,298 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { useScrapRepositorio } from "@/store/repository/scrap"
+import type {
+  DatosFilasPlacesOs,
+  FilaPlacesOs,
+  PaisPlacesOs,
+  RegistroPlacesOs,
+  ValorCampoPlacesOs,
+} from "@/types/scrap"
+import { FiltroWebsitePlacesOs } from "@/utils/enums/anums"
 
-interface FoursquareOsPreviewRow {
-  rowIdx: number
-  row: Record<string, unknown>
-}
+/** Services, Components */
+const scrapRepositorio = useScrapRepositorio()
 
-interface FoursquareOsPreviewRowsResponse {
-  ok: boolean
-  data: {
-    sourceLabel: string
-    sourceUrl: string
-    official: boolean
-    dataset: string
-    tableName: "places_os"
-    page: number
-    pageSize: number
-    offset: number
-    totalRows: number | null
-    hasNextPage: boolean
-    filters: {
-      q: string
-      country: string
-      website: "all" | "with" | "without"
-    }
-    queryMode: "rows" | "filter" | "search" | "server_filter"
-    rateLimited: boolean
-    warning: string | null
-    scannedRows: number | null
-    rows: FoursquareOsPreviewRow[]
-  }
-}
-
-const page = ref(1)
-const pageSize = ref("25")
-const searchTerm = ref("")
-const countryFilter = ref("")
-const websiteFilter = ref("all")
-const appliedSearchTerm = ref("")
-const appliedCountryFilter = ref("")
-const appliedWebsiteFilter = ref("all")
-const selectedRowIdx = ref<number | null>(null)
-
-const rowsQuery = computed(() => ({
-  page: page.value,
-  pageSize: pageSize.value,
-  q: appliedSearchTerm.value,
-  country: appliedCountryFilter.value,
-  website: appliedWebsiteFilter.value,
-}))
-
-const {
-  data: rowsResponse,
-  pending: loadingRows,
-  error: rowsError,
-  refresh: refreshRows,
-} = useFetch<FoursquareOsPreviewRowsResponse>("/api/scrap/foursquare-os/rows", {
-  query: rowsQuery,
-  server: false,
-})
-
-const rowsData = computed(() => rowsResponse.value?.data || null)
-const rawRows = computed(() => rowsData.value?.rows || [])
-const numericPageSize = computed(() => Number(pageSize.value) || 25)
-const totalRows = computed(() => rowsData.value?.totalRows ?? null)
-const totalPages = computed(() =>
-    typeof totalRows.value === "number"
-        ? Math.max(1, Math.ceil(totalRows.value / numericPageSize.value))
-        : null,
+/** DefineModel, Ref, Computed */
+const pagina = ref(1)
+const tamanoPagina = ref("25")
+const busqueda = ref("")
+const pais = ref("")
+const website = ref<FiltroWebsitePlacesOs>(FiltroWebsitePlacesOs.CON_WEBSITE)
+const busquedaAplicada = ref("")
+const paisAplicado = ref("")
+const websiteAplicado = ref<FiltroWebsitePlacesOs>(
+  FiltroWebsitePlacesOs.CON_WEBSITE,
 )
-const currentFrom = computed(() =>
-    rawRows.value.length === 0 ? 0 : (page.value - 1) * numericPageSize.value + 1,
+const filaSeleccionadaIndice = ref<number | null>(null)
+const paises = ref<PaisPlacesOs[]>([])
+const datosFilas = ref<DatosFilasPlacesOs | null>(null)
+const cargandoPaises = ref(false)
+const cargandoFilas = ref(false)
+const errorPaises = ref(false)
+const errorFilas = ref(false)
+
+const filas = computed(() => datosFilas.value?.rows || [])
+const tamanoPaginaNumerico = computed(() => Number(tamanoPagina.value) || 25)
+const totalFilas = computed(() => datosFilas.value?.totalRows ?? null)
+const totalPaginas = computed(() =>
+  typeof totalFilas.value === "number"
+    ? Math.max(1, Math.ceil(totalFilas.value / tamanoPaginaNumerico.value))
+    : null,
 )
-const currentTo = computed(() =>
-    rawRows.value.length === 0 ? 0 : currentFrom.value + rawRows.value.length - 1,
+const registroDesde = computed(() =>
+  filas.value.length === 0
+    ? 0
+    : (pagina.value - 1) * tamanoPaginaNumerico.value + 1,
 )
-const canPrev = computed(() => page.value > 1 && !loadingRows.value)
-const canNext = computed(
-    () => Boolean(rowsData.value?.hasNextPage) && !loadingRows.value,
+const registroHasta = computed(() =>
+  filas.value.length === 0 ? 0 : registroDesde.value + filas.value.length - 1,
 )
-const totalRowsLabel = computed(() =>
-    typeof totalRows.value === "number"
-        ? ` de ${formatNumber(totalRows.value)}`
-        : "",
+const puedeRetroceder = computed(() => pagina.value > 1 && !cargandoFilas.value)
+const puedeAvanzar = computed(
+  () => Boolean(datosFilas.value?.hasNextPage) && !cargandoFilas.value,
 )
-const queryModeLabel = computed(() => {
-  const mode = rowsData.value?.queryMode || "rows"
-  const labels = {
+const etiquetaTotalFilas = computed(() =>
+  typeof totalFilas.value === "number"
+    ? ` de ${formatearNumero(totalFilas.value)}`
+    : "",
+)
+const etiquetaModoConsulta = computed(() => {
+  const modo = datosFilas.value?.queryMode || "rows"
+  const etiquetas = {
     rows: "rows",
     filter: "HF filter",
     search: "HF search",
     server_filter: "endpoint filter",
   }
 
-  return labels[mode]
+  return etiquetas[modo]
 })
-
-const selectedRow = computed(
-    () =>
-        rawRows.value.find((row) => row.rowIdx === selectedRowIdx.value) ||
-        rawRows.value[0] ||
-        null,
+const filaSeleccionada = computed(
+  () =>
+    filas.value.find((fila) => fila.rowIdx === filaSeleccionadaIndice.value) ||
+    filas.value[0] ||
+    null,
 )
-
-const selectedRowEntries = computed(() => {
-  if (!selectedRow.value) {
+const camposFilaSeleccionada = computed(() => {
+  if (!filaSeleccionada.value) {
     return []
   }
 
-  return Object.entries(selectedRow.value.row).map(([key, value]) => ({
-    key,
-    value: formatCellValue(value),
+  return Object.entries(filaSeleccionada.value.row).map(([clave, valor]) => ({
+    clave,
+    valor: formatearCelda(valor),
   }))
 })
+const paisSeleccionado = computed(
+  () => paises.value.find((item) => item.value === pais.value) || null,
+)
+const paisAplicadoDetalle = computed(
+  () => paises.value.find((item) => item.value === paisAplicado.value) || null,
+)
+const nombreTabla = computed(
+  () =>
+    datosFilas.value?.tableName ||
+    paisAplicadoDetalle.value?.tableName ||
+    paisSeleccionado.value?.tableName ||
+    "places_os",
+)
+const etiquetaPais = computed(
+  () =>
+    paisAplicadoDetalle.value?.label || paisAplicado.value || "pais pendiente",
+)
+const etiquetaWebsite = computed(() =>
+  obtenerEtiquetaWebsite(websiteAplicado.value),
+)
 
-watch(pageSize, () => {
-  page.value = 1
-})
+/** Functions */
+function obtenerPaisInicial(items: PaisPlacesOs[]) {
+  return (
+    items.find((item) => item.value === "EC")?.value || items[0]?.value || ""
+  )
+}
 
-watch(rawRows, () => {
-  selectedRowIdx.value = null
-})
+async function cargarPaises() {
+  cargandoPaises.value = true
+  errorPaises.value = false
 
-function getStringValue(row: Record<string, unknown>, key: string) {
-  const value = row[key]
+  try {
+    const respuesta = await scrapRepositorio.obtenerPaisesPlacesOs()
+    paises.value = respuesta.data.data.countries
 
-  if (typeof value === "string") {
-    return value
+    if (!pais.value) {
+      pais.value = obtenerPaisInicial(paises.value)
+      paisAplicado.value = pais.value
+    }
+  } catch {
+    errorPaises.value = true
+  } finally {
+    cargandoPaises.value = false
+  }
+}
+
+async function consultarFilas() {
+  if (!paisAplicado.value) {
+    datosFilas.value = null
+    return
   }
 
-  if (typeof value === "number") {
-    return String(value)
+  cargandoFilas.value = true
+  errorFilas.value = false
+
+  try {
+    const respuesta = await scrapRepositorio.obtenerFilasPlacesOs({
+      page: pagina.value,
+      pageSize: tamanoPaginaNumerico.value,
+      q: busquedaAplicada.value,
+      country: paisAplicado.value,
+      timezone: "",
+      website: websiteAplicado.value,
+    })
+    datosFilas.value = respuesta.data.data
+  } catch {
+    errorFilas.value = true
+    datosFilas.value = null
+  } finally {
+    cargandoFilas.value = false
+  }
+}
+
+function obtenerTexto(registro: RegistroPlacesOs, clave: string) {
+  const valor = registro[clave]
+
+  if (typeof valor === "string") {
+    return valor
+  }
+
+  if (typeof valor === "number") {
+    return String(valor)
   }
 
   return ""
 }
 
-function formatCellValue(value: unknown) {
-  if (value === null || typeof value === "undefined" || value === "") {
+function formatearCelda(valor: ValorCampoPlacesOs | null): string {
+  if (valor === null || valor === "") {
     return "-"
   }
 
-  if (Array.isArray(value)) {
-    return value.length ? value.join(", ") : "-"
+  if (Array.isArray(valor)) {
+    return valor.length
+      ? valor.map((item) => formatearCelda(item)).join(", ")
+      : "-"
   }
 
-  if (typeof value === "number") {
-    return Number.isInteger(value) ? String(value) : value.toFixed(6)
+  if (typeof valor === "number") {
+    return Number.isInteger(valor) ? String(valor) : valor.toFixed(6)
   }
 
-  if (typeof value === "object") {
-    return JSON.stringify(value)
+  if (typeof valor === "object") {
+    return JSON.stringify(valor)
   }
 
-  return String(value)
+  return String(valor)
 }
 
-function formatNumber(value: number | null | undefined) {
-  if (typeof value !== "number") {
+function formatearNumero(valor: number | null) {
+  if (typeof valor !== "number") {
     return "-"
   }
 
-  return new Intl.NumberFormat("en-US").format(value)
+  return new Intl.NumberFormat("en-US").format(valor)
 }
 
-function selectRow(row: FoursquareOsPreviewRow) {
-  selectedRowIdx.value = row.rowIdx
+function seleccionarFila(fila: FilaPlacesOs) {
+  filaSeleccionadaIndice.value = fila.rowIdx
 }
 
-function resetFilters() {
-  searchTerm.value = ""
-  countryFilter.value = ""
-  websiteFilter.value = "all"
-  appliedSearchTerm.value = ""
-  appliedCountryFilter.value = ""
-  appliedWebsiteFilter.value = "all"
-  selectedRowIdx.value = null
+function aplicarFiltros() {
+  filaSeleccionadaIndice.value = null
+  busquedaAplicada.value = busqueda.value.trim()
+  paisAplicado.value = pais.value
+  websiteAplicado.value = website.value
 
-  if (page.value !== 1) {
-    page.value = 1
-    return
+  if (pagina.value !== 1) {
+    pagina.value = 1
   }
 
-  refreshRows()
+  void consultarFilas()
 }
 
-function consultRows() {
-  selectedRowIdx.value = null
-  appliedSearchTerm.value = searchTerm.value.trim()
-  appliedCountryFilter.value = countryFilter.value.trim().toUpperCase()
-  appliedWebsiteFilter.value = websiteFilter.value
+function limpiarFiltros() {
+  busqueda.value = ""
+  pais.value = obtenerPaisInicial(paises.value)
+  website.value = FiltroWebsitePlacesOs.CON_WEBSITE
+  busquedaAplicada.value = ""
+  paisAplicado.value = pais.value
+  websiteAplicado.value = FiltroWebsitePlacesOs.CON_WEBSITE
+  filaSeleccionadaIndice.value = null
 
-  if (page.value !== 1) {
-    page.value = 1
-    return
+  if (pagina.value !== 1) {
+    pagina.value = 1
   }
 
-  refreshRows()
+  void consultarFilas()
 }
 
-function nextPage() {
-  if (canNext.value) {
-    page.value += 1
-  }
-}
-
-function previousPage() {
-  if (canPrev.value) {
-    page.value -= 1
+function paginaSiguiente() {
+  if (puedeAvanzar.value) {
+    pagina.value += 1
+    void consultarFilas()
   }
 }
 
-function websiteHref(row: Record<string, unknown>) {
-  const website = getStringValue(row, "website")
+function paginaAnterior() {
+  if (puedeRetroceder.value) {
+    pagina.value -= 1
+    void consultarFilas()
+  }
+}
 
-  if (!website) {
+function obtenerWebsiteHref(registro: RegistroPlacesOs) {
+  const valorWebsite = obtenerTexto(registro, "website")
+
+  if (!valorWebsite) {
     return null
   }
 
-  return website.startsWith("http://") || website.startsWith("https://")
-      ? website
-      : `https://${website}`
+  return valorWebsite.startsWith("http://") ||
+    valorWebsite.startsWith("https://")
+    ? valorWebsite
+    : `https://${valorWebsite}`
 }
+
+function obtenerEtiquetaWebsite(filtro: FiltroWebsitePlacesOs) {
+  if (filtro === FiltroWebsitePlacesOs.CON_WEBSITE) {
+    return "Con website"
+  }
+
+  if (filtro === FiltroWebsitePlacesOs.SIN_WEBSITE) {
+    return "Sin website"
+  }
+
+  return "Todos los websites"
+}
+
+async function iniciarPlacesOs() {
+  await cargarPaises()
+  aplicarFiltros()
+}
+
+/** Vue */
+watch(tamanoPagina, () => {
+  pagina.value = 1
+  void consultarFilas()
+})
+
+watch(filas, () => {
+  filaSeleccionadaIndice.value = null
+})
+
+onMounted(() => {
+  void iniciarPlacesOs()
+})
 </script>
 
 <template>
@@ -251,36 +321,47 @@ function websiteHref(row: Record<string, unknown>) {
     <CardHeader class="px-4 py-3">
       <div class="flex flex-wrap items-center justify-between gap-3">
         <div class="flex min-w-0 items-center gap-3">
-          <Rows3 class="size-4 shrink-0 text-cyan-100"/>
+          <Rows3 class="size-4 shrink-0 text-cyan-100" />
           <div class="min-w-0">
             <CardTitle class="text-base">Filas de Places OS</CardTitle>
-            <p class="mt-1 truncate text-xs text-slate-400">
-              {{ rowsData?.tableName || "places_os" }} ·
-              {{ rowsData?.sourceLabel || "cargando" }}
+            <p class="mt-1 truncate font-mono text-xs text-slate-400">
+              {{ nombreTabla }}
             </p>
           </div>
         </div>
 
         <div class="flex flex-wrap items-center gap-2">
           <Badge
-              variant="outline"
-              class="border-amber-300/25 bg-amber-300/10 text-amber-100"
+            variant="outline"
+            class="border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+          >
+            {{ etiquetaPais }}
+          </Badge>
+          <Badge
+            variant="outline"
+            class="border-emerald-300/25 bg-emerald-300/10 text-emerald-100"
+          >
+            {{ etiquetaWebsite }}
+          </Badge>
+          <Badge
+            variant="outline"
+            class="border-amber-300/25 bg-amber-300/10 text-amber-100"
           >
             espejo no oficial
           </Badge>
           <Button
-              v-if="rowsData?.sourceUrl"
-              as-child
-              variant="outline"
-              size="sm"
+            v-if="datosFilas?.sourceUrl"
+            as-child
+            variant="outline"
+            size="sm"
           >
             <a
-                :href="rowsData.sourceUrl"
-                target="_blank"
-                rel="noopener noreferrer"
+              :href="datosFilas.sourceUrl"
+              target="_blank"
+              rel="noopener noreferrer"
             >
               Fuente
-              <ExternalLink class="size-4"/>
+              <ExternalLink class="size-4" />
             </a>
           </Button>
         </div>
@@ -289,87 +370,110 @@ function websiteHref(row: Record<string, unknown>) {
 
     <CardContent class="space-y-3 px-4 pb-4">
       <div
-          v-if="rowsError"
-          class="rounded-lg border border-red-300/20 bg-red-300/10 p-4 text-sm text-red-100"
+        v-if="errorPaises"
+        class="rounded-lg border border-red-300/20 bg-red-300/10 p-4 text-sm text-red-100"
+      >
+        No se pudieron cargar los paises.
+      </div>
+
+      <div
+        v-if="errorFilas"
+        class="rounded-lg border border-red-300/20 bg-red-300/10 p-4 text-sm text-red-100"
       >
         No se pudieron consultar las filas.
       </div>
 
       <div
-          v-if="rowsData?.warning"
-          class="rounded-lg border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100"
+        v-if="datosFilas?.warning"
+        class="rounded-lg border border-amber-300/20 bg-amber-300/10 p-3 text-sm text-amber-100"
       >
-        {{ rowsData.warning }}
+        {{ datosFilas.warning }}
       </div>
 
       <div
-          class="grid gap-2 lg:grid-cols-[minmax(220px,1fr)_120px_170px_120px_auto_auto]"
+        class="grid gap-2 xl:grid-cols-[minmax(240px,1.2fr)_190px_150px_minmax(220px,1fr)_auto_auto]"
       >
-        <div class="relative">
-          <Search
-              class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500"
-          />
-          <Input
-              v-model="searchTerm"
-              class="pl-9"
-              placeholder="Buscar"
-              @keyup.enter="consultRows"
-          />
-        </div>
-
-        <Input
-            v-model="countryFilter"
-            placeholder="Pais: EC, ECU o Ecuador"
-            @keyup.enter="consultRows"
-        />
-
-        <NativeSelect v-model="websiteFilter" class="w-full">
-          <NativeSelectOption value="all"
-          >Todos los websites
-          </NativeSelectOption
+        <NativeSelect v-model="pais" class="w-full" :disabled="cargandoPaises">
+          <NativeSelectOption value="">Selecciona pais</NativeSelectOption>
+          <NativeSelectOption
+            v-for="item in paises"
+            :key="item.value"
+            :value="item.value"
           >
-          <NativeSelectOption value="with">Con website</NativeSelectOption>
-          <NativeSelectOption value="without">Sin website</NativeSelectOption>
+            {{ item.label }} ({{ item.value }})
+          </NativeSelectOption>
         </NativeSelect>
 
-        <NativeSelect v-model="pageSize" class="w-full">
+        <NativeSelect v-model="website" class="w-full">
+          <NativeSelectOption :value="FiltroWebsitePlacesOs.CON_WEBSITE">
+            Con website
+          </NativeSelectOption>
+          <NativeSelectOption :value="FiltroWebsitePlacesOs.SIN_WEBSITE">
+            Sin website
+          </NativeSelectOption>
+          <NativeSelectOption :value="FiltroWebsitePlacesOs.TODOS">
+            Todos los websites
+          </NativeSelectOption>
+        </NativeSelect>
+
+        <NativeSelect v-model="tamanoPagina" class="w-full">
           <NativeSelectOption value="10">10 filas</NativeSelectOption>
           <NativeSelectOption value="25">25 filas</NativeSelectOption>
           <NativeSelectOption value="50">50 filas</NativeSelectOption>
           <NativeSelectOption value="100">100 filas</NativeSelectOption>
         </NativeSelect>
 
+        <div class="relative">
+          <Search
+            class="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-500"
+          />
+          <Input
+            v-model="busqueda"
+            class="pl-9"
+            placeholder="Buscar"
+            @keyup.enter="aplicarFiltros"
+          />
+        </div>
+
         <Button
-            type="button"
-            :disabled="loadingRows"
-            class="bg-cyan-300 text-slate-950 hover:bg-cyan-200"
-            @click="consultRows"
+          type="button"
+          :disabled="cargandoFilas || !pais"
+          class="bg-cyan-300 text-slate-950 hover:bg-cyan-200"
+          @click="aplicarFiltros"
         >
-          <Search :class="['size-4', loadingRows && 'animate-pulse']"/>
+          <Search :class="['size-4', cargandoFilas && 'animate-pulse']" />
           Consultar
         </Button>
 
-        <Button type="button" variant="outline" @click="resetFilters">
-          <FilterX class="size-4"/>
+        <Button type="button" variant="outline" @click="limpiarFiltros">
+          <FilterX class="size-4" />
           Limpiar
         </Button>
       </div>
 
+      <div
+        class="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-2 font-mono text-xs text-slate-400"
+      >
+        tabla: <span class="text-cyan-100">{{ nombreTabla }}</span>
+      </div>
+
       <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
         <p class="text-slate-400">
-          {{ formatNumber(currentFrom) }}-{{
-            formatNumber(currentTo)
-          }}{{ totalRowsLabel }}
+          {{ formatearNumero(registroDesde) }}-{{
+            formatearNumero(registroHasta)
+          }}{{ etiquetaTotalFilas }}
         </p>
-        <p class="text-slate-500">consulta: {{ queryModeLabel }}</p>
+        <p class="text-slate-500">consulta: {{ etiquetaModoConsulta }}</p>
       </div>
 
       <div
-          class="max-h-[620px] overflow-auto rounded-lg border border-white/10"
+        class="max-h-[620px] overflow-auto rounded-lg border border-white/10"
       >
         <Table>
           <TableHeader class="sticky top-0 z-10 bg-[#07111c]">
             <TableRow>
+              <TableHead class="min-w-[120px]">Pais</TableHead>
+              <TableHead class="min-w-[150px]">Zona horaria</TableHead>
               <TableHead class="min-w-[120px]">Agregado</TableHead>
               <TableHead class="w-[90px]">Row</TableHead>
               <TableHead class="min-w-[220px]">Empresa</TableHead>
@@ -382,59 +486,65 @@ function websiteHref(row: Record<string, unknown>) {
           </TableHeader>
           <TableBody>
             <TableRow
-                v-for="item in rawRows"
-                :key="item.rowIdx"
-                :class="[
+              v-for="fila in filas"
+              :key="fila.rowIdx"
+              :class="[
                 'cursor-pointer transition-colors hover:bg-white/[0.06]',
-                selectedRow?.rowIdx === item.rowIdx && 'bg-white/[0.08]',
+                filaSeleccionada?.rowIdx === fila.rowIdx && 'bg-white/[0.08]',
               ]"
-                @click="selectRow(item)"
+              @click="seleccionarFila(fila)"
             >
+              <TableCell class="font-mono text-xs text-cyan-100">
+                {{ formatearCelda(fila.row.country) }}
+              </TableCell>
+              <TableCell class="font-mono text-xs text-cyan-100">
+                {{ formatearCelda(fila.row.timezone) }}
+              </TableCell>
               <TableCell class="font-mono text-xs">
-                {{ formatCellValue(item.row.date_created) }}
+                {{ formatearCelda(fila.row.date_created) }}
               </TableCell>
               <TableCell class="font-mono text-xs text-slate-400">
-                {{ formatNumber(item.rowIdx) }}
+                {{ formatearNumero(fila.rowIdx) }}
               </TableCell>
               <TableCell>
                 <p class="font-semibold">
-                  {{ formatCellValue(item.row.name) }}
+                  {{ formatearCelda(fila.row.name) }}
                 </p>
                 <p class="mt-1 font-mono text-xs text-cyan-100/80">
-                  {{ formatCellValue(item.row.fsq_place_id) }}
+                  {{ formatearCelda(fila.row.fsq_place_id) }}
                 </p>
               </TableCell>
               <TableCell class="max-w-[280px] whitespace-normal break-all">
                 <a
-                    v-if="websiteHref(item.row)"
-                    :href="websiteHref(item.row) || undefined"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="text-cyan-100 underline-offset-4 hover:underline"
-                    @click.stop
+                  v-if="obtenerWebsiteHref(fila.row)"
+                  :href="obtenerWebsiteHref(fila.row) || ''"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-cyan-100 underline-offset-4 hover:underline"
+                  @click.stop
                 >
-                  {{ formatCellValue(item.row.website) }}
+                  {{ formatearCelda(fila.row.website) }}
                 </a>
                 <span v-else class="text-slate-500">-</span>
               </TableCell>
-              <TableCell>{{ formatCellValue(item.row.tel) }}</TableCell>
+              <TableCell>{{ formatearCelda(fila.row.tel) }}</TableCell>
               <TableCell class="max-w-[300px] whitespace-normal">
-                <p>{{ formatCellValue(item.row.address) }}</p>
+                <p>{{ formatearCelda(fila.row.address) }}</p>
                 <p class="mt-1 text-xs text-slate-500">
-                  {{ formatCellValue(item.row.locality) }},
-                  {{ formatCellValue(item.row.region) }}
-                  · {{ formatCellValue(item.row.country) }}
+                  {{ formatearCelda(fila.row.locality) }},
+                  {{ formatearCelda(fila.row.region) }}
+                  · {{ formatearCelda(fila.row.country) }}
                 </p>
               </TableCell>
               <TableCell class="font-mono text-xs">
-                {{ formatCellValue(item.row.latitude) }},
-                {{ formatCellValue(item.row.longitude) }}
+                {{ formatearCelda(fila.row.latitude) }},
+                {{ formatearCelda(fila.row.longitude) }}
               </TableCell>
               <TableCell class="max-w-[360px] whitespace-normal text-sm">
-                {{ formatCellValue(item.row.fsq_category_labels) }}
+                {{ formatearCelda(fila.row.fsq_category_labels) }}
               </TableCell>
             </TableRow>
-            <TableEmpty v-if="!rawRows.length" :colspan="8">
+            <TableEmpty v-if="!filas.length" :colspan="10">
               No hay filas para esta consulta.
             </TableEmpty>
           </TableBody>
@@ -443,36 +553,37 @@ function websiteHref(row: Record<string, unknown>) {
 
       <div class="flex flex-wrap items-center justify-between gap-3">
         <p class="font-mono text-xs text-slate-500">
-          offset {{ formatNumber(rowsData?.offset || 0) }}
-          <span v-if="rowsData?.scannedRows">
-            · scan {{ formatNumber(rowsData.scannedRows) }}</span
+          offset {{ formatearNumero(datosFilas?.offset || 0) }}
+          <span v-if="datosFilas?.scannedRows">
+            · scan {{ formatearNumero(datosFilas.scannedRows) }}</span
           >
         </p>
         <div class="flex items-center gap-2">
           <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              :disabled="!canPrev"
-              @click="previousPage"
+            type="button"
+            size="sm"
+            variant="outline"
+            :disabled="!puedeRetroceder"
+            @click="paginaAnterior"
           >
-            <ChevronLeft class="size-4"/>
+            <ChevronLeft class="size-4" />
             Anterior
           </Button>
           <p class="text-xs text-slate-400">
-            Pagina {{
-              formatNumber(page)
-            }}<span v-if="totalPages"> de {{ formatNumber(totalPages) }}</span>
+            Pagina {{ formatearNumero(pagina)
+            }}<span v-if="totalPaginas">
+              de {{ formatearNumero(totalPaginas) }}</span
+            >
           </p>
           <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              :disabled="!canNext"
-              @click="nextPage"
+            type="button"
+            size="sm"
+            variant="outline"
+            :disabled="!puedeAvanzar"
+            @click="paginaSiguiente"
           >
             Siguiente
-            <ChevronRight class="size-4"/>
+            <ChevronRight class="size-4" />
           </Button>
         </div>
       </div>
@@ -482,28 +593,33 @@ function websiteHref(row: Record<string, unknown>) {
           <div>
             <p class="font-semibold">Detalle de fila</p>
             <p class="mt-1 font-mono text-xs text-cyan-100/80">
-              row_idx {{ selectedRow ? formatNumber(selectedRow.rowIdx) : "-" }}
+              row_idx
+              {{
+                filaSeleccionada
+                  ? formatearNumero(filaSeleccionada.rowIdx)
+                  : "-"
+              }}
             </p>
           </div>
           <Badge
-              variant="outline"
-              class="border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
+            variant="outline"
+            class="border-cyan-300/25 bg-cyan-300/10 text-cyan-100"
           >
-            {{ selectedRowEntries.length }} campos
+            {{ camposFilaSeleccionada.length }} campos
           </Badge>
         </div>
 
         <div class="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
           <div
-              v-for="entry in selectedRowEntries"
-              :key="entry.key"
-              class="rounded-md border border-white/10 bg-black/20 p-3"
+            v-for="campo in camposFilaSeleccionada"
+            :key="campo.clave"
+            class="rounded-md border border-white/10 bg-black/20 p-3"
           >
             <p class="font-mono text-xs font-semibold text-slate-300">
-              {{ entry.key }}
+              {{ campo.clave }}
             </p>
             <p class="mt-2 break-words text-sm leading-6 text-slate-400">
-              {{ entry.value }}
+              {{ campo.valor }}
             </p>
           </div>
         </div>
